@@ -33,7 +33,9 @@ so the HTML and the API can never disagree.
 
 - **Memory store** (`WAI_DATA=mock`, the default): 63 days of seeded history plus a simulation that "catches up" on
   each read (one attempt every 2–5 s of wall time, no timers). Real writes are accepted, which makes `npm run dev`
-  a full local backend. Data lives in process memory and resets on restart.
+  a full local backend. Data lives in process memory and resets on restart. With `WAI_BLOCK_MOCK=1` the same store
+  starts empty (no seed, no simulation): only real registrations and wais, so mock and real data never mix.
+  `/health` reports `mode`: `simulation`, `real-only` or `supabase`.
 - **Supabase store** (`WAI_DATA=supabase`): loads all rows in pages of 1,000 and caches the snapshot for 10 s,
   deduplicating concurrent loads. Writes invalidate the cache.
 

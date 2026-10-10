@@ -52,6 +52,7 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
 
   return {
     kind: 'supabase',
+    mode: 'supabase',
     async snapshot() {
       if (cached && Date.now() - cached.at < TTL) return cached.snap;
       inflight ??= load().then((snap) => { cached = { at: Date.now(), snap }; return snap; }).finally(() => { inflight = null; });

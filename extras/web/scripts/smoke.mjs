@@ -1,5 +1,6 @@
 // End-to-end API check. Usage: npm run smoke [-- http://localhost:3000/api/v1]
 // Registers a throwaway player, so run it against mock (WAI_DATA=mock) unless you mean it.
+// Against a server started with WAI_BLOCK_MOCK=1 (/health mode real-only) it also runs the block-mock checks.
 import { randomUUID } from 'node:crypto';
 
 const BASE = (process.argv[2] || process.env.WAI_BASE || 'http://localhost:3000/api/v1').replace(/\/+$/, '');
@@ -12,7 +13,14 @@ const post = async (p, body, key) => {
 };
 
 const h = await get('/health');
-ok('health', h.status === 200 && h.body.ok, `store=${h.body.store} wais=${h.body.wais}`);
+ok('health', h.status === 200 && h.body.ok, `store=${h.body.store} mode=${h.body.mode} wais=${h.body.wais}`);
+// Block-mock checks run automatically when the server reports real-only (start it with WAI_BLOCK_MOCK=1).
+const realOnly = h.body.mode === 'real-only';
+ok('health mode is valid', ['simulation', 'real-only', 'supabase'].includes(h.body.mode));
+if (realOnly) {
+  ok('real-only: 0 players and 0 wais at start', h.body.players === 0 && h.body.wais === 0, `players=${h.body.players} wais=${h.body.wais}`);
+  ok('real-only: seeded handle nong_dot → 404', (await get('/players/nong_dot')).status === 404);
+}
 for (const m of ['survival', 'beauty', 'count', 'lv3', 'streak', 'shame']) {
   const r = await get(`/leaderboard?metric=${m}&period=week&limit=5`);
   ok(`leaderboard ${m}`, r.status === 200 && Array.isArray(r.body.entries) && r.body.metric === m, `total=${r.body.total}`);
@@ -49,6 +57,19 @@ const sv = await get(`/players/${handle}/survival`);
 ok('survival report', sv.status === 200 && sv.body.attempts === 10 && sv.body.eligible, `survival=${sv.body.survival}% P${sv.body.percentile} tier=${sv.body.tier?.key}`);
 const pr = await get(`/players/${handle}`);
 ok('profile', pr.status === 200 && pr.body.totals.attempts === 10 && pr.body.survival.handle === handle);
+
+if (realOnly) {
+  const lb = await get('/leaderboard?metric=count&period=all&limit=50');
+  ok('real-only: leaderboard has only the smoke player', lb.body.total === 1 && lb.body.entries.length === 1 && lb.body.entries[0].player.handle === handle, `total=${lb.body.total}`);
+  const f = await get('/feed?limit=50');
+  ok('real-only: feed has only the smoke player', f.body.items.length > 0 && f.body.items.every((i) => i.player.handle === handle), `items=${f.body.items.length}`);
+  const hf = await get('/hall-of-fame');
+  const hfh = JSON.stringify(hf.body).match(/"handle":"[^"]*"/g) || [];
+  ok('real-only: hall of fame has only the smoke player', hfh.every((x) => x === `"handle":"${handle}"`), `refs=${hfh.length}`);
+  ok('real-only: seeded handle still 404 after writes', (await get('/players/nong_dot')).status === 404);
+  const h2 = await get('/health');
+  ok('real-only: health shows exactly 1 player', h2.body.players === 1 && h2.body.mode === 'real-only');
+}
 
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');
 process.exit(failed ? 1 : 0);

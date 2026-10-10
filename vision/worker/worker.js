@@ -2,12 +2,15 @@
 //
 //   main  -> worker   vision:control {run: true | false, requiredLevel}
 //   worker -> main    vision:event   VisionEvent (~15 fps, contract in app/renderer/src/api/types.ts)
-//   worker -> main    vision:pass    {level, score}  once per wai, when the hold and score are reached
+//   worker -> main    vision:pass    {level, score, holdMs, parts, attempts, style}  once per wai
+//   worker -> main    vision:fail    {level, score, holdMs, reasons, parts}  when an attempt ends without a pass
+//   (contract: docs/wai-data-contract.md section 1)
 //
 // The camera is only open while main says run=true (there is at least one request waiting).
 // The loop uses setTimeout, not requestAnimationFrame, because rAF does not run in hidden windows.
 
 import { DEFAULT_TH, WaiTracker, reasonsFor } from "../wai-heuristic.js";
+import { computeParts, createAttemptTracker, styleFor } from "./attempts.js";
 
 const VISION_VERSION = "1.1.0";
 const BUNDLE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_VERSION}/vision_bundle.mjs`;
@@ -20,6 +23,7 @@ const HOLD_MS = 1000; // hold target from artifact.md
 const bridge = window.visionWorker;
 const video = document.getElementById("video");
 const tracker = new WaiTracker({ ...DEFAULT_TH, holdMs: HOLD_MS });
+const attemptTracker = createAttemptTracker();
 
 let landmarkers = null;
 let wantRun = false; // what main asked for
@@ -100,6 +104,7 @@ function stop() {
   }
   if (running) log("camera off");
   running = false;
+  attemptTracker.reset();
 }
 
 function loop() {
@@ -116,8 +121,22 @@ function loop() {
     const result = tracker.update(det, video.videoWidth, video.videoHeight, dt);
     const facePresent = det.face.faceLandmarks.length > 0;
     const passed = result.passed && result.stable >= requiredLevel;
+    const reasons = reasonsFor(result, { facePresent, posePresent: det.pose.landmarks.length > 0 }, tracker.th, requiredLevel);
+    const parts = computeParts(result.features, result.holdMs, { holdTarget: HOLD_MS, centerMax: tracker.th?.centerMax });
 
-    if (passed) bridge.pass({ level: result.stable, score: result.score });
+    if (passed) {
+      attemptTracker.markPassed();
+      bridge.pass({
+        level: result.stable,
+        score: result.score,
+        holdMs: Math.round(result.holdMs),
+        parts,
+        attempts: attemptTracker.attempts,
+        style: styleFor(parts),
+      });
+    }
+    const ended = attemptTracker.step({ ...result, reasons, parts }, dt);
+    if (ended) bridge.fail(ended.fail);
     if (passed || ts - lastEmit >= EMIT_MS) {
       lastEmit = ts;
       bridge.emit({
@@ -125,7 +144,7 @@ function loop() {
         level: result.stable,
         score: result.score,
         holdMs: Math.round(result.holdMs),
-        reasons: reasonsFor(result, { facePresent, posePresent: det.pose.landmarks.length > 0 }, tracker.th, requiredLevel),
+        reasons,
         facePresent,
       });
     }

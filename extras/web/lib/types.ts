@@ -8,6 +8,18 @@ export type Source = 'claude_code' | 'shell' | 'extension';
 export type Kind = 'prompt' | 'subagent';
 export type Unit = 'percent' | 'score' | 'wais' | 'days' | 'rage_quits' | 'ms';
 
+/** Data mode reported by /health: memory + seeded mock data, memory with WAI_BLOCK_MOCK=1, or Supabase. */
+export type StoreMode = 'simulation' | 'real-only' | 'supabase';
+
+export interface Health {
+  ok: true;
+  store: 'mock' | 'supabase';
+  mode: StoreMode;
+  players: number;
+  wais: number;
+  time: string;
+}
+
 export const METRICS: Metric[] = ['survival', 'beauty', 'count', 'lv3', 'streak', 'shame'];
 export const PERIODS: Period[] = ['day', 'week', 'month', 'all'];
 

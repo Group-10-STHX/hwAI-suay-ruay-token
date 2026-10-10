@@ -104,10 +104,14 @@ export function HomeWindow() {
       </Section>
 
       <Section title="วันนี้">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: space.sm }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: space.sm }}>
           <Stat label="รอไหว้" value={status?.pending} tone="hud" />
-          <Stat label="ไหว้ผ่าน" value={status?.stats.passed} tone="blessed" />
-          <Stat label="ขอทั้งหมด" value={status?.stats.requests} tone="text" />
+          <Stat label="ไหว้วันนี้" value={status?.stats.today.wais} tone="text" />
+          <Stat label="ไหว้สวย" value={status?.stats.today.beautiful} tone="blessed" />
+          <Stat label="token วันนี้" value={status ? compact(status.stats.today.tokens) : undefined} tone="blessed" />
+        </div>
+        <div className="mono" style={{ color: v('textDim'), fontSize: fontSize.small, marginTop: space.sm }}>
+          token รวม {status ? compact(status.stats.total.tokens) : '–'} · คะแนนดีสุด {status?.stats.bestScore ?? '–'}
         </div>
       </Section>
 
@@ -139,7 +143,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Stat({ label, value, tone }: { label: string; value?: number; tone: 'hud' | 'blessed' | 'text' }) {
+function Stat({ label, value, tone }: { label: string; value?: number | string; tone: 'hud' | 'blessed' | 'text' }) {
   return (
     <div style={{ ...panel, padding: `${space.sm}px ${space.md}px` }}>
       <div className="mono" style={{ fontSize: fontSize.speech, lineHeight: 1.2, color: v(tone) }}>
@@ -148,6 +152,12 @@ function Stat({ label, value, tone }: { label: string; value?: number; tone: 'hu
       <div style={{ color: v('textDim'), fontSize: fontSize.small }}>{label}</div>
     </div>
   )
+}
+
+function compact(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
 }
 
 function ago(ms: number) {

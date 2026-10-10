@@ -16,7 +16,7 @@ npm run dev          # http://localhost:3000 (mock data + live simulation; accep
 npm run build        # production build; must pass with zero type errors
 npm start            # serve the build
 npm run typecheck
-npm run smoke        # 24 end-to-end API checks against http://localhost:3000/api/v1 (or pass a base URL)
+npm run smoke        # end-to-end API checks against http://localhost:3000/api/v1 (or pass a base URL); real-only checks run when WAI_BLOCK_MOCK=1
 ```
 
 `WAI_DATA=supabase` plus `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` switch to the real database (`.env.example`,

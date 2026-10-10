@@ -27,6 +27,12 @@
 - พื้นที่โปร่งใสต้องคลิกทะลุได้ ห้ามบังงานของผู้ใช้
 - Webcam window เป็นของทีม Vision (MediaPipe รันอยู่ในนั้น) ทีมเราห้ามไปปิดหรือซ่อนมันเอง ให้ส่งคำขอผ่าน main
 
+
+## สถิติหน้าหลัก (/wai/status ขยาย)
+
+`AppStatus.stats` = `{requests, passed, bypassed, today:{wais,passed,beautiful,tokens}, total:{wais,passed,beautiful,tokens}, bestScore?}` (map จาก `best_score`). daemon เก่าที่ไม่ส่ง today/total ต้องยังแสดงได้: `status.ts` default เป็น 0 / undefined.
+หน้าหลักส่วน "วันนี้" โชว์: รอไหว้ (`pending`, hud), ไหว้วันนี้ (`today.wais`, text), ไหว้สวย (`today.beautiful`, blessed), token วันนี้ (`today.tokens`, blessed) + บรรทัดเล็ก token รวม / คะแนนดีสุด. ต้องพอดี window 520x680 ไม่ scroll.
+
 ## 3. ข้อมูลที่ UI ใช้
 
 ทุกการดึงข้อมูลต้องผ่าน `src/api` เท่านั้น ห้าม component เรียก fetch หรือ IPC ตรงๆ

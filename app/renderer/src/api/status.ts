@@ -1,9 +1,28 @@
-import type { AppStatus } from './types'
+import type { AppStatus, DayStats } from './types'
 
 const DAEMON_URL = import.meta.env.VITE_DAEMON_URL ?? 'http://localhost:7777'
 const STATUS_POLL_MS = 1000
 
-type RawStatus = { enabled: boolean; pending: number; stats: AppStatus['stats']; last_seen?: AppStatus['lastSeen'] }
+type RawDay = Partial<DayStats>
+type RawStatus = {
+  enabled: boolean
+  pending: number
+  stats?: { requests?: number; passed?: number; bypassed?: number; today?: RawDay; total?: RawDay; best_score?: number }
+  last_seen?: AppStatus['lastSeen']
+}
+
+const day = (d?: RawDay): DayStats => ({ wais: d?.wais ?? 0, passed: d?.passed ?? 0, beautiful: d?.beautiful ?? 0, tokens: d?.tokens ?? 0 })
+
+function mapStats(st: RawStatus['stats']): AppStatus['stats'] {
+  return {
+    requests: st?.requests ?? 0,
+    passed: st?.passed ?? 0,
+    bypassed: st?.bypassed ?? 0,
+    today: day(st?.today),
+    total: day(st?.total),
+    bestScore: st?.best_score ?? undefined,
+  }
+}
 
 /** poll GET /wai/status ทุก 1 วิ (หน้าหลักไม่ต้องไวเท่าคิว) */
 export function subscribeStatus(onStatus: (s: AppStatus) => void, onError?: (e: unknown) => void): () => void {
@@ -14,7 +33,7 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void, onError?: (e: 
       const res = await fetch(`${DAEMON_URL}/wai/status`)
       if (!res.ok) throw new Error(`GET /wai/status ${res.status}`)
       const raw: RawStatus = await res.json()
-      if (!stopped) onStatus({ enabled: raw.enabled, pending: raw.pending, stats: raw.stats, lastSeen: raw.last_seen ?? {} })
+      if (!stopped) onStatus({ enabled: raw.enabled, pending: raw.pending, stats: mapStats(raw.stats), lastSeen: raw.last_seen ?? {} })
     } catch (e) {
       onError?.(e)
     }

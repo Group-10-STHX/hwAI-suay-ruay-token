@@ -135,7 +135,8 @@ WaiRef    = { id: uuid, level: 0..3, score: 0..100, hold_ms: number, created_at:
 
 ### `GET {BASE}/health`
 
-`{ "ok": true, "store": "mock" | "supabase", "players": 38, "wais": 6256, "time": "…" }`. Never cached.
+`Health = { "ok": true, "store": "mock" | "supabase", "mode": "simulation" | "real-only" | "supabase", "players": 38, "wais": 6256, "time": "…" }`. Never cached.
+`mode` is `simulation` (memory store with seeded mock people, history and live simulation), `real-only` (memory store started with `WAI_BLOCK_MOCK=1`: empty, only real registrations and wais) or `supabase`.
 
 ### `GET {BASE}/leaderboard`
 

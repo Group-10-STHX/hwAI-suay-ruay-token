@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('visionWorker', {
   ready: () => ipcRenderer.send('vision:ready'),
   emit: (event) => ipcRenderer.send('vision:event', event),
   pass: (result) => ipcRenderer.send('vision:pass', result),
+  fail: (result) => ipcRenderer.send('vision:fail', result),
   onControl: (cb) => ipcRenderer.on('vision:control', (_e, msg) => cb(msg)),
 })

@@ -77,10 +77,19 @@ export const REQUIRED_LEVEL: Record<SessionState, WaiLevel> = {
   FORGIVE: 3,
 }
 
+export type DayStats = { wais: number; passed: number; beautiful: number; tokens: number }
+
 /** สถานะของแอปสำหรับหน้าหลัก (GET /wai/status ยังไม่อยู่ใน contract รอ #1) */
 export type AppStatus = {
   enabled: boolean // false = ปิดอยู่ ทุกคำขอผ่านทันที
   pending: number
-  stats: { requests: number; passed: number; bypassed: number }
+  stats: {
+    requests: number
+    passed: number
+    bypassed: number
+    today: DayStats
+    total: DayStats
+    bestScore?: number
+  }
   lastSeen: Partial<Record<string, number>> // source → epoch ms ที่เห็นคำขอล่าสุด
 }

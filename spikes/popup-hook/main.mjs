@@ -7,6 +7,8 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
+import { createSessions, planVision } from './session-state.mjs' // state machine ต่อ session (contract §4)
+import { createWaiLog } from './wai-log.mjs' // ~/.waikusa/wais.jsonl + สถิติ + sync ขึ้นเว็บ (contract §2, §3)
 import { randomUUID } from 'node:crypto'
 import http from 'node:http'
 
@@ -14,7 +16,8 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 // ตอน dev ติด hook แค่ใน ~/wai-sandbox · แอปที่ package แล้วค่อย global (ผู้ใช้ติ๊กเองใน onboarding)
 const SCOPE = process.env.WAI_HOOK_SCOPE ?? (app.isPackaged ? 'global' : 'sandbox')
 const SHORTCUT = join(homedir(), 'Applications', 'ไหว้กูซะ.app')
-const CONFIG = join(homedir(), '.waikusa', 'config.json')
+const WAI_HOME = join(homedir(), '.waikusa') // โฟลเดอร์ของ daemon: config.json, wais.jsonl
+const CONFIG = join(WAI_HOME, 'config.json')
 
 function readConfig() {
   try {
@@ -53,6 +56,10 @@ const stats = { requests: 0, passed: 0, bypassed: 0 }
 const lastSeen = {}
 // ปิดจาก tray = bypass: ทุกคำขอผ่านทันที (เหมือน WAI_BYPASS=1 แต่สลับได้ตอนรัน)
 let enabled = process.env.WAI_BYPASS !== '1'
+// ความโกรธต่อ session_id (RETRY/ANNOYED/SULKING/RAGE_QUIT/FORGIVE) ตัดสินจาก vision:pass / vision:fail ของหัวคิว
+const sessions = createSessions()
+// บันทึกการไหว้จริงทุกครั้ง (ผ่าน/ไม่ผ่าน) ไม่บันทึก skip, bypass, หมดเวลา, ปิดแอป
+const waiLog = createWaiLog({ home: WAI_HOME })
 
 function createWindow() {
   const { workArea } = screen.getPrimaryDisplay()
@@ -110,10 +117,14 @@ function createVision() {
   vision.on('closed', () => (vision = null))
 }
 
-/** สั่งกล้องเปิด/ปิดตามคิว */
+/** สั่งกล้องเปิด/ปิดตามคิว + level ขั้นต่ำตาม state ของ session หัวคิว (เรียกทุกครั้งที่คิวหรือ state เปลี่ยน) */
 function syncVision() {
   if (!vision || vision.isDestroyed()) return
-  vision.webContents.send('vision:control', { run: enabled && queue.length > 0, requiredLevel: 1 })
+  const top = queue[0]
+  vision.webContents.send('vision:control', {
+    run: enabled && queue.length > 0,
+    requiredLevel: top ? sessions.requiredLevel(top.session_id) : 1,
+  })
 }
 
 ipcMain.on('vision:ready', syncVision)
@@ -129,16 +140,26 @@ ipcMain.on('vision:event', (_e, event) => {
   for (const w of [win, home]) if (w && !w.isDestroyed()) w.webContents.send('vision:event', event)
 })
 
-// ไหว้ผ่าน 1 ครั้ง = ปลดคำขอเก่าสุด 1 ใบ
-ipcMain.on('vision:pass', (_e, { level, score }) => {
+// ผลจากกล้องนับให้ session ของคำขอหัวคิว (contract §1, §4) · ตรรกะอยู่ใน planVision (pure, มีเทส)
+//   pass ถึง level ที่ต้องการ → ปลดคำขอเก่าสุด 1 ใบ · pass ต่ำกว่า level ที่ต้องการ = นับเป็น fail
+//   fail → โกรธขึ้น คำขอรอต่อ (SULKING ก็รอ) · fail ครั้งที่ 6 = RAGE_QUIT ปลดทุกคำขอของ session นั้นด้วย action 'rage_quit'
+//   ทุกครั้งลง ~/.waikusa/wais.jsonl · ไม่ย้าย/ลบไฟล์ session ใดๆ ทั้งสิ้น
+function onVision(type, payload = {}) {
   const top = queue[0]
   if (!enabled || !top) return
-  console.log('[wai] pass', top.id, `level ${level} score ${score}`)
-  resolve(top.id, { passed: true, level, score, action: 'allow' })
-})
+  const plan = planVision(sessions, top, type, payload)
+  console.log(`[wai] ${type} ${top.id} level ${payload.level} score ${payload.score} → ${plan.action} (${plan.state} anger ${plan.anger}${plan.forgave ? ' forgave' : ''})`)
+  waiLog.record(plan.record)
+  if (!plan.resolve) return syncWindow() // ยังไม่ปลด แต่ state เปลี่ยน → ส่ง requiredLevel ใหม่ให้กล้อง
+  const ids = plan.releaseSession ? queue.filter((q) => q.session_id === top.session_id).map((q) => q.id) : [top.id]
+  for (const id of ids) resolve(id, plan.resolve)
+}
+ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
+ipcMain.on('vision:fail', (_e, payload) => onVision('fail', payload))
 
 /** มีคิว = เด้ง popup, คิวหมด = ซ่อน */
 function syncWindow() {
+  if (queue[0]) sessions.demand(queue[0].session_id) // หัวคิวใบใหม่: PASSED → DEMANDING, RAGE_QUIT → FORGIVE
   if (tray) updateTray()
   syncVision()
   if (!win) return
@@ -147,7 +168,8 @@ function syncWindow() {
 }
 
 function resolve(id, result) {
-  if (queue.some((q) => q.id === id)) result.level > 0 ? stats.passed++ : result.passed && stats.bypassed++ // level 0 = ถูกปล่อยตอนปิดแอป
+  // level 0 = ถูกปล่อยตอนปิดแอป · ไม่ผ่าน (deny/rage_quit) ไม่นับทั้งคู่
+  if (queue.some((q) => q.id === id) && result.passed) result.level > 0 ? stats.passed++ : stats.bypassed++
   queue = queue.filter((q) => q.id !== id)
   results.set(id, result)
   for (const res of waiters.get(id) ?? []) send(res, 200, result)
@@ -224,12 +246,13 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  // GET /wai/queue → คิว + state (state/fail_count เป็นฟิลด์ที่ Front ขอเพิ่ม)
+  // GET /wai/queue → คิว + state/fail_count จริงของ session หัวคิว (contract §4) · ไม่มีคิว = IDLE
   if (req.method === 'GET' && route === 'queue') {
+    const top = queue[0] ? sessions.get(queue[0].session_id) : null
     return send(res, 200, {
       items: queue,
-      state: queue.length > 0 ? 'DEMANDING' : 'IDLE',
-      fail_count: 0,
+      state: top ? top.state : 'IDLE',
+      fail_count: top ? top.fails : 0,
       bypass: !enabled,
     })
   }
@@ -242,9 +265,9 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true })
   }
 
-  // GET /wai/status ← หน้าหลัก (SPIKE ยังไม่อยู่ใน contract)
+  // GET /wai/status ← หน้าหลัก (contract §5): requests/passed/bypassed ของรอบนี้ + today/total/best_score จาก wais.jsonl
   if (req.method === 'GET' && route === 'status') {
-    return send(res, 200, { enabled, pending: queue.length, stats, last_seen: lastSeen })
+    return send(res, 200, { enabled, pending: queue.length, stats: { ...stats, ...waiLog.stats() }, last_seen: lastSeen })
   }
 
   // POST /wai/enabled { enabled } ← สวิตช์ในหน้าหลัก (ตัวเดียวกับใน tray)
@@ -369,3 +392,17 @@ app.whenReady().then(() => {
 })
 app.on('window-all-closed', (e) => e.preventDefault()) // daemon อยู่ต่อแม้ไม่มี window
 app.on('activate', openHome) // กดไอคอนใน Dock/Launchpad = เปิดหน้าหลัก
+
+// ก่อนปิด: ส่งที่ค้างขึ้นเว็บให้จบก่อน (รอไม่เกิน 2 วิ) แล้วค่อยปิดจริง
+let flushing = false
+app.on('before-quit', (e) => {
+  if (flushing) return
+  flushing = true
+  e.preventDefault()
+  Promise.race([waiLog.flush(), new Promise((ok) => setTimeout(ok, 2_000))])
+    .catch(() => {})
+    .finally(() => {
+      waiLog.stop()
+      app.quit()
+    })
+})

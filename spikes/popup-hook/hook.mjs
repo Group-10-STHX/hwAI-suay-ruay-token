@@ -45,7 +45,12 @@ while (Date.now() < deadline) {
   if (res.status === 202) continue // ยังไม่ไหว้ long-poll ใหม่
   const result = await res.json()
   if (result.action === 'allow') process.exit(0)
-  process.stderr.write(result.action === 'rage_quit' ? 'AI งอนแล้ว ไปขอขมาซะ' : 'ไหว้ไม่สวย ส่ง prompt ใหม่แล้วไหว้ใหม่\n')
+  // rage_quit = ไหว้ไม่ผ่าน 6 ครั้ง AI งอนทั้ง session (แค่บล็อก ไม่ย้าย/ลบไฟล์ session ใดๆ) · ครั้งหน้าต้องไหว้ level 3 ถึงจะคืนดี (FORGIVE)
+  process.stderr.write(
+    result.action === 'rage_quit'
+      ? 'AI งอนแล้ว ไปขอขมาซะ\nไหว้ไม่ผ่าน 6 ครั้ง AI ไม่คุยกับ session นี้แล้ว · ส่ง prompt ใหม่แล้วไหว้พระ (level 3) ค้างไว้ AI ถึงจะกลับมาคุย\n'
+      : 'ไหว้ไม่สวย ส่ง prompt ใหม่แล้วไหว้ใหม่\n',
+  )
   process.exit(2)
 }
 process.stderr.write('หมดเวลาไหว้ (300 วิ) AI ไม่ทำงานให้\n')

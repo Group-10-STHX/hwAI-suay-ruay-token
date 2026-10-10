@@ -1,5 +1,5 @@
 import type { PlayerRow, Snapshot } from '../engine';
-import type { WaiSubmission } from '../types';
+import type { StoreMode, WaiSubmission } from '../types';
 
 export interface InsertResult {
   id: string;
@@ -10,6 +10,8 @@ export interface InsertResult {
 
 export interface Store {
   kind: 'mock' | 'supabase';
+  /** simulation = memory + seeded mock data; real-only = memory, WAI_BLOCK_MOCK=1; supabase = real DB. */
+  mode: StoreMode;
   /** Current rows. Cheap to call; implementations cache. */
   snapshot(): Promise<Snapshot>;
   register(handle: string, display_name: string): Promise<{ player: PlayerRow; install_key: string }>;

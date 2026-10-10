@@ -26,7 +26,7 @@ const TICKER = [
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const live = getStore().kind === 'supabase';
+  const mode = getStore().mode, live = mode === 'supabase', realOnly = mode === 'real-only';
   return (
     <html lang="th" className={`${chakra.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </span>
           </Link>
           <nav className="nav" aria-label="เมนู">
-            <span className={`pill${live ? ' pill-live' : ''}`}>{live ? 'LIVE' : 'SIMULATION'}</span>
+            <span className={`pill${live || realOnly ? ' pill-live' : ''}`}>{live ? 'LIVE' : realOnly ? 'REAL ONLY' : 'SIMULATION'}</span>
             <Link className="btn" href="/">อันดับ</Link>
             <Link className="btn" href="/tv">จอใหญ่</Link>
             <Link className="btn btn-red" href="/#scan">สแกนโอกาสรอด</Link>
@@ -56,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <footer className="wrap foot">
           WAI-NET · hwAI ไหว้กูซะ · กล้องประมวลผลในเครื่องเท่านั้น เว็บนี้เห็นแค่คะแนน ·{' '}
-          {live ? 'ข้อมูลจริง' : 'ข้อมูลจำลอง (ตั้ง WAI_DATA=supabase เพื่อใช้ข้อมูลจริง)'} · API: /api/v1
+          {live ? 'ข้อมูลจริง' : realOnly ? 'ข้อมูลจริงเท่านั้น (WAI_BLOCK_MOCK=1, เก็บในหน่วยความจำ)' : 'ข้อมูลจำลอง (ตั้ง WAI_DATA=supabase เพื่อใช้ข้อมูลจริง)'} · API: /api/v1
         </footer>
       </body>
     </html>

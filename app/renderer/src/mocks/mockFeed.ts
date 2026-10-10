@@ -81,7 +81,15 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void): () => void {
     onStatus({
       enabled: mockEnabled && !SCENARIOS[control.scenario].bypass,
       pending: control.queueSize,
-      stats: { requests: 42, passed: 37, bypassed: 2 },
+      stats: {
+        requests: 42,
+        passed: 37,
+        bypassed: 2,
+        // token = ระดับ×10 + 20 ถ้าไหว้สวย (docs/wai-data-contract.md) สูงสุด 50 ต่อครั้ง
+        today: { wais: 37, passed: 30, beautiful: 9, tokens: 630 },
+        total: { wais: 312, passed: 270, beautiful: 71, tokens: 5470 },
+        bestScore: 96,
+      },
       lastSeen: { 'claude-code': Date.now() - 90_000 },
     })
   emit()

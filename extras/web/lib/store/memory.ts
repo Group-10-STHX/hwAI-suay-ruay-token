@@ -37,7 +37,8 @@ function mulberry32(a: number) {
 
 interface Sim { skill: number; devotion: number; activity: number; dayProb: number; anger: number; day: number; session: string }
 
-export function createMemoryStore(seed = 7777): Store {
+export function createMemoryStore(opts: { seed?: number; withMock?: boolean } = {}): Store {
+  const { seed = 7777, withMock = true } = opts; // withMock=false → real-only: no people, history or simulation
   const rnd = mulberry32(seed);
   const normal = (m: number, sd: number) => m + sd * Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
   const uuid = () => {
@@ -52,7 +53,7 @@ export function createMemoryStore(seed = 7777): Store {
   const submitted = new Map<string, { w: WaiSubmission; at: number }>();
   const now0 = Date.now(), today0 = startOf('day', now0);
 
-  PEOPLE.forEach(([handle, display_name]) => {
+  (withMock ? PEOPLE : []).forEach(([handle, display_name]) => {
     const monk = handle === 'monk_mode', angry = handle === 'angry_ajarn';
     const joined = monk || angry ? 1 : Math.floor(rnd() * rnd() * DAYS);
     addPlayer(snap, { id: uuid(), handle, display_name, avatar_hue: Math.floor(rnd() * 360), created_at: today0 - (DAYS - joined) * DAY });
@@ -120,6 +121,7 @@ export function createMemoryStore(seed = 7777): Store {
   const weights = sims.map((s) => s!.activity), wsum = weights.reduce((a, b) => a + b, 0);
   let next = now0 + 2000;
   function catchUp(now: number) {
+    if (!withMock) return;
     if (now - next > 10 * 60_000) next = now - 10 * 60_000; // idle for long: don't replay hours
     while (next <= now) {
       let x = rnd() * wsum, p = 0;
@@ -131,6 +133,7 @@ export function createMemoryStore(seed = 7777): Store {
 
   return {
     kind: 'mock',
+    mode: withMock ? 'simulation' : 'real-only',
     async snapshot() {
       catchUp(Date.now());
       return snap;

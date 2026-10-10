@@ -24,7 +24,7 @@ Everything else (queueing, retries, auth, privacy filtering) lives in [`sdk/wai-
 
 | Area | State |
 |---|---|
-| Web app, API, upload SDK, docs | Done. `npm run build` passes and `npm run smoke` passes 24/24 against the mock store |
+| Web app, API, upload SDK, docs | Done. `npm run build` passes and `npm run smoke` passes against both the simulation store and the real-only store (`WAI_BLOCK_MOCK=1`) |
 | SDK end to end | Tested against the mock server: register, upload, offline outbox, 429 retry, `WAI_BYPASS` |
 | Supabase store | **Not run against a real database yet.** It compiles only. Apply `supabase/migrations/0001_init.sql`, set `WAI_DATA=supabase`, then run `npm run smoke` |
 | Deployment | **No public URL yet.** The booth `base_url` is still to be decided |
@@ -54,7 +54,7 @@ npm run dev                         # http://localhost:3000, mock data + live si
 npm run smoke                       # 24 API checks against http://localhost:3000/api/v1 → "all checks passed"
 ```
 
-Mock mode is a complete backend: anything you POST appears on the leaderboard immediately. Data resets when the dev server restarts.
+Mock mode is a complete backend: anything you POST appears on the leaderboard immediately, mixed in with the simulated players. To keep real data apart, start the server with `WAI_BLOCK_MOCK=1 npm run dev`: the store starts empty, `/health` reports `"mode": "real-only"`, and the badge reads REAL ONLY. Data resets when the dev server restarts.
 
 ## 3. Register a test player
 
