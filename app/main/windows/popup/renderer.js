@@ -3,7 +3,8 @@
 // Mood follows state: running -> watching, done -> passed, nothing running -> neutral.
 
 const stage = document.getElementById("stage");
-const JASON_DIR = "../../../characters/jason/line/jason-line-";
+// From app/main/windows/popup/ up to the repo root.
+const JASON_DIR = "../../../../characters/jason/line/jason-line-";
 
 const MODEL_NAMES = {
   "claude-opus-5-5": ["Opus 5.5", "claude"],

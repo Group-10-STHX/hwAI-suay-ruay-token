@@ -235,7 +235,7 @@ function celebrate() {
 const video = $("video");
 const canvas = $("overlay");
 const ctx = canvas.getContext("2d");
-const camera = { on: false, starting: false, byWai: false };
+const camera = { on: false, starting: false, byWai: false, cancel: false };
 let mp = null;
 let landmarkers = null;
 let drawUtils = null;
@@ -275,6 +275,7 @@ async function startCamera({ byWai = false } = {}) {
   if (camera.on || camera.starting) return;
   camera.starting = true;
   camera.byWai = byWai;
+  camera.cancel = false;
   $("cam-start").disabled = true;
   $("hint").textContent = "กำลังโหลดโมเดล… ครั้งแรกอาจนานหน่อย";
   try {
@@ -287,6 +288,12 @@ async function startCamera({ byWai = false } = {}) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     camera.on = true;
+    if (camera.cancel) {
+      // The wai was no longer needed while the camera was still starting.
+      camera.cancel = false;
+      stopCamera();
+      return;
+    }
     $("cam-off").hidden = true;
     $("level-chip").hidden = false;
     $("ring").hidden = false;
@@ -303,11 +310,13 @@ async function startCamera({ byWai = false } = {}) {
     $("cam-start").disabled = false;
   } finally {
     camera.starting = false;
+    camera.cancel = false;
     renderMood();
   }
 }
 
 function stopCamera({ onlyIfByWai = false } = {}) {
+  if (camera.starting && (!onlyIfByWai || camera.byWai)) camera.cancel = true;
   if (!camera.on) return;
   if (onlyIfByWai && !camera.byWai) return;
   video.srcObject?.getTracks().forEach((t) => t.stop());

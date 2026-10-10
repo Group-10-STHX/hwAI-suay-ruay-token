@@ -3,8 +3,8 @@
 // Local HTTP daemon on 127.0.0.1 only. The Electron app starts it, the MediaPipe Lab page
 // is served from it (same origin, so no CORS), and Claude Code hooks call it.
 //
-//   GET  /mini/*                 mini window (static files from ./mini)
-//   GET  /lab/*                  full control panel (static files from ./lab)
+//   GET  /mini/*                 mini window (static files from windows/mini)
+//   GET  /lab/*                  MediaPipe Lab (static files from vision/lab)
 //   GET  /prefs, POST /prefs     look-and-feel prefs (theme, accent, mascot size, ...)
 //   GET  /logos.json             logo manifest for the popup and lab
 //   GET  /agents                 agents for the popup

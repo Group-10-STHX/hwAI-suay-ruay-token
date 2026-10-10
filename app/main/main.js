@@ -29,7 +29,10 @@ const { createDaemon, DEFAULT_PORT, HOST } = require("./daemon");
 const { ACCENTS, DEFAULT_PREFS, sanitizePrefs } = require("./prefs");
 
 const BASE_URL = `http://${HOST}:${DEFAULT_PORT}`;
-const LOGOS_PATH = path.join(__dirname, "..", "..", "characters", "jason", "logos.json");
+// Repo layout: app/main (this), app/main/windows (its pages), vision/lab, characters/jason.
+const REPO = path.join(__dirname, "..", "..");
+const WINDOWS = path.join(__dirname, "windows");
+const LOGOS_PATH = path.join(REPO, "characters", "jason", "logos.json");
 const PUSH_MS = 400;
 const MARGIN = 16;
 
@@ -80,8 +83,8 @@ const gate = new Gate({
 
 const daemon = createDaemon({
   gate,
-  labDir: path.join(__dirname, "lab"),
-  miniDir: path.join(__dirname, "mini"),
+  labDir: path.join(REPO, "vision", "lab"),
+  miniDir: path.join(WINDOWS, "mini"),
   logosPath: LOGOS_PATH,
   prefs: { get: () => prefs, set: setPrefs },
   port: DEFAULT_PORT,
@@ -152,7 +155,7 @@ function createMini({ auto = false } = {}) {
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#1f1a17" : "#fdf6ee",
     alwaysOnTop: prefs.alwaysOnTop,
     webPreferences: {
-      preload: path.join(__dirname, "mini", "preload.js"),
+      preload: path.join(WINDOWS, "mini", "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -279,7 +282,7 @@ function createPopup() {
     fullscreenable: false,
     backgroundColor: "#00000000",
     webPreferences: {
-      preload: path.join(__dirname, "popup", "preload.js"),
+      preload: path.join(WINDOWS, "popup", "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -287,7 +290,7 @@ function createPopup() {
   });
   popupWin.setAlwaysOnTop(true, "floating");
   popupWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  popupWin.loadFile(path.join(__dirname, "popup", "index.html"));
+  popupWin.loadFile(path.join(WINDOWS, "popup", "index.html"));
   rememberPos(popupWin, "popup-position.json");
   popupWin.on("closed", () => {
     popupWin = null;
@@ -354,7 +357,7 @@ function openChat(key) {
     height: 820,
     title: `hwAI · ${key === "claude" ? "Claude" : "ChatGPT"}`,
     webPreferences: {
-      preload: path.join(__dirname, "chat", "preload.js"),
+      preload: path.join(WINDOWS, "chat", "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

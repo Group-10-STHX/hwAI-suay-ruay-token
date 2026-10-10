@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fake session for the popup test: one main agent, sub-agents spawn, run, and finish.
 
-    python3 prototype/agent-popup/server.py     # terminal 1
-    python3 prototype/agent-popup/sim.py        # terminal 2, then watch http://127.0.0.1:7777
+    cd app/main && npm start                    # terminal 1: the hwAI app (daemon on :7777)
+    python3 app/main/tools/sim.py               # terminal 2
 
 Sends the same events a Claude Code hook would send to POST /events. Stdlib only.
 """
