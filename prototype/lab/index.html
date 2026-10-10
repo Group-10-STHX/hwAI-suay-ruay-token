@@ -2,10 +2,6 @@
 <html lang="th">
   <head>
     <meta charset="utf-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; connect-src 'self' https://cdn.jsdelivr.net https://storage.googleapis.com; img-src 'self' data: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; media-src 'self' blob: mediastream:; worker-src blob:"
-    />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MediaPipe Lab · hwAI</title>
     <link
@@ -16,19 +12,9 @@
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">
-        <div class="mascot-wrap">
-          <img
-            id="mascot"
-            class="mascot"
-            alt="Jason"
-            src="/assets/jason/line/jason-line-neutral.svg"
-          />
-        </div>
-        <div class="title">
-          <h1>MediaPipe Lab</h1>
-          <p id="say" class="say">วันนี้มาไหว้กันนะ</p>
-        </div>
+      <div class="title">
+        <h1>MediaPipe Lab</h1>
+        <p class="muted">ควบคุมโมเดลไหว้และสถานะเอเจนต์ในที่เดียว</p>
       </div>
       <div class="mode" role="group" aria-label="เลือกโหมด">
         <button id="mode-real" class="seg" type="button">โหมดจริง</button>

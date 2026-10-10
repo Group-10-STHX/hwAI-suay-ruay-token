@@ -5,9 +5,9 @@
 // Distances are divided by shoulder width so they do not depend on camera distance.
 
 export const DEFAULT_TH = Object.freeze({
-  gapMax: 0.55, // wrist-to-wrist distance
+  gapMax: 0.45, // wrist-to-wrist distance
   centerMax: 0.5, // hands' horizontal offset from the body midline
-  fingersUpMin: 0.08, // fingertips above the wrists
+  fingersUpMin: 0.15, // fingertips above the wrists
   tipNoseMin: -0.02, // fingertip above the nose -> level 2
   thumbBrowMin: -0.05, // thumb above the brows -> level 3 (with a bow)
   bowMinDeg: 12, // head pitch change from calibration

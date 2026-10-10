@@ -80,28 +80,7 @@ let gateState = {
   passMinScore: DEFAULT_TH.passMinScore,
 };
 
-const MOOD_SAY = {
-  neutral: "วันนี้มาไหว้กันนะ",
-  demanding: "ไหว้กูซะก่อนนะ เดี๋ยวจะเริ่มให้",
-  watching: "กำลังดูท่าอยู่…",
-  passed: "รับไหว้แล้ว เชิญทำงานต่อเลย",
-};
-let mood = "";
-
-function setMood(next) {
-  if (next === mood) return;
-  mood = next;
-  $("mascot").src = `/assets/jason/line/jason-line-${next}.svg`;
-  $("say").textContent = MOOD_SAY[next];
-}
-
 function renderGate() {
-  // The mascot follows the gate: waiting work -> demanding, a fresh credit -> passed.
-  if (gateState.mode === "demo") setMood("neutral");
-  else if (gateState.queued.length || gateState.pendingRequests)
-    setMood("demanding");
-  else if (gateState.credits > 0) setMood("passed");
-  else setMood("neutral");
   const real = gateState.mode === "real";
   $("mode-real").classList.toggle("active", real);
   $("mode-demo").classList.toggle("active", !real);
@@ -362,16 +341,9 @@ function bindControls() {
   $("mode-real").addEventListener("click", () => setMode("real"));
   $("mode-demo").addEventListener("click", () => setMode("demo"));
   $("cam-start").addEventListener("click", () =>
-    startCamera().catch((err) => {
-      $("cam-start").disabled = false;
-      const denied = err.name === "NotAllowedError";
-      log(
-        denied
-          ? "ไม่ได้รับสิทธิ์กล้อง: เปิด System Settings > Privacy & Security > Camera แล้วเปิดให้แอปนี้ จากนั้นกดเปิดกล้องอีกครั้ง"
-          : `เปิดกล้องไม่ได้: ${err.message}`,
-        "warn",
-      );
-    }),
+    startCamera().catch((err) =>
+      log(`เปิดกล้องไม่ได้: ${err.message}`, "warn"),
+    ),
   );
   $("cam-stop").addEventListener("click", stopCamera);
   $("calib").addEventListener("click", () => {
@@ -396,10 +368,3 @@ pollAgents();
 setInterval(pollState, POLL_MS);
 setInterval(pollAgents, POLL_MS);
 log("พร้อมแล้ว เลือกโหมดแล้วเปิดกล้อง");
-
-// Opened by the desktop app because work is waiting for a wai: start the camera by itself.
-if (new URLSearchParams(location.search).get("auto") === "1") {
-  startCamera().catch((err) =>
-    log(`เปิดกล้องอัตโนมัติไม่ได้: ${err.message}`, "warn"),
-  );
-}
