@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jason line gallery</title>
+<style>
+  :root { --bg:#f5f2ec; --fg:#1d1b18; --muted:#6d675e; --card:#fffdf8; --line:#ddd6c8; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#161411; --fg:#f1ece2; --muted:#a39b8d; --card:#1f1c18; --line:#3a352d; } }
+  :root[data-theme="dark"] { --bg:#161411; --fg:#f1ece2; --muted:#a39b8d; --card:#1f1c18; --line:#3a352d; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 "Noto Sans Thai", system-ui, sans-serif; padding:0 16px; }
+  main { max-width:980px; margin:0 auto; padding-block:28px 56px; }
+  h1 { font-size:26px; margin:0 0 4px; } h2 { font-size:16px; margin:32px 0 10px; }
+  .sub { color:var(--muted); margin:0 0 16px; }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+  figure { margin:0; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; min-width:0; }
+  figure img { width:100%; max-width:170px; height:auto; display:block; margin:0 auto; }
+  /* the ink is dark, so the character always sits on paper, also in dark mode */
+  .stage { background:#fffdf8; border-radius:10px; padding:6px; display:flex; align-items:flex-end; justify-content:center; gap:6px; margin-bottom:8px; }
+  .stage img.big { flex:1 1 auto; min-width:0; max-width:150px; margin:0; }
+  .stage img.tiny { flex:none; width:60px; height:60px; margin:0; border-left:1px dashed #e4dccb; padding-left:6px; }
+  figcaption b { display:block; } figcaption span { color:var(--muted); font-size:12px; }
+  .logo { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:120px; }
+  .logo img { width:44px; height:44px; object-fit:contain; }
+  .logo img.inv { filter:none; }
+  :root:not([data-theme="light"]) .logo img { filter:invert(1); }
+  :root[data-theme="dark"] .logo img { filter:invert(1); }
+  .chip { font-size:13px; font-weight:700; padding:6px 12px; border-radius:999px; background:var(--fg); color:var(--bg); }
+  .note { color:var(--muted); font-size:12px; margin-top:8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Jason · เส้นยึกยือ</h1>
+  <p class="sub">ตัวน้องคือปากกาเส้นเดียวที่ขดวนไปมา ไม่มีพื้นทึบ เส้นดิ้นด้วย SMIL รูปเล็กข้าง ๆ คือขนาดจริง 60 px ส่วนโลโก้โหลดจาก CDN ตอนเปิดหน้า</p>
+
+  <h2>สถานะ</h2>
+  <div class="grid">
+    <figure><div class="stage"><img class="big" src="line/jason-line-neutral.svg" alt="ปกติ"><img class="tiny" src="line/jason-line-neutral.svg" alt=""></div><figcaption><b>NEUTRAL</b><span>ปกติ</span></figcaption></figure>
+    <figure><div class="stage"><img class="big" src="line/jason-line-demanding.svg" alt="ไหว้กูซะ"><img class="tiny" src="line/jason-line-demanding.svg" alt=""></div><figcaption><b>DEMANDING</b><span>ไหว้กูซะ</span></figcaption></figure>
+    <figure><div class="stage"><img class="big" src="line/jason-line-watching.svg" alt="กำลังดู"><img class="tiny" src="line/jason-line-watching.svg" alt=""></div><figcaption><b>WATCHING</b><span>กำลังดู</span></figcaption></figure>
+    <figure><div class="stage"><img class="big" src="line/jason-line-passed.svg" alt="ไหว้ผ่าน"><img class="tiny" src="line/jason-line-passed.svg" alt=""></div><figcaption><b>PASSED</b><span>ไหว้ผ่าน</span></figcaption></figure>
+    <figure><div class="stage"><img class="big" src="line/jason-line-retry.svg" alt="ไหว้ใหม่ ไม่สวย"><img class="tiny" src="line/jason-line-retry.svg" alt=""></div><figcaption><b>RETRY</b><span>ไหว้ใหม่ ไม่สวย</span></figcaption></figure>
+    <figure><div class="stage"><img class="big" src="line/jason-line-annoyed.svg" alt="โกรธ"><img class="tiny" src="line/jason-line-annoyed.svg" alt=""></div><figcaption><b>ANNOYED</b><span>โกรธ</span></figcaption></figure>
+    <figure><div class="stage"><img class="big" src="line/jason-line-sulking.svg" alt="งอน"><img class="tiny" src="line/jason-line-sulking.svg" alt=""></div><figcaption><b>SULKING</b><span>งอน</span></figcaption></figure>
+    <figure><div class="stage"><img class="big" src="line/jason-line-rage_quit.svg" alt="หนีไปแล้ว"><img class="tiny" src="line/jason-line-rage_quit.svg" alt=""></div><figcaption><b>RAGE_QUIT</b><span>หนีไปแล้ว</span></figcaption></figure>
+    <figure><div class="stage"><img class="big" src="line/jason-line-forgive.svg" alt="ขอขมา"><img class="tiny" src="line/jason-line-forgive.svg" alt=""></div><figcaption><b>FORGIVE</b><span>ขอขมา</span></figcaption></figure>
+  </div>
+
+  <h2>โลโก้โมเดล (โหลดจากเน็ต)</h2>
+  <p class="sub">ดึงจาก <code>https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/</code> ถ้าโหลดไม่ได้จะแสดงป้ายข้อความแทน</p>
+  <div class="grid" id="logos"></div>
+  <p class="note">โลโก้เป็นของบริษัทเจ้าของแบรนด์ ตรวจเงื่อนไขการใช้งานก่อนนำไปแจกต่อ</p>
+</main>
+<script>
+  const MANIFEST = {"pin": "simple-icons@16.32.0", "base": "https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/", "logos": [{"id": "claude", "name": "Claude"}, {"id": "anthropic", "name": "Anthropic"}, {"id": "googlegemini", "name": "Gemini"}, {"id": "meta", "name": "Meta (Llama)"}, {"id": "deepseek", "name": "DeepSeek"}, {"id": "ollama", "name": "Ollama"}, {"id": "perplexity", "name": "Perplexity"}, {"id": "huggingface", "name": "Hugging Face"}, {"id": null, "name": "ChatGPT", "note": "ไม่มีในชุด simple-icons จึงใช้ป้ายข้อความ"}]};
+  const host = document.getElementById("logos");
+  for (const item of MANIFEST.logos) {
+    const fig = document.createElement("figure");
+    const box = document.createElement("div");
+    box.className = "logo";
+    if (item.id) {
+      const img = document.createElement("img");
+      img.alt = item.name;
+      img.src = MANIFEST.base + item.id + ".svg";
+      img.onerror = () => { img.remove(); box.append(chip(item.name)); };
+      box.append(img);
+    } else {
+      box.append(chip(item.name));
+    }
+    const cap = document.createElement("figcaption");
+    cap.innerHTML = "<b></b><span></span>";
+    cap.querySelector("b").textContent = item.name;
+    cap.querySelector("span").textContent = item.id ? item.id : (item.note || "");
+    fig.append(box, cap);
+    host.append(fig);
+  }
+  function chip(text) {
+    const s = document.createElement("span");
+    s.className = "chip";
+    s.textContent = text;
+    return s;
+  }
+</script>
+</body>
+</html>

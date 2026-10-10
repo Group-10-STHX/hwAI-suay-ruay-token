@@ -1,0 +1,13 @@
+{
+  "name": "agent-popup-mac",
+  "version": "0.1.0",
+  "private": true,
+  "description": "hwAI agent popup: floating, draggable Mac window that shows the main agent and its sub-agents",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "44.4.5"
+  }
+}
