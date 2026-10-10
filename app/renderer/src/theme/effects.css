@@ -1,0 +1,72 @@
+/* Effect กลางของ HUD (§5 Motion)
+   กฎ: animation วนไม่จบใช้ได้เฉพาะตอนมีคำขอ ให้ใส่ class .is-active ที่ตัวแม่
+   ตอน IDLE ต้องไม่มีอะไรวิ่ง */
+
+/* scanline วิ่งลง */
+.fx-scanline {
+  position: relative;
+  overflow: hidden;
+}
+.fx-scanline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 3px,
+    color-mix(in srgb, var(--hud) 10%, transparent) 3px 4px
+  );
+  opacity: 0;
+}
+.is-active .fx-scanline::after,
+.fx-scanline.is-active::after {
+  opacity: 1;
+  animation: fx-scan 6s linear infinite;
+}
+@keyframes fx-scan {
+  from { background-position-y: 0; }
+  to { background-position-y: 200px; }
+}
+
+/* กรอบสแกนกะพริบเบาๆ */
+.is-active .fx-pulse,
+.fx-pulse.is-active {
+  animation: fx-pulse 1.6s ease-in-out infinite;
+}
+@keyframes fx-pulse {
+  50% { opacity: 0.55; }
+}
+
+/* ANNOYED: สั่น + กระพริบแดง */
+.fx-shake {
+  animation: fx-shake 0.35s linear infinite;
+}
+@keyframes fx-shake {
+  25% { transform: translateX(calc(var(--shake) * -1)); }
+  75% { transform: translateX(var(--shake)); }
+}
+.fx-blink-danger {
+  animation: fx-blink 0.8s steps(2, jump-none) infinite;
+}
+@keyframes fx-blink {
+  50% { filter: drop-shadow(0 0 12px var(--danger)); }
+}
+
+/* ไหว้ผ่าน: flash ทอง 300ms แล้ว fade (เล่นครั้งเดียว) */
+.fx-bless {
+  animation: fx-bless var(--bless-ms) ease-out 1;
+}
+@keyframes fx-bless {
+  from { box-shadow: 0 0 0 9999px color-mix(in srgb, var(--blessed) 35%, transparent); }
+  to { box-shadow: 0 0 0 9999px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-shake,
+  .fx-blink-danger,
+  .is-active .fx-pulse,
+  .is-active .fx-scanline::after {
+    animation: none;
+  }
+}

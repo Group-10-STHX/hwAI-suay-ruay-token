@@ -1,0 +1,44 @@
+/* ฟอนต์โหลดจาก package ในเครื่อง แอปต้องใช้ได้แบบ offline */
+@import '@fontsource/chakra-petch/700.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/ibm-plex-sans-thai/400.css';
+@import '@fontsource/ibm-plex-sans-thai/600.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  /* window เป็น transparent พื้นที่ว่างต้องโปร่ง (§2) */
+  background: transparent;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* คลิกทะลุ: main ตั้ง setIgnoreMouseEvents ให้ทั้ง window
+   element ที่ต้องรับเมาส์ใส่ class นี้ (app/ จะบอก main ตอน hover) */
+.interactive {
+  pointer-events: auto;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
