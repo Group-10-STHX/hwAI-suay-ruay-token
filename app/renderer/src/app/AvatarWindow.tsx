@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
-import { MAX_VISIBLE_CARDS, skipItem } from '../api'
+import { MAX_VISIBLE_CARDS, REQUEST_TIMEOUT_MS, skipItem } from '../api'
 import { Mascot } from '../mascot'
-import { CardStack, PendingCount } from '../queue'
+import { CardStack, PendingCount, TimeLeft } from '../queue'
 import { Island } from '../states'
 import { providerAccent, v } from '../theme/tokens'
-import { POSE } from './derive'
+import { splitQueue } from './derive'
 import { useStore } from './store'
 
 export function AvatarWindow() {
   const { queue, vision, daemonOnline } = useStore()
   const now = useNow(queue.items.length > 0)
-  const top = queue.items[0]
-  const accent = providerAccent[top?.source ?? 'claude-code']
+  // ใบบนสุดอยู่ใน island ใบที่เหลือลงกองการ์ด แต่ละคำขอโชว์ครั้งเดียว
+  const { top, waiting, shown, hidden } = splitQueue(queue.items, MAX_VISIBLE_CARDS)
+  const accent = top ? providerAccent[top.source] : undefined
   const active = queue.state !== 'IDLE'
 
   return (
@@ -27,13 +28,21 @@ export function AvatarWindow() {
           failCount={queue.failCount}
           score={vision.score}
           reasons={vision.reasons}
-          providerColor={accent.color}
-          providerLabel={accent.label}
-          mascot={<Mascot pose={POSE[queue.state]} providerColor={accent.color} providerLabel={accent.label} />}
+          providerColor={accent?.color}
+          providerLabel={accent?.label}
+          agentLabel={top?.agentLabel}
+          timeLeft={top && <TimeLeft createdAt={top.createdAt} now={now} timeoutMs={REQUEST_TIMEOUT_MS} />}
+          mascot={<Mascot state={queue.state} providerColor={accent?.color ?? v('hudDim')} />}
           cards={
             <>
-              <CardStack items={queue.items} now={now} />
-              <PendingCount count={queue.items.length - MAX_VISIBLE_CARDS} />
+              <CardStack
+                items={waiting}
+                now={now}
+                timeoutMs={REQUEST_TIMEOUT_MS}
+                max={shown}
+                avatar={(it) => <Mascot state={queue.state} providerColor={providerAccent[it.source].color} size="small" still />}
+              />
+              <PendingCount count={hidden} />
             </>
           }
         />
@@ -70,6 +79,8 @@ function useNow(running: boolean) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     if (!running) return
+    // ตอนว่าง now ค้างไว้ที่ค่าเก่า ต้องอัปเดตทันทีที่มีการ์ด ไม่งั้นใบแรกนับจากเวลาเก่า (เคยโชว์ 5:01)
+    setNow(Date.now())
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [running])

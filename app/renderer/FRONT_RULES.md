@@ -108,7 +108,9 @@ type WaiReason =
 | Source | Accent | ป้าย |
 |---|---|---|
 | Claude Code | `#E07A4F` | "Claude Code" |
+| Codex (CLI) | `#FF2A2A` (ใช้ `hud` เหมือนแถวอื่นๆ ยังไม่มีสีของตัวเอง) | "Codex" |
 | ChatGPT (extension) | `#3FBF8F` | "ChatGPT" |
+| ทดสอบจากหน้าหลัก (`test`) | `#9A9AA5` (`textDim`) | "ทดสอบ" |
 | อื่นๆ | `#FF2A2A` | ชื่อ source |
 
 ### Typography
@@ -181,7 +183,8 @@ app/renderer/
     │   ├── copy.ts                 ข้อความทุกอันของน้อง + map WaiReason → ข้อความ (ทีม Voice ใช้ร่วม)
     │   └── index.ts
     ├── queue/
-    │   ├── CardStack.tsx           ซ้อนสูงสุด 3 ใบ ใบบนปลิวออกตอนผ่าน
+    │   ├── CardStack.tsx           คิวที่รออยู่หลังใบบนสุด (ใบบนสุดอยู่ใน Island) สูงสุด 3 ใบ
+    │   ├── TimeLeft.tsx            เวลาที่เหลือ m:ss นับถอยหลังจาก 5:00 (ไม่เกิน ไม่ติดลบ)
     │   ├── AgentCard.tsx           source, agent_label, เวลาที่เหลือ
     │   ├── PendingCount.tsx        "รอไหว้อีก N ตัว" (ตัวสำรองถ้า CardStack ไม่ทัน)
     │   └── index.ts
@@ -222,7 +225,7 @@ type SessionState = 'IDLE' | 'DEMANDING' | 'WATCHING' | 'PASSED' | 'RETRY'
 
 type QueueItem = {
   id: string
-  source: 'claude-code' | 'chatgpt' | 'terminal'
+  source: 'claude-code' | 'codex' | 'chatgpt' | 'test' | 'terminal'  // source อื่นที่ไม่รู้จัก → 'terminal'
   kind: 'prompt' | 'subagent'
   agentLabel: string
   createdAt: number        // ใช้คำนวณเวลาที่เหลือจาก timeout 300 วิ

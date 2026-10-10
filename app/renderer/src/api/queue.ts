@@ -15,7 +15,7 @@ type RawQueue =
   | RawQueueItem[]
   | { items: RawQueueItem[]; state?: SessionState; fail_count?: number; bypass?: boolean }
 
-const KNOWN_SOURCES: Source[] = ['claude-code', 'chatgpt', 'terminal']
+const KNOWN_SOURCES: Source[] = ['claude-code', 'codex', 'chatgpt', 'test', 'terminal']
 
 // ถ้า daemon ไม่ส่ง created_at มา ใช้เวลาที่เห็นการ์ดครั้งแรกแทน
 // (ห้ามใช้ Date.now() ตรงๆ ไม่งั้นนับถอยหลังรีเซ็ตทุก poll)

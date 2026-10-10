@@ -18,7 +18,11 @@ export type ColorToken = keyof typeof color
 
 export const providerAccent: Record<Source, { color: string; label: string }> = {
   'claude-code': { color: '#E07A4F', label: 'Claude Code' },
+  // Codex ยังไม่มีสีของตัวเอง ใช้แถว "อื่นๆ" (hud) ไปก่อน ป้ายเป็นตัวหนังสือ
+  codex: { color: color.hud, label: 'Codex' },
   chatgpt: { color: '#3FBF8F', label: 'ChatGPT' },
+  // คำขอทดสอบจากปุ่ม "ลองไหว้" ในหน้าหลัก
+  test: { color: color.textDim, label: 'ทดสอบ' },
   terminal: { color: color.hud, label: 'Terminal' },
 }
 
@@ -55,6 +59,10 @@ export const radius = { sm: 4, md: 10, lg: 16 } as const
 
 export const shadow = {
   float: '0 8px 24px rgba(0, 0, 0, 0.45)', // เงาบางๆ ของ island (ไม่มีกรอบ)
+  /** ตัวหนังสือที่ลอยบนจอโดยไม่มีพื้นหลัง ให้อ่านออกทั้งจอมืดและสว่าง */
+  text: '0 1px 2px rgba(0, 0, 0, 0.6)',
+  /** เงาเส้นน้อง Jason (เส้นสีอ่อน) ให้อ่านออกบนจอพื้นสว่าง ใช้กับ filter */
+  ink: 'drop-shadow(0 0 1px rgba(0, 0, 0, 0.7)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))',
 } as const
 
 export const motion = {

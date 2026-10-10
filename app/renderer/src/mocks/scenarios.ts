@@ -5,6 +5,7 @@ import type { QueueItem, QueueSnapshot, SessionState, Source, VisionEvent, WaiLe
 
 export type ScenarioName =
   | 'idle'
+  | 'demanding'
   | 'demand'
   | 'pass'
   | 'retry'
@@ -28,9 +29,10 @@ export type QueueSize = (typeof QUEUE_SIZES)[number]
 
 const LABELS: Array<[Source, QueueItem['kind'], string]> = [
   ['claude-code', 'prompt', 'Claude Code'],
+  ['codex', 'prompt', 'Codex'],
   ['claude-code', 'subagent', 'Explore agent'],
-  ['claude-code', 'subagent', 'Plan agent'],
   ['chatgpt', 'prompt', 'ChatGPT'],
+  ['test', 'prompt', 'ทดสอบจากหน้าหลัก'],
   ['terminal', 'prompt', 'zsh'],
 ]
 
@@ -78,9 +80,11 @@ function sloppy(level: WaiLevel, score: number, reasons: WaiReason[]): (t: numbe
 
 export const SCENARIOS: Record<ScenarioName, Scenario> = {
   idle: { name: 'idle', label: 'ว่าง (ไม่มีคำขอ)', state: 'IDLE', failCount: 0, vision: () => base },
+  // daemon จริงตอนนี้ส่งแค่ DEMANDING (ยังไม่มี WATCHING) ต้องดูได้ด้วย
+  demanding: { name: 'demanding', label: 'DEMANDING (ยังไม่ยกมือ)', state: 'DEMANDING', failCount: 0, vision: () => base },
   demand: {
     name: 'demand',
-    label: 'DEMANDING → WATCHING',
+    label: 'WATCHING (กำลังไหว้)',
     state: 'WATCHING',
     failCount: 0,
     vision: rampTo(1, 72),
@@ -115,6 +119,7 @@ export const SCENARIOS: Record<ScenarioName, Scenario> = {
 /** คิวขนาดที่เหมาะกับ state ถ้าไม่ได้เลือกเอง */
 export const DEFAULT_QUEUE_SIZE: Record<ScenarioName, QueueSize> = {
   idle: 0,
+  demanding: 1,
   demand: 3,
   pass: 1,
   retry: 1,

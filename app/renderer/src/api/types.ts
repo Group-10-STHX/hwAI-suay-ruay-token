@@ -18,7 +18,8 @@ export type SessionState =
 
 export type WaiLevel = 0 | 1 | 2 | 3
 
-export type Source = 'claude-code' | 'chatgpt' | 'terminal'
+// codex = hook ของ Codex CLI · test = ปุ่ม "ลองไหว้" ในหน้าหลัก · terminal = source อื่นที่ไม่รู้จัก
+export type Source = 'claude-code' | 'codex' | 'chatgpt' | 'test' | 'terminal'
 
 export type QueueItem = {
   id: string
