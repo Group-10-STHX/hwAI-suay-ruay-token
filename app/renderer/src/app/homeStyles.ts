@@ -3,15 +3,16 @@ import { radius, space, v } from '../theme/tokens'
 
 // สไตล์ร่วมของหน้าหลักกับ onboarding
 
+// grid ไม่ใช่ flex: แถวไม่ถูกบีบจนข้อความหาย (เดิมสวิตช์ ONLINE โดนบีบ) เนื้อหาต้องพอดี window 520×680
 export const page: CSSProperties = {
   height: '100%',
   overflow: 'auto',
   background: v('bg'),
   color: v('text'),
-  padding: `${space.xl}px ${space.lg}px ${space.lg}px`,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: space.lg,
+  padding: `${space.xl}px ${space.lg}px ${space.md}px`,
+  display: 'grid',
+  alignContent: 'start',
+  gap: space.md,
   userSelect: 'none',
 }
 
@@ -26,7 +27,7 @@ export const panel: CSSProperties = {
   font: 'inherit',
   border: `1px solid ${v('hudDim')}`,
   borderRadius: radius.md,
-  padding: space.lg,
+  padding: space.md,
 }
 
 export const row: CSSProperties = {
@@ -43,6 +44,6 @@ export const ghostButton: CSSProperties = {
   font: 'inherit',
   border: `1px dashed ${v('hud')}`,
   borderRadius: radius.md,
-  padding: `${space.md}px`,
+  padding: `${space.sm}px ${space.md}px`,
   cursor: 'pointer',
 }

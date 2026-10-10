@@ -49,7 +49,7 @@ export function HomeWindow() {
       <div style={dragBar} />
 
       <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <h1 className="display" style={{ margin: 0, fontSize: 40, color: v(tone) }}>
+        <h1 className="display" style={{ margin: 0, fontSize: 32, lineHeight: 1.1, color: v(tone) }}>
           ไหว้กูซะ
         </h1>
         <span className="mono" style={{ color: v('textDim'), fontSize: fontSize.small }}>
@@ -67,7 +67,7 @@ export function HomeWindow() {
         <div className="mono" style={{ color: v(tone), fontSize: fontSize.small, letterSpacing: 2 }}>
           {on ? '● ONLINE' : '○ OFFLINE'}
         </div>
-        <div className="display" style={{ fontSize: fontSize.speech, color: v('text'), margin: `${space.sm}px 0` }}>
+        <div className="display" style={{ fontSize: fontSize.speech, lineHeight: 1.2, color: v('text'), margin: `${space.xs}px 0` }}>
           {on ? 'มนุษย์ต้องไหว้ก่อนใช้ AI' : 'ปิดอยู่ AI ใช้ได้เลยไม่ต้องไหว้'}
         </div>
         <div style={{ color: v('textDim') }}>{on ? 'กดเพื่อปิด' : 'กดเพื่อเปิด'}</div>
@@ -94,7 +94,7 @@ export function HomeWindow() {
             const r = await openCodexHooks()
             setCodexMsg(r.ok ? 'เปิด Terminal แล้ว พิมพ์ /hooks แล้วกด trust ทุกตัว จากนั้นปิด-เปิดแอป Codex ใหม่' : `เปิดไม่ได้: ${r.error}`)
           }}
-          style={{ ...ghostButton, width: '100%', marginTop: space.md }}
+          style={{ ...ghostButton, width: '100%', marginTop: space.sm }}
         >
           อนุญาต hook ของ Codex
         </button>
@@ -115,13 +115,15 @@ export function HomeWindow() {
         ลองไหว้ (เด้ง popup ทดสอบ)
       </button>
 
-      <p style={{ color: v('textDim'), fontSize: fontSize.small, margin: 0 }}>
-        ปิดหน้านี้ได้ แอปยังทำงานอยู่บน menu bar (🙏)
-      </p>
-
-      <button onClick={() => setOnboarding(true)} style={{ ...ghostButton, border: 'none', color: v('textDim') }}>
-        ⚙ ตั้งค่าการต่อ AI / กล้อง / เปิดตอนเข้าเครื่อง
-      </button>
+      <footer style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space.sm }}>
+        <span style={{ color: v('textDim'), fontSize: fontSize.small }}>ปิดหน้านี้ได้ แอปยังอยู่บน menu bar (🙏)</span>
+        <button
+          onClick={() => setOnboarding(true)}
+          style={{ ...ghostButton, border: 'none', padding: space.xs, color: v('textDim'), fontSize: fontSize.small }}
+        >
+          ⚙ ตั้งค่า
+        </button>
+      </footer>
     </div>
   )
 }
@@ -139,8 +141,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function Stat({ label, value, tone }: { label: string; value?: number; tone: 'hud' | 'blessed' | 'text' }) {
   return (
-    <div style={{ ...panel, padding: space.md }}>
-      <div className="mono" style={{ fontSize: 36, color: v(tone) }}>
+    <div style={{ ...panel, padding: `${space.sm}px ${space.md}px` }}>
+      <div className="mono" style={{ fontSize: fontSize.speech, lineHeight: 1.2, color: v(tone) }}>
         {value ?? '–'}
       </div>
       <div style={{ color: v('textDim'), fontSize: fontSize.small }}>{label}</div>
