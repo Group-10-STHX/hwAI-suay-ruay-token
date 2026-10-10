@@ -10,6 +10,9 @@ cat > "$DIR/.claude/settings.local.json" <<JSON
   "hooks": {
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "'$NODE' '$HOOK' claude-code", "timeout": 300 } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Task|Agent", "hooks": [ { "type": "command", "command": "'$NODE' '$HOOK' claude-code", "timeout": 300 } ] }
     ]
   }
 }
@@ -21,6 +24,9 @@ cat > "$DIR/.codex/hooks.json" <<JSON
   "hooks": {
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "'$NODE' '$HOOK' codex", "timeout": 300 } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "spawn_agent|Agent", "hooks": [ { "type": "command", "command": "'$NODE' '$HOOK' codex", "timeout": 300 } ] }
     ]
   }
 }

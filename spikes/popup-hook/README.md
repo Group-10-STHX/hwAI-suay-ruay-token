@@ -1,7 +1,7 @@
 # SPIKE: hook → popup → skip
 
 พิสูจน์ว่าส่ง prompt ใน Claude Code แล้ว popup เด้ง กดข้ามแล้ว AI ทำงานต่อ
-**ยังไม่มีกล้อง** ใช้ปุ่ม "ข้าม (dev)" แทนการไหว้ · ดักแค่ `UserPromptSubmit` (ยังไม่ดัก subagent)
+**ยังไม่มีกล้อง** ใช้ปุ่ม "ข้าม (dev)" แทนการไหว้ · ดัก `UserPromptSubmit` (prompt) + `PreToolUse` (subagent: Claude `Task|Agent`, Codex `spawn_agent|Agent`) ทั้ง Claude Code และ Codex
 ของจริงย้ายไป `/app/main` (#1) กับ `/integrations` (#4)
 
 ## รัน (3 terminal)

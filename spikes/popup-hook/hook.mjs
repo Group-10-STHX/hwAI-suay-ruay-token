@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// SPIKE: hook UserPromptSubmit ของ Claude Code / Codex (argv[2] = claude-code | codex) → ขอไหว้จาก daemon แล้วรอผล
-// exit 0 = ให้ AI ทำงาน · exit 2 = บล็อก prompt (stderr โชว์ให้ผู้ใช้)
+// SPIKE: hook UserPromptSubmit + PreToolUse(subagent) ของ Claude Code / Codex (argv[2] = claude-code | codex) → ขอไหว้จาก daemon แล้วรอผล
+// exit 0 = ให้ทำงาน · exit 2 = บล็อก (prompt: stderr โชว์ผู้ใช้ · subagent: stderr ส่งให้ AI อ่าน)
 // ของจริงเป็นงานของ #4 (/integrations)
 const DAEMON = process.env.WAI_DAEMON_URL ?? 'http://127.0.0.1:7777'
 const GIVE_UP_MS = 290_000 // ต้องจบก่อน timeout 300 วิ ของ hook
@@ -14,12 +14,19 @@ let raw = ''
 for await (const chunk of process.stdin) raw += chunk
 const input = JSON.parse(raw || '{}')
 
+// UserPromptSubmit = prompt หลัก · PreToolUse (Task|Agent / spawn_agent) = subagent
+const isSubagent = input.hook_event_name === 'PreToolUse'
+const tool = input.tool_input ?? {}
+const agentLabel = isSubagent
+  ? `${LABEL} › ${tool.subagent_type ?? tool.agent_type ?? tool.description ?? 'subagent'}`
+  : LABEL
+
 let id
 try {
   const res = await fetch(`${DAEMON}/wai/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ source: SOURCE, kind: 'prompt', session_id: input.session_id, agent_label: LABEL }),
+    body: JSON.stringify({ source: SOURCE, kind: isSubagent ? 'subagent' : 'prompt', session_id: input.session_id, agent_label: agentLabel }),
   })
   ;({ id } = await res.json())
 } catch {
