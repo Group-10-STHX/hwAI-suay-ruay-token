@@ -1,6 +1,6 @@
 // SPIKE: daemon :7777 + popup แบบโง่ที่สุด (ยังไม่มีกล้อง ใช้ปุ่ม skip แทนการไหว้)
 // ของจริงเป็นงานของ #1 (/app/main) อันนี้แค่พิสูจน์ว่า hook → popup → ปลด ทำงานได้
-import { app, BrowserWindow, screen } from 'electron'
+import { app, BrowserWindow, Menu, nativeImage, screen, Tray } from 'electron'
 import { randomUUID } from 'node:crypto'
 import http from 'node:http'
 
@@ -17,6 +17,9 @@ const results = new Map()
 const waiters = new Map()
 
 let win = null
+let tray = null
+// ปิดจาก tray = bypass: ทุกคำขอผ่านทันที (เหมือน WAI_BYPASS=1 แต่สลับได้ตอนรัน)
+let enabled = process.env.WAI_BYPASS !== '1'
 
 function createWindow() {
   const { workArea } = screen.getPrimaryDisplay()
@@ -42,6 +45,7 @@ function createWindow() {
 
 /** มีคิว = เด้ง popup, คิวหมด = ซ่อน */
 function syncWindow() {
+  if (tray) updateTray()
   if (!win) return
   if (queue.length > 0 && !win.isVisible()) win.showInactive()
   if (queue.length === 0 && win.isVisible()) win.hide()
@@ -95,6 +99,11 @@ const server = http.createServer(async (req, res) => {
       agent_label: body.agent_label ?? 'Claude Code',
       created_at: Date.now(),
     }
+    if (!enabled) {
+      results.set(item.id, { passed: true, level: 0, score: 0, action: 'allow' })
+      console.log('[wai] bypass', item.agent_label)
+      return send(res, 200, { id: item.id })
+    }
     queue.push(item)
     console.log('[wai] request', item.id, item.agent_label)
     syncWindow()
@@ -122,7 +131,7 @@ const server = http.createServer(async (req, res) => {
       items: queue,
       state: queue.length > 0 ? 'DEMANDING' : 'IDLE',
       fail_count: 0,
-      bypass: process.env.WAI_BYPASS === '1',
+      bypass: !enabled,
     })
   }
 
@@ -143,7 +152,33 @@ setInterval(() => {
   for (const q of queue) if (now - q.created_at > EXPIRE_MS) resolve(q.id, { passed: false, level: 0, score: 0, action: 'deny' })
 }, 5_000)
 
+function setEnabled(next) {
+  enabled = next
+  // ปิดแล้ว ปล่อยทุกใบที่ค้างอยู่ ไม่ให้ AI ค้าง
+  if (!enabled) for (const q of [...queue]) resolve(q.id, { passed: true, level: 0, score: 0, action: 'allow' })
+  updateTray()
+}
+
+function updateTray() {
+  tray.setTitle(enabled ? ' 🙏' : ' 💤') // mac แสดงเป็นตัวหนังสือบน menu bar
+  tray.setToolTip(enabled ? 'ไหว้กูซะ: เปิดอยู่' : 'ไหว้กูซะ: ปิดอยู่ (bypass)')
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: enabled ? '● ต้องไหว้ก่อนใช้ AI' : '○ ปิดอยู่ AI ใช้ได้เลย', enabled: false },
+      { label: `รอไหว้ ${queue.length} ใบ`, enabled: false },
+      { type: 'separator' },
+      { label: 'เปิดใช้งาน', type: 'checkbox', checked: enabled, click: (i) => setEnabled(i.checked) },
+      { label: 'โชว์ popup', click: () => win?.showInactive() },
+      { type: 'separator' },
+      { label: 'ออก', role: 'quit' },
+    ]),
+  )
+}
+
 app.whenReady().then(() => {
+  app.dock?.hide() // เป็นแอป menu bar ไม่ขึ้น Dock
+  tray = new Tray(nativeImage.createEmpty()) // SPIKE: ยังไม่มีไอคอน (Windows ต้องมีไอคอนจริง)
+  updateTray()
   createWindow()
   server.listen(PORT, '127.0.0.1', () => console.log(`[wai] daemon on http://127.0.0.1:${PORT} → ${RENDERER_URL}`))
 })

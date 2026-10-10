@@ -30,3 +30,7 @@ bash spikes/popup-hook/setup-sandbox.sh    # 3. ติด hook ใน ~/wai-sand
 ## ข้อควรรู้จาก docs ของ Claude Code
 - tool แตก subagent ชื่อ `Agent` แล้ว (เดิม `Task`) ใช้ matcher `Task|Agent`
 - hook หมดเวลา = prompt ผ่านไปเลย ถ้าจะบล็อกต้องใส่ `onFailure: "block"`
+
+## Tray (menu bar)
+ไอคอน 🙏 บน menu bar (💤 = ปิด) · เมนู: สถานะ, จำนวนที่รอไหว้, เปิดใช้งาน (ติ๊กออก = bypass ทุกคำขอผ่านทันที + ปล่อยใบที่ค้าง), โชว์ popup, ออก
+ไม่ขึ้นใน Dock · `WAI_BYPASS=1` = เริ่มแบบปิดอยู่ · ยังไม่มีไอคอนจริง (Windows ต้องมี)
