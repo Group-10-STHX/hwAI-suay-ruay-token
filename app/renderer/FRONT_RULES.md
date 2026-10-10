@@ -21,8 +21,9 @@
 | Avatar | ขอบขวาของจอ | **คงที่ ไม่เปลี่ยนตาม state** | น้องหุ่น, ข้อความ, กองการ์ด ลอยอยู่บนจอ **ไม่มีกรอบหรือพื้นหลังของ island** มีแค่เงาบางๆ ขยับขึ้นลงได้แบบ Dynamic Island |
 | Webcam | กลางจอ | คงที่ | ภาพกล้องของทีม Vision เราวาด overlay ทับ เช่น แถบ level, วงค้างท่า, กรอบสแกน |
 | Debug panel | ที่ไหนก็ได้ (dev เท่านั้น) | - | ปุ่มสลับ state ปลอม |
+| หน้าหลัก (Home) | กลางจอ เปิดตอนเริ่มแอป | คงที่ | window ปกติ (มีพื้นหลัง) สวิตช์เปิด/ปิด, ต่อกับ Claude Code/Codex แล้วหรือยัง, สถิติวันนี้, ปุ่มลองไหว้ ปิดแล้วแอปยังอยู่บน menu bar |
 
-- Window ทั้งหมดเป็น transparent, frameless และ alwaysOnTop
+- Window ทั้งหมดยกเว้นหน้าหลักเป็น transparent, frameless และ alwaysOnTop
 - พื้นที่โปร่งใสต้องคลิกทะลุได้ ห้ามบังงานของผู้ใช้
 - Webcam window เป็นของทีม Vision (MediaPipe รันอยู่ในนั้น) ทีมเราห้ามไปปิดหรือซ่อนมันเอง ให้ส่งคำขอผ่าน main
 
@@ -142,12 +143,15 @@ app/renderer/
 ├── avatar.html                 # entry ของ Avatar window
 ├── camera-overlay.html         # entry ของ overlay ที่ซ้อนบน webcam
 ├── debug.html                  # entry ของ Debug panel (dev เท่านั้น)
-├── vite.config.ts              # multi-page: 3 entry ข้างบน
+├── home.html                   # entry ของหน้าหลัก
+├── vite.config.ts              # multi-page: 4 entry ข้างบน
 └── src/
     ├── app/
     │   ├── main-avatar.tsx         mount AvatarWindow
     │   ├── main-camera.tsx         mount CameraOverlayWindow
     │   ├── main-debug.tsx          mount DebugPanel
+│   ├── main-home.tsx           mount HomeWindow
+│   ├── HomeWindow.tsx          หน้าหลัก (สวิตช์, สถานะการต่อ, สถิติ)
     │   ├── AvatarWindow.tsx        ประกอบ Island + CardStack
     │   ├── CameraOverlayWindow.tsx ประกอบ ScanFrame + LevelMeter + HoldRing + ReasonChip
     │   ├── DebugPanel.tsx          ปุ่มสลับ scenario
@@ -155,6 +159,7 @@ app/renderer/
     ├── api/
     │   ├── types.ts                QueueItem, SessionState, VisionEvent, WaiReason
     │   ├── queue.ts                poll GET /wai/queue ทุก 500ms
+│   ├── status.ts               หน้าหลัก: GET /wai/status, เปิด/ปิด, ยิงคำขอทดสอบ (รอ #1 ใส่ใน contract)
     │   ├── vision.ts               subscribe IPC vision:event
     │   └── index.ts                เลือก real หรือ mock จาก env VITE_USE_MOCK
     ├── mocks/

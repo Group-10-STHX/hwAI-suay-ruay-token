@@ -15,6 +15,7 @@ export default defineConfig({
         avatar: page('./avatar.html'),
         camera: page('./camera-overlay.html'),
         debug: page('./debug.html'),
+        home: page('./home.html'),
       },
     },
   },

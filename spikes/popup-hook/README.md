@@ -20,6 +20,7 @@ bash spikes/popup-hook/setup-sandbox.sh    # 3. ติด hook ใน ~/wai-sand
 | กดข้าม | hook exit 0 → AI ทำงาน |
 | `WAI_BYPASS=1` | ผ่านทันที ไม่ยิง daemon |
 | daemon ไม่ได้เปิด / ตาย | ผ่าน (fail-open) กันทีมใช้ Claude Code ไม่ได้ |
+| หน้าหลัก (เปิดตอนเริ่มแอป) | สวิตช์เปิด/ปิด, ต่อ Claude Code/Codex แล้วยัง, สถิติ, ปุ่มลองไหว้ · ปิดแล้วยังอยู่บน menu bar |
 | ไม่กดจนครบ 290 วิ | exit 2 "หมดเวลาไหว้" (hook timeout ตั้ง 300 วิ เพราะ default ของ UserPromptSubmit แค่ 30) |
 
 ## เพิ่มจาก contract (spike เท่านั้น)

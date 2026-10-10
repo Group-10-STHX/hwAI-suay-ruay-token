@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import http from 'node:http'
 
 const PORT = 7777
-const RENDERER_URL = process.env.WAI_RENDERER_URL ?? 'http://localhost:5173/avatar.html'
+const RENDERER = process.env.WAI_RENDERER_URL ?? 'http://localhost:5173/'
 const WAIT_MS = 55_000 // long-poll รอบละไม่เกิน 60 วิ ตาม contract
 const EXPIRE_MS = 300_000 // hook timeout
 
@@ -17,7 +17,12 @@ const results = new Map()
 const waiters = new Map()
 
 let win = null
+let home = null
 let tray = null
+// สถิติให้หน้าหลัก (หายเมื่อปิดแอป)
+const stats = { requests: 0, passed: 0, bypassed: 0 }
+/** source → เวลาที่เห็นคำขอล่าสุด ใช้บอกว่าต่อ Claude Code / Codex ได้แล้ว */
+const lastSeen = {}
 // ปิดจาก tray = bypass: ทุกคำขอผ่านทันที (เหมือน WAI_BYPASS=1 แต่สลับได้ตอนรัน)
 let enabled = process.env.WAI_BYPASS !== '1'
 
@@ -40,7 +45,26 @@ function createWindow() {
   })
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  win.loadURL(RENDERER_URL)
+  win.loadURL(RENDERER + 'avatar.html')
+}
+
+/** หน้าหลัก: เปิดตอนเริ่มแอป ปิดแล้วแอปยังอยู่บน menu bar */
+function openHome() {
+  if (home) return home.show()
+  home = new BrowserWindow({
+    width: 520,
+    height: 680,
+    title: 'ไหว้กูซะ',
+    backgroundColor: '#0A0A0C',
+    titleBarStyle: 'hiddenInset',
+    resizable: false,
+  })
+  home.loadURL(RENDERER + 'home.html')
+  app.dock?.show()
+  home.on('closed', () => {
+    home = null
+    app.dock?.hide()
+  })
 }
 
 /** มีคิว = เด้ง popup, คิวหมด = ซ่อน */
@@ -52,6 +76,7 @@ function syncWindow() {
 }
 
 function resolve(id, result) {
+  if (queue.some((q) => q.id === id)) result.level > 0 ? stats.passed++ : result.passed && stats.bypassed++ // level 0 = ถูกปล่อยตอนปิดแอป
   queue = queue.filter((q) => q.id !== id)
   results.set(id, result)
   for (const res of waiters.get(id) ?? []) send(res, 200, result)
@@ -99,7 +124,10 @@ const server = http.createServer(async (req, res) => {
       agent_label: body.agent_label ?? 'Claude Code',
       created_at: Date.now(),
     }
+    stats.requests++
+    lastSeen[item.source] = Date.now()
     if (!enabled) {
+      stats.bypassed++
       results.set(item.id, { passed: true, level: 0, score: 0, action: 'allow' })
       console.log('[wai] bypass', item.agent_label)
       return send(res, 200, { id: item.id })
@@ -143,6 +171,18 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true })
   }
 
+  // GET /wai/status ← หน้าหลัก (SPIKE ยังไม่อยู่ใน contract)
+  if (req.method === 'GET' && route === 'status') {
+    return send(res, 200, { enabled, pending: queue.length, stats, last_seen: lastSeen })
+  }
+
+  // POST /wai/enabled { enabled } ← สวิตช์ในหน้าหลัก (ตัวเดียวกับใน tray)
+  if (req.method === 'POST' && route === 'enabled') {
+    const body = await readJson(req)
+    setEnabled(Boolean(body.enabled))
+    return send(res, 200, { enabled })
+  }
+
   send(res, 404, { error: 'not found' })
 })
 
@@ -168,6 +208,7 @@ function updateTray() {
       { label: `รอไหว้ ${queue.length} ใบ`, enabled: false },
       { type: 'separator' },
       { label: 'เปิดใช้งาน', type: 'checkbox', checked: enabled, click: (i) => setEnabled(i.checked) },
+      { label: 'เปิดหน้าหลัก', click: openHome },
       { label: 'โชว์ popup', click: () => win?.showInactive() },
       { type: 'separator' },
       { label: 'ออก', role: 'quit' },
@@ -180,6 +221,8 @@ app.whenReady().then(() => {
   tray = new Tray(nativeImage.createEmpty()) // SPIKE: ยังไม่มีไอคอน (Windows ต้องมีไอคอนจริง)
   updateTray()
   createWindow()
-  server.listen(PORT, '127.0.0.1', () => console.log(`[wai] daemon on http://127.0.0.1:${PORT} → ${RENDERER_URL}`))
+  openHome()
+  server.listen(PORT, '127.0.0.1', () => console.log(`[wai] daemon on http://127.0.0.1:${PORT} → ${RENDERER}`))
 })
 app.on('window-all-closed', (e) => e.preventDefault()) // daemon อยู่ต่อแม้ไม่มี window
+app.on('activate', openHome) // กดไอคอนใน Dock/Launchpad = เปิดหน้าหลัก

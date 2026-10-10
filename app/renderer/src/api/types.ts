@@ -75,3 +75,11 @@ export const REQUIRED_LEVEL: Record<SessionState, WaiLevel> = {
   RAGE_QUIT: 3,
   FORGIVE: 3,
 }
+
+/** สถานะของแอปสำหรับหน้าหลัก (GET /wai/status ยังไม่อยู่ใน contract รอ #1) */
+export type AppStatus = {
+  enabled: boolean // false = ปิดอยู่ ทุกคำขอผ่านทันที
+  pending: number
+  stats: { requests: number; passed: number; bypassed: number }
+  lastSeen: Partial<Record<string, number>> // source → epoch ms ที่เห็นคำขอล่าสุด
+}

@@ -1,4 +1,4 @@
-import { QUEUE_POLL_MS, type QueueSnapshot, type VisionEvent } from '../api/types'
+import { QUEUE_POLL_MS, type AppStatus, type QueueSnapshot, type VisionEvent } from '../api/types'
 import { DEFAULT_QUEUE_SIZE, SCENARIOS, scenarioSnapshot, type ScenarioName } from './scenarios'
 
 // ยิง scenario เป็นคิว + vision event ปลอม
@@ -70,4 +70,28 @@ export function subscribeVision(onEvent: (e: VisionEvent) => void): () => void {
     onEvent(SCENARIOS[control.scenario].vision(performance.now() - startedAt))
   }, 1000 / VISION_FPS)
   return () => clearInterval(timer)
+}
+
+// ---------- หน้าหลัก ----------
+let mockEnabled = true
+
+export function subscribeStatus(onStatus: (s: AppStatus) => void): () => void {
+  const emit = () =>
+    onStatus({
+      enabled: mockEnabled && !SCENARIOS[control.scenario].bypass,
+      pending: control.queueSize,
+      stats: { requests: 42, passed: 37, bypassed: 2 },
+      lastSeen: { 'claude-code': Date.now() - 90_000 },
+    })
+  emit()
+  const timer = setInterval(emit, 1000)
+  return () => clearInterval(timer)
+}
+
+export async function setEnabled(enabled: boolean) {
+  mockEnabled = enabled
+}
+
+export async function sendTestRequest() {
+  setMockControl({ scenario: 'demand', queueSize: Math.min(5, control.queueSize + 1) })
 }
