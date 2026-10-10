@@ -37,5 +37,27 @@ export const REASON_TEXT: Record<WaiReason, string> = {
   HOLD_TOO_SHORT: 'ค้างท่าให้นานกว่านี้',
 }
 
+// ---------- หนีเมาส์ (ANNOYED, window วิ่งหนีเมาส์) ----------
+// ทุกคำแซวต้องยาว 2 บรรทัดเท่ากันในฟองคำพูด (28px กว้าง ~181px) ไม่งั้น island กระโดดทุกครั้งที่เปลี่ยนคำ
+// ฟองตัดบรรทัดเฉพาะที่ช่องว่าง (byPhrase) วลีที่ไม่มีช่องว่างต้องกว้างไม่เกินฟอง
+
+/** คำแซวแทนข้อความหลัก เปลี่ยนทุกครั้งที่ window หนี */
+export const FLEE_TAUNTS = [
+  'จับกูไม่ได้หรอก มนุษย์',
+  'ไหว้ก่อนสิ ค่อยมาจับ',
+  'ช้าไปนะ มนุษย์ ช้าไป',
+  'เมาส์มึง ช้ากว่ากูอีก',
+  'วิ่งตามทำไม ไหว้สิ',
+] as const
+
+/** คำแซวลำดับที่ n (n = จำนวนครั้งที่หนีไปแล้ว) */
+export const fleeTaunt = (n: number) => FLEE_TAUNTS[((n % FLEE_TAUNTS.length) + FLEE_TAUNTS.length) % FLEE_TAUNTS.length]
+
+/** บอกวิธีให้หยุดหนี แทน SPEECH_HINT.ANNOYED ตอนหนีเมาส์ */
+export const FLEE_HINT = 'ไหว้ level 2 ขึ้นไป กูถึงจะหยุด'
+
+/** เสียงประกอบตอน window กำลังวิ่ง */
+export const FLEE_SFX = 'ฟิ้ววว'
+
 /** ป้ายข้างชื่อ provider บอกว่าพลาดไปกี่ครั้งแล้ว */
 export const failLabel = (n: number) => `พลาด ${n} ครั้ง`

@@ -1,4 +1,4 @@
-import type { VisionEvent, WaiLevel } from './types'
+import type { FleeState, VisionEvent, WaiLevel } from './types'
 
 // bridge ที่ preload ของ #1 ต้อง expose ไว้ใน window (ยังไม่ได้ตกลงชื่อ รอยืนยันกับ #1)
 // ตัวอย่างฝั่ง preload:
@@ -13,6 +13,8 @@ declare global {
       openCodexHooks?: () => Promise<{ ok: boolean; error?: string }>
       /** onboarding: ติด/ถอด hook, ขอกล้อง, เปิดตอนเข้าเครื่อง (spike) */
       setup?: import('./setup').SetupBridge
+      /** หนีเมาส์ (ANNOYED): IPC wai:flee จาก main ส่งเมื่อค่าเปลี่ยน ไม่มี = ไม่หนี (api/flee.ts) */
+      onFlee?: (cb: (raw: Partial<FleeState>) => void) => () => void
     }
   }
 }

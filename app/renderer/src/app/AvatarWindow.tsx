@@ -8,12 +8,14 @@ import { splitQueue } from './derive'
 import { useStore } from './store'
 
 export function AvatarWindow() {
-  const { queue, vision, daemonOnline } = useStore()
+  const { queue, vision, daemonOnline, flee, fleeCount } = useStore()
   const now = useNow(queue.items.length > 0)
   // ใบบนสุดอยู่ใน island ใบที่เหลือลงกองการ์ด แต่ละคำขอโชว์ครั้งเดียว
   const { top, waiting, shown, hidden } = splitQueue(queue.items, MAX_VISIBLE_CARDS)
   const accent = top ? providerAccent[top.source] : undefined
   const active = queue.state !== 'IDLE'
+  // main หนีเฉพาะ ANNOYED อยู่แล้ว เช็กซ้ำเพราะ IPC กับ poll คิวมาไม่พร้อมกัน (กันท่าหนีค้างตอน state เปลี่ยน)
+  const fleeOn = flee.active && queue.state === 'ANNOYED'
 
   return (
     <div
@@ -31,6 +33,7 @@ export function AvatarWindow() {
           providerColor={accent?.color}
           providerLabel={accent?.label}
           agentLabel={top?.agentLabel}
+          flee={fleeOn ? { fleeing: flee.fleeing, dodges: fleeCount } : undefined}
           timeLeft={top && <TimeLeft createdAt={top.createdAt} now={now} timeoutMs={REQUEST_TIMEOUT_MS} />}
           mascot={<Mascot state={queue.state} providerColor={accent?.color ?? v('hudDim')} />}
           cards={

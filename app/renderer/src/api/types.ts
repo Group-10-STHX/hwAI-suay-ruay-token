@@ -59,6 +59,15 @@ export type VisionEvent = {
   style?: 'normal' | 'weird'
 }
 
+/**
+ * หนีเมาส์ (§4 ANNOYED) main เป็นคนขยับ window แล้วส่ง IPC wai:flee มาเมื่อค่าเปลี่ยน
+ * renderer แค่โชว์ท่า (มองไม่เห็นเมาส์นอก window ตัวเอง)
+ */
+export type FleeState = {
+  active: boolean // โหมดหนีเปิดอยู่ (ANNOYED และไม่ได้ปิดไว้)
+  fleeing: boolean // window เพิ่งขยับใน ~300ms ล่าสุด
+}
+
 /** ค่าคงที่จาก contract */
 export const REQUEST_TIMEOUT_MS = 300_000 // hook timeout
 export const QUEUE_POLL_MS = 500

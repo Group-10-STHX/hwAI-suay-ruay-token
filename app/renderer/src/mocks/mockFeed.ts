@@ -1,4 +1,4 @@
-import { QUEUE_POLL_MS, type AppStatus, type QueueSnapshot, type VisionEvent } from '../api/types'
+import { QUEUE_POLL_MS, type AppStatus, type FleeState, type QueueSnapshot, type VisionEvent } from '../api/types'
 import type { SetupBridge, SetupStatus } from '../api/setup'
 import { DEFAULT_QUEUE_SIZE, SCENARIOS, scenarioSnapshot, type ScenarioName } from './scenarios'
 
@@ -6,20 +6,26 @@ import { DEFAULT_QUEUE_SIZE, SCENARIOS, scenarioSnapshot, type ScenarioName } fr
 // avatar / camera-overlay / debug เป็นคนละหน้า จึงซิงก์ scenario ที่เลือกผ่าน BroadcastChannel
 // (ใช้ได้ทั้งใน browser ธรรมดาและใน Electron) และจำค่าล่าสุดไว้ใน localStorage ให้หน้าที่เปิดทีหลัง
 
-export type MockControl = { scenario: ScenarioName; queueSize: number }
+/** หนีเมาส์ปลอม (มีผลเฉพาะ state ANNOYED): off = ไม่หนี, auto = วิ่ง/หยุดสลับทุก 1.5 วิ, hold = วิ่งค้าง */
+export type MockFlee = 'off' | 'auto' | 'hold'
+
+export type MockControl = { scenario: ScenarioName; queueSize: number; flee: MockFlee }
 
 const CHANNEL = 'wai-mock'
 const STORAGE_KEY = 'wai-mock-control'
 const VISION_FPS = 15
+const FLEE_TOGGLE_MS = 1500
 
 function readControl(): MockControl {
+  const fallback: MockControl = { scenario: 'demand', queueSize: DEFAULT_QUEUE_SIZE.demand, flee: 'auto' }
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) return JSON.parse(saved)
+    // ค่าเก่าใน localStorage ยังไม่มี flee เติม default ให้
+    if (saved) return { ...fallback, ...JSON.parse(saved) }
   } catch {
     // ไม่มี localStorage ก็ใช้ค่า default
   }
-  return { scenario: 'demand', queueSize: DEFAULT_QUEUE_SIZE.demand }
+  return fallback
 }
 
 let control = readControl()
@@ -73,6 +79,37 @@ export function subscribeVision(onEvent: (e: VisionEvent) => void): () => void {
   return () => clearInterval(timer)
 }
 
+/** แทน IPC wai:flee: หนีเฉพาะ scenario ที่ state = ANNOYED ส่งเมื่อค่าเปลี่ยนเท่านั้น (เหมือน main) */
+export function subscribeFlee(onFlee: (s: FleeState) => void): () => void {
+  let last: FleeState | undefined
+  let timer: ReturnType<typeof setInterval> | undefined
+  const emit = (next: FleeState) => {
+    if (last && last.active === next.active && last.fleeing === next.fleeing) return
+    last = next
+    onFlee(next)
+  }
+  const sync = () => {
+    clearInterval(timer)
+    timer = undefined
+    const active = SCENARIOS[control.scenario].state === 'ANNOYED' && control.flee !== 'off'
+    if (!active) return emit({ active: false, fleeing: false })
+    if (control.flee === 'hold') return emit({ active: true, fleeing: true })
+    // auto: เริ่มด้วยวิ่งเลยจะได้เห็นทันที แล้วสลับวิ่ง/หยุดไปเรื่อยๆ (เฉพาะตอน ANNOYED ไม่วนตอนว่าง)
+    let fleeing = true
+    emit({ active: true, fleeing })
+    timer = setInterval(() => {
+      fleeing = !fleeing
+      emit({ active: true, fleeing })
+    }, FLEE_TOGGLE_MS)
+  }
+  sync()
+  const off = onMockControl(sync)
+  return () => {
+    clearInterval(timer)
+    off()
+  }
+}
+
 // ---------- หน้าหลัก ----------
 let mockEnabled = true
 
@@ -102,7 +139,7 @@ export async function setEnabled(enabled: boolean) {
 }
 
 export async function sendTestRequest() {
-  setMockControl({ scenario: 'demand', queueSize: Math.min(5, control.queueSize + 1) })
+  setMockControl({ ...control, scenario: 'demand', queueSize: Math.min(5, control.queueSize + 1) })
 }
 
 // ---------- onboarding ----------
