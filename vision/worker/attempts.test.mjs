@@ -57,3 +57,10 @@ test("style rule", () => {
   assert.equal(styleFor({ sym: 1, cen: 0.39 }), "weird");
   assert.equal(styleFor({ sym: 0.5, cen: 0.4 }), "normal");
 });
+
+test("computeParts uses the detector's own symmetry when present", () => {
+  const parts = computeParts({ sym: 0.3, center: 0.1 }, 500, { holdTarget: 1000, centerMax: 0.5 });
+  assert.equal(parts.sym, 0.3);
+  assert.equal(styleFor(parts), "weird");
+});
+

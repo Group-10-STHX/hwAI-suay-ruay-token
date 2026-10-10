@@ -18,8 +18,10 @@ export function computeParts(features, holdMs, { holdTarget = 1000, centerMax = 
   const center = num(F.center);
   const hold = num(holdMs) ?? 0;
   const bow = num(F.bow);
+  // The pose-based detector reports symmetry directly (0..1); older feature sets only have wrists.
+  const symDirect = num(F.sym);
   return {
-    sym: dy == null ? 1 : clamp01(1 - dy),
+    sym: symDirect != null ? clamp01(symDirect) : dy == null ? 1 : clamp01(1 - dy),
     cen: center == null ? 1 : clamp01(1 - center / centerMax),
     hold: clamp01(hold / holdTarget),
     bow: bow == null ? null : Math.round(bow * 10) / 10,
