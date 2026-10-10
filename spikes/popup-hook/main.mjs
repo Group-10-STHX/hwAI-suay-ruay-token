@@ -1,10 +1,10 @@
 // SPIKE: daemon :7777 + popup แบบโง่ที่สุด (ยังไม่มีกล้อง ใช้ปุ่ม skip แทนการไหว้)
 // ของจริงเป็นงานของ #1 (/app/main) อันนี้แค่พิสูจน์ว่า hook → popup → ปลด ทำงานได้
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron'
-import { execFile, spawn } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { delimiter, dirname, extname, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { randomUUID } from 'node:crypto'
@@ -291,21 +291,12 @@ ipcMain.handle('wai:open-codex-hooks', async () => {
 
 /**
  * Windows: เปิดหน้าต่าง console ใหม่ใน folder แล้วรัน codex (ยังไม่ได้ทดสอบบนเครื่องจริง)
- * detached = ได้ console ของตัวเอง (ตาม docs ของ Node) ไม่ต้องผ่าน `start ""` ที่ quote ยาก
- * .exe spawn ตรง · .cmd/.bat (npm) Node spawn เองไม่ได้ต้องผ่าน cmd /k (หน้าต่างค้างไว้หลัง codex จบ)
+ * ให้ `start` สร้าง console จริง (spawn detached + stdio ignore = TUI ไม่มี terminal)
+ * cmd /d /c start "" /D <cwd> <cli> · "" = ชื่อหน้าต่าง · Node quote path ที่มีเว้นวรรคให้เอง
+ * ข้อความหลัง /c ขึ้นต้นด้วย start (ไม่ใช่ ") cmd เลยไม่ตัด quote · .cmd ของ npm start เปิดผ่าน cmd /k ให้เอง
  */
-function openConsoleWin(cli, cwd) {
-  const isScript = ['.cmd', '.bat'].includes(extname(cli).toLowerCase())
-  const [bin, args] = isScript ? [process.env.ComSpec || 'cmd.exe', ['/d', '/k', 'call', cli]] : [cli, []]
-  return new Promise((ok, fail) => {
-    const child = spawn(bin, args, { cwd, detached: true, stdio: 'ignore', windowsHide: false })
-    child.once('error', fail)
-    child.once('spawn', () => {
-      child.unref()
-      ok()
-    })
-  })
-}
+export const winConsoleArgs = (cli, cwd) => ['/d', '/c', 'start', '', '/D', cwd, cli]
+const openConsoleWin = (cli, cwd) => run(process.env.ComSpec || 'cmd.exe', winConsoleArgs(cli, cwd))
 
 // ---------- onboarding ----------
 const run = (bin, args) => new Promise((ok, fail) => execFile(bin, args, (e, out) => (e ? fail(e) : ok(out))))
