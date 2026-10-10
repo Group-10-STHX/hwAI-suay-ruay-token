@@ -11,7 +11,13 @@ AI กำลังจะยึดโลก มนุษย์ที่อยา�
 
 ต้องมี Node.js (LTS) · ปิด `prototype/agent-popup/server.py` ก่อน เพราะใช้ port 7777 เหมือนกัน
 
-**แบบแอป (กดเปิดจาก Spotlight)**
+**ง่ายสุด: ดับเบิลคลิกใน Finder**
+- `install-mac.command` ติดตั้ง + เปิดแอปให้เลย
+- `uninstall-mac.command` ปิดแอป, ถอด hook (เฉพาะของเรา), ลบแอป + `~/.waikusa` (ไม่ลบ repo และ `~/wai-sandbox`)
+
+ถ้า mac บอกว่าเปิดไม่ได้ (โหลดเป็น zip มา): คลิกขวา → Open
+
+**แบบแอป ผ่าน terminal (กดเปิดจาก Spotlight)**
 ```bash
 bash spikes/popup-hook/install-shortcut.sh     # สร้าง ~/Applications/ไหว้กูซะ.app
 ```
