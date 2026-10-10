@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wai Playground</title>
+<style>
+  :root { color-scheme: dark; --bg: #111; --fg: #eee; --muted: #888; --line: #333; --ok: #5d5; --no: #e66; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif;
+         display: flex; gap: 16px; padding: 16px; flex-wrap: wrap; align-items: flex-start; }
+  #stage { position: relative; width: 720px; max-width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  #stage video, #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+  #panel { flex: 1; min-width: 280px; max-width: 420px; }
+  #level { font-size: 44px; font-weight: 700; margin: 4px 0; }
+  #sub { color: var(--muted); min-height: 1.4em; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  td { padding: 3px 6px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  td:first-child { color: var(--muted); }
+  button { font: inherit; padding: 6px 12px; }
+  .ok { color: var(--ok); } .no { color: var(--no); }
+</style>
+</head>
+<body>
+<div id="stage"><video id="video" playsinline muted></video><canvas id="canvas"></canvas></div>
+<div id="panel">
+  <div id="status">กำลังโหลดโมเดล...</div>
+  <div id="level">-</div>
+  <div id="sub"></div>
+  <p>
+    <button id="calib">ตั้งศูนย์ท่าตรง (C)</button>
+    <label><input type="checkbox" id="useHands" checked> Hand Landmarker</label>
+  </p>
+  <p style="color:var(--muted)">ยืนตรงมองกล้องแล้วกด C ก่อน เพื่อจำองศาหัวตอนปกติ เส้นเหลือง = ระดับจมูก, เส้นส้ม = ระดับหว่างคิ้ว</p>
+  <table id="stats"></table>
+</div>
+
+<script type="module">
+import { FilesetResolver, PoseLandmarker, FaceLandmarker, HandLandmarker, DrawingUtils }
+  from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.0/vision_bundle.mjs';
+
+const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.0/wasm';
+const MODELS = 'https://storage.googleapis.com/mediapipe-models';
+const LEVEL_NAMES = ['ไม่ไหว้', 'ไหว้เพื่อน', 'ไหว้ผู้ใหญ่', 'ไหว้พระ'];
+
+// All distances are divided by shoulder width. Tune these while watching the stats table.
+const TH = {
+  gapMax: 0.45,        // wrist-to-wrist distance
+  centerMax: 0.5,      // hands' horizontal offset from body midline
+  fingersUpMin: 0.15,  // fingertips above wrists
+  tipNoseMin: -0.02,   // fingertip above nose -> level 2
+  thumbBrowMin: -0.05, // thumb above eyebrows -> level 3
+  bowMinDeg: 12,       // head pitch change from calibration (face matrix)
+  neckDropMin: 0.08,   // nose drop toward shoulders, fallback when face is hidden
+  holdMs: 700,
+};
+
+const $ = (id) => document.getElementById(id);
+const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
+const draw = new DrawingUtils(ctx);
+
+const fileset = await FilesetResolver.forVisionTasks(WASM);
+const opts = (path) => ({ baseOptions: { modelAssetPath: `${MODELS}/${path}`, delegate: 'GPU' }, runningMode: 'VIDEO' });
+const [pose, face, hands] = await Promise.all([
+  PoseLandmarker.createFromOptions(fileset, {
+    ...opts('pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task'), numPoses: 1 }),
+  FaceLandmarker.createFromOptions(fileset, {
+    ...opts('face_landmarker/face_landmarker/float16/latest/face_landmarker.task'), numFaces: 1,
+    outputFacialTransformationMatrixes: true }),
+  HandLandmarker.createFromOptions(fileset, {
+    ...opts('hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task'), numHands: 2,
+    minHandDetectionConfidence: 0.3, minHandPresenceConfidence: 0.3, minTrackingConfidence: 0.3 }),
+]);
+
+$('status').textContent = 'ขอสิทธิ์กล้อง...';
+video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+await video.play();
+const W = canvas.width = video.videoWidth, H = canvas.height = video.videoHeight;
+$('stage').style.aspectRatio = `${W} / ${H}`;
+$('status').textContent = 'พร้อม';
+
+const px = (l) => ({ x: l.x * W, y: l.y * H });
+const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const fmt = (v, d = 2) => (v == null ? '-' : v.toFixed(d));
+
+const ema = {};
+const smooth = (k, v, a = 0.4) => (ema[k] = v == null ? null : ema[k] == null ? v : ema[k] + a * (v - ema[k]));
+
+const calib = { pitch: null, neck: null };
+let last = {}, prevLevel = 0, holdMs = 0, prevTs = performance.now(), fps = 0;
+
+function doCalibrate() { calib.pitch = last.pitch ?? null; calib.neck = last.neck ?? null; }
+$('calib').onclick = doCalibrate;
+addEventListener('keydown', (e) => { if (e.key === 'c' || e.key === 'C') doCalibrate(); });
+
+function analyze(p, f, h, dt) {
+  const pl = p.landmarks[0];
+  const reason = !pl ? 'ไม่เจอคน' : pl[15].visibility < 0.5 || pl[16].visibility < 0.5 ? 'มองไม่เห็นข้อมือ' : null;
+  if (reason) { prevLevel = 0; holdMs = 0; last = {}; return { level: 0, reason }; }
+
+  const lSh = px(pl[11]), rSh = px(pl[12]), lWr = px(pl[15]), rWr = px(pl[16]), nose = px(pl[0]);
+  const sw = dist(lSh, rSh), shMid = mid(lSh, rSh), wrMid = mid(lWr, rWr);
+  // Profile / far-away person: shoulders collapse, and every ratio below explodes. Ask for a frontal view.
+  if (sw < 0.08 * W) { prevLevel = 0; holdMs = 0; last = {}; return { level: 0, reason: 'หันหน้าเข้ากล้อง / เข้าใกล้อีกนิด' }; }
+
+  // Fingertips/thumbs: hand landmarker if it fires, else the pose model's rough hand points.
+  const hl = h?.landmarks ?? [];
+  const tips = hl.length ? hl.flatMap((x) => [px(x[8]), px(x[12])]) : [px(pl[19]), px(pl[20])];
+  const thumbs = hl.length ? hl.map((x) => px(x[4])) : [px(pl[21]), px(pl[22])];
+  const handSrc = hl.length ? `hand x${hl.length}` : 'pose (fallback)';
+
+  const fl = f.faceLandmarks[0];
+  const noseY = fl ? px(fl[1]).y : nose.y;
+  const browY = fl ? px(fl[9]).y : (px(pl[2]).y + px(pl[5]).y) / 2 - 0.1 * sw;
+  const m = f.facialTransformationMatrixes?.[0];
+  const pitch = m ? (Math.atan2(m.data[6], m.data[10]) * 180) / Math.PI : null;
+  const neck = (shMid.y - nose.y) / sw;
+  last = { pitch, neck, noseY, browY };
+
+  const gap = smooth('gap', dist(lWr, rWr) / sw);
+  const center = smooth('center', Math.abs(wrMid.x - shMid.x) / sw);
+  const fingersUp = smooth('up', ((lWr.y + rWr.y) / 2 - Math.min(...tips.map((t) => t.y))) / sw);
+  const tipNose = smooth('tipNose', (noseY - Math.min(...tips.map((t) => t.y))) / sw);
+  const thumbBrow = smooth('thumbBrow', (browY - Math.min(...thumbs.map((t) => t.y))) / sw);
+  const bow = pitch != null && calib.pitch != null ? smooth('bow', Math.abs(((pitch - calib.pitch + 540) % 360) - 180)) : null; // wrap to +-180
+  const neckDrop = calib.neck != null ? smooth('neckDrop', calib.neck - neck) : null;
+
+  let level = 0;
+  if (gap < TH.gapMax && center < TH.centerMax && fingersUp > TH.fingersUpMin) {
+    level = tipNose > TH.tipNoseMin ? 2 : 1;
+    const bowed = bow != null ? bow > TH.bowMinDeg : neckDrop != null ? neckDrop > TH.neckDropMin : false; // no calibration -> cannot claim level 3
+    if (thumbBrow > TH.thumbBrowMin && bowed) level = 3;
+  }
+
+  holdMs = level === prevLevel ? holdMs + dt : 0;
+  prevLevel = level;
+  const sym = clamp01(1 - Math.abs(lWr.y - rWr.y) / (0.3 * sw));
+  const score = level ? Math.round(100 * (0.4 * sym + 0.3 * clamp01(1 - center / TH.centerMax) + 0.3 * clamp01(holdMs / 1000))) : 0;
+
+  return { level, score, holdMs, handSrc, gap, center, fingersUp, tipNose, thumbBrow, pitch, bow, neckDrop };
+}
+
+function render(p, f, h, r, timing) {
+  ctx.clearRect(0, 0, W, H);
+  for (const lm of p.landmarks) {
+    draw.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, { color: '#ffffff88', lineWidth: 2 });
+    draw.drawLandmarks(lm, { color: '#fff', radius: 2 });
+  }
+  for (const lm of h?.landmarks ?? []) {
+    draw.drawConnectors(lm, HandLandmarker.HAND_CONNECTIONS, { color: '#3cf', lineWidth: 2 });
+    draw.drawLandmarks(lm, { color: '#3cf', radius: 2 });
+  }
+  for (const [y, color] of [[last.noseY, '#fd3'], [last.browY, '#f93']]) {
+    if (y == null) continue;
+    ctx.strokeStyle = color; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  const passed = r.level > 0 && r.holdMs >= TH.holdMs;
+  $('level').innerHTML = `${r.level} · ${LEVEL_NAMES[r.level]} ${passed ? '<span class="ok">ผ่าน</span>' : ''}`;
+  $('sub').textContent = r.reason ?? `score ${r.score} · ค้างท่า ${(r.holdMs / 1000).toFixed(1)}s`;
+  const yes = (b) => `<span class="${b ? 'ok' : 'no'}">${b ? 'เจอ' : 'ไม่เจอ'}</span>`;
+  const rows = [
+    ['fps', fps.toFixed(0)],
+    ['pose / face / hand ms', `${fmt(timing.pose, 1)} / ${fmt(timing.face, 1)} / ${fmt(timing.hands, 1)}`],
+    ['pose', yes(p.landmarks.length)],
+    ['face', yes(f.faceLandmarks.length)],
+    ['hands', `${h?.landmarks.length ?? 0} มือ → ใช้ ${r.handSrc ?? '-'}`],
+    [`gap < ${TH.gapMax}`, fmt(r.gap)],
+    [`center < ${TH.centerMax}`, fmt(r.center)],
+    [`fingersUp > ${TH.fingersUpMin}`, fmt(r.fingersUp)],
+    [`tipNose > ${TH.tipNoseMin}`, fmt(r.tipNose)],
+    [`thumbBrow > ${TH.thumbBrowMin}`, fmt(r.thumbBrow)],
+    ['pitch (raw °)', fmt(r.pitch, 1)],
+    [`bow > ${TH.bowMinDeg}°`, calib.pitch == null ? 'กด C ก่อน' : fmt(r.bow, 1)],
+    [`neckDrop > ${TH.neckDropMin}`, calib.neck == null ? 'กด C ก่อน' : fmt(r.neckDrop)],
+  ];
+  $('stats').innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+}
+
+function loop() {
+  const ts = performance.now();
+  const dt = ts - prevTs;
+  if (video.readyState >= 2 && dt > 0) {
+    prevTs = ts;
+    fps = fps * 0.9 + (1000 / dt) * 0.1;
+    try {
+      const t0 = performance.now(); const p = pose.detectForVideo(video, ts);
+      const t1 = performance.now(); const f = face.detectForVideo(video, ts);
+      const t2 = performance.now(); const h = $('useHands').checked ? hands.detectForVideo(video, ts) : null;
+      const t3 = performance.now();
+      render(p, f, h, analyze(p, f, h, dt), { pose: t1 - t0, face: t2 - t1, hands: h ? t3 - t2 : null });
+    } catch (e) { $('status').textContent = 'error: ' + e.message; console.error(e); } // keep the rAF loop alive
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

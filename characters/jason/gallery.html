@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jason · Moods</title>
+<style>
+  :root { --bg: #f5f2ec; --fg: #1d1b18; --muted: #6d675e; --card: #fffdf8; --line: #ddd6c8; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #161411; --fg: #f1ece2; --muted: #a39b8d; --card: #1f1c18; --line: #3a352d; }
+  }
+  :root[data-theme="dark"] { --bg: #161411; --fg: #f1ece2; --muted: #a39b8d; --card: #1f1c18; --line: #3a352d; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 "Noto Sans Thai", system-ui, sans-serif; padding: 0 16px; }
+  main { max-width: 980px; margin: 0 auto; padding-block: 28px 56px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; min-width: 0; text-align: center; }
+  figure img { width: 100%; max-width: 180px; height: auto; display: block; margin: 0 auto; }
+  figcaption b { display: block; font-size: 15px; }
+  figcaption span { color: var(--muted); font-size: 12px; font-family: ui-monospace, Menlo, monospace; }
+  h2 { font-size: 16px; margin: 32px 0 10px; }
+  .bubble { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 8px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Jason</h1>
+  <p class="sub">ตัวน้องแบบเส้นพันกัน เคลื่อนไหวด้วย CSS ใน SVG ทุกอารมณ์อยู่ในโฟลเดอร์ <code>moods/</code></p>
+
+  <h2>สถานะทั้งหมด</h2>
+  <div class="grid">
+    <figure><img src="moods/jason-neutral.svg" alt="ปกติ"><figcaption><b>idle</b><span>neutral</span></figcaption></figure>
+    <figure><img src="moods/jason-demanding.svg" alt="เรียกให้ไหว้"><figcaption><b>DEMANDING</b><span>ไหว้กูซะ</span></figcaption></figure>
+    <figure><img src="moods/jason-watching.svg" alt="กำลังดูท่า"><figcaption><b>WATCHING</b><span>กำลังดู</span></figcaption></figure>
+    <figure><img src="moods/jason-passed.svg" alt="ผ่าน"><figcaption><b>PASSED</b><span>ไหว้ผ่าน</span></figcaption></figure>
+    <figure><img src="moods/jason-retry.svg" alt="ไหว้ใหม่"><figcaption><b>RETRY</b><span>ไหว้ใหม่ ไม่สวย</span></figcaption></figure>
+    <figure><img src="moods/jason-annoyed.svg" alt="โกรธ"><figcaption><b>ANNOYED</b><span>โกรธ</span></figcaption></figure>
+    <figure><img src="moods/jason-sulking.svg" alt="งอน"><figcaption><b>SULKING</b><span>งอน</span></figcaption></figure>
+    <figure><img src="moods/jason-rage_quit.svg" alt="หนีไปแล้ว"><figcaption><b>RAGE_QUIT</b><span>หนีไปแล้ว</span></figcaption></figure>
+    <figure><img src="moods/jason-forgive.svg" alt="ขอขมา"><figcaption><b>FORGIVE</b><span>ขอขมา</span></figcaption></figure>
+  </div>
+
+  <h2>ตัวเดียวกันแต่ติดชื่อโมเดล</h2>
+  <p class="sub">รันด้วย <code>--badge "Opus 5.5"</code> ได้ ไม่ใช้โลโก้ของบริษัทอื่นในค่าเริ่มต้น (ดูหมายเหตุด้านล่าง)</p>
+  <div class="grid">
+    <figure><img src="moods/jason-opus-passed.svg" alt="ผ่าน มี badge"><figcaption><b>PASSED</b><span>Opus 5.5</span></figcaption></figure>
+    <figure><img src="moods/jason-opus-annoyed.svg" alt="โกรธ มี badge"><figcaption><b>ANNOYED</b><span>Opus 5.5</span></figcaption></figure>
+    <figure><img src="moods/jason-opus-sulking.svg" alt="งอน มี badge"><figcaption><b>SULKING</b><span>Opus 5.5</span></figcaption></figure>
+  </div>
+
+  <div class="bubble">
+    <b>หมายเหตุ:</b> ถ้าจะใช้โลโก้ของ ChatGPT หรือบริษัทอื่น ต้องตรวจเงื่อนไขการใช้แบรนด์ก่อน โดยเฉพาะตอนแจกเป็น open source
+    แนะนำให้ใช้ป้ายชื่อโมเดลเป็นข้อความ หรือให้ผู้ใช้แต่ละคนใส่โลโก้เองในเครื่องของตัวเอง
+  </div>
+</main>
+</body>
+</html>

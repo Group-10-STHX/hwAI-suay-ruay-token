@@ -1,0 +1,16 @@
+{
+  "name": "Jason",
+  "style": "tangle-line",
+  "engine": "svg",
+  "states": {
+    "idle": "moods/jason-neutral.svg",
+    "demanding": "moods/jason-demanding.svg",
+    "watching": "moods/jason-watching.svg",
+    "passed": "moods/jason-passed.svg",
+    "retry": "moods/jason-retry.svg",
+    "annoyed": "moods/jason-annoyed.svg",
+    "sulking": "moods/jason-sulking.svg",
+    "rage_quit": "moods/jason-rage_quit.svg",
+    "forgive": "moods/jason-forgive.svg"
+  }
+}
