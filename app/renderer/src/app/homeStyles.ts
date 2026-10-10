@@ -3,13 +3,13 @@ import { radius, space, v } from '../theme/tokens'
 
 // สไตล์ร่วมของหน้าหลักกับ onboarding
 
-// grid ไม่ใช่ flex: แถวไม่ถูกบีบจนข้อความหาย (เดิมสวิตช์ ONLINE โดนบีบ) เนื้อหาต้องพอดี window 520×680
+// grid ไม่ใช่ flex: แถวไม่ถูกบีบจนข้อความหาย (เดิมสวิตช์ ONLINE โดนบีบ) เนื้อหาต้องพอดี window 420×600
 export const page: CSSProperties = {
   height: '100%',
   overflow: 'auto',
   background: v('bg'),
   color: v('text'),
-  padding: `${space.xl}px ${space.lg}px ${space.md}px`,
+  padding: `${space.xl}px ${space.md}px ${space.md}px`,
   display: 'grid',
   alignContent: 'start',
   gap: space.md,

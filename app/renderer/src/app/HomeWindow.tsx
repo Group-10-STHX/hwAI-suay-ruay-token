@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { openCodexHooks, sendTestRequest, setEnabled, setup, subscribeStatus, USE_MOCK, type AppStatus } from '../api'
 import { fontSize, providerAccent, space, v } from '../theme/tokens'
 import { dragBar, ghostButton, page, panel, row } from './homeStyles'
@@ -45,11 +45,11 @@ export function HomeWindow() {
   if (onboarding) return <Onboarding onDone={() => setOnboarding(false)} />
 
   return (
-    <div className={on ? 'is-active' : undefined} style={page}>
+    <div className={`fx-boot${on ? ' is-active' : ''}`} style={page}>
       <div style={dragBar} />
 
-      <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <h1 className="display" style={{ margin: 0, fontSize: 32, lineHeight: 1.1, color: v(tone) }}>
+      <header className="fx-render" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', ...at(0) }}>
+        <h1 className="display fx-glow" style={{ margin: 0, fontSize: 28, lineHeight: 1.1, color: v(tone) }}>
           ไหว้กูซะ
         </h1>
         <span className="mono" style={{ color: v('textDim'), fontSize: fontSize.small }}>
@@ -59,21 +59,21 @@ export function HomeWindow() {
 
       {/* สวิตช์ใหญ่ */}
       <button
-        className="fx-scanline"
+        className="fx-scanline fx-render"
         onClick={() => status && setEnabled(!on)}
         disabled={!status}
-        style={{ ...panel, borderColor: v(tone), cursor: status ? 'pointer' : 'default', textAlign: 'left' }}
+        style={{ ...panel, borderColor: v(tone), cursor: status ? 'pointer' : 'default', textAlign: 'left', ...at(1) }}
       >
         <div className="mono" style={{ color: v(tone), fontSize: fontSize.small, letterSpacing: 2 }}>
           {on ? '● ONLINE' : '○ OFFLINE'}
         </div>
-        <div className="display" style={{ fontSize: fontSize.speech, lineHeight: 1.2, color: v('text'), margin: `${space.xs}px 0` }}>
+        <div className="display fx-glow" style={{ fontSize: fontSize.speech, lineHeight: 1.2, color: v('text'), margin: `${space.xs}px 0` }}>
           {on ? 'มนุษย์ต้องไหว้ก่อนใช้ AI' : 'ปิดอยู่ AI ใช้ได้เลยไม่ต้องไหว้'}
         </div>
         <div style={{ color: v('textDim') }}>{on ? 'กดเพื่อปิด' : 'กดเพื่อเปิด'}</div>
       </button>
 
-      <Section title="ต่อกับ">
+      <Section title="ต่อกับ" i={2}>
         {TOOLS.map((t) => {
           const seen = status?.lastSeen[t.source]
           return (
@@ -103,7 +103,7 @@ export function HomeWindow() {
         )}
       </Section>
 
-      <Section title="วันนี้">
+      <Section title="วันนี้" i={3}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: space.sm }}>
           <Stat label="รอไหว้" value={status?.pending} tone="hud" />
           <Stat label="ไหว้วันนี้" value={status?.stats.today.wais} tone="text" />
@@ -115,11 +115,11 @@ export function HomeWindow() {
         </div>
       </Section>
 
-      <button onClick={() => sendTestRequest()} disabled={!on} style={{ ...ghostButton, opacity: on ? 1 : 0.4 }}>
+      <button className="fx-render" onClick={() => sendTestRequest()} disabled={!on} style={{ ...ghostButton, opacity: on ? 1 : 0.4, ...at(4) }}>
         ลองไหว้ (เด้ง popup ทดสอบ)
       </button>
 
-      <footer style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space.sm }}>
+      <footer className="fx-render" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, ...at(5) }}>
         <span style={{ color: v('textDim'), fontSize: fontSize.small }}>ปิดหน้านี้ได้ แอปยังอยู่บน menu bar (🙏)</span>
         <button
           onClick={() => setOnboarding(true)}
@@ -132,9 +132,12 @@ export function HomeWindow() {
   )
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** ลำดับการ render ของบล็อก (--i ใช้ใน effects.css) */
+const at = (i: number) => ({ '--i': i }) as CSSProperties
+
+function Section({ title, children, i }: { title: string; children: ReactNode; i: number }) {
   return (
-    <section>
+    <section className="fx-render" style={at(i)}>
       <h2 className="mono" style={{ margin: `0 0 ${space.sm}px`, fontSize: fontSize.small, color: v('textDim'), letterSpacing: 2 }}>
         {title}
       </h2>
@@ -146,7 +149,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Stat({ label, value, tone }: { label: string; value?: number | string; tone: 'hud' | 'blessed' | 'text' }) {
   return (
     <div style={{ ...panel, padding: `${space.sm}px ${space.md}px` }}>
-      <div className="mono" style={{ fontSize: fontSize.speech, lineHeight: 1.2, color: v(tone) }}>
+      {/* key = ค่า: เปลี่ยนค่าแล้ว remount เล่น fx-tick ใหม่ */}
+      <div key={String(value)} className="mono fx-tick fx-glow" style={{ fontSize: fontSize.speech, lineHeight: 1.2, color: v(tone) }}>
         {value ?? '–'}
       </div>
       <div style={{ color: v('textDim'), fontSize: fontSize.small }}>{label}</div>

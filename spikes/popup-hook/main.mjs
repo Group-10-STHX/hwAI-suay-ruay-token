@@ -88,8 +88,8 @@ function createWindow() {
 function openHome() {
   if (home) return home.show()
   home = new BrowserWindow({
-    width: 520,
-    height: 680,
+    width: 420,
+    height: 600,
     title: 'ไหว้กูซะ',
     backgroundColor: '#0A0A0C',
     titleBarStyle: 'hiddenInset',

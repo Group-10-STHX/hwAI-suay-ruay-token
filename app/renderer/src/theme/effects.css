@@ -62,11 +62,70 @@
   to { box-shadow: 0 0 0 9999px transparent; }
 }
 
+/* หน้าหลัก: ข้อมูลไหลลงทีละบรรทัด (one-shot, ใช้ --i เป็นลำดับ) */
+.fx-render {
+  animation: fx-render 520ms steps(9, end) both;
+  animation-delay: calc(var(--i, 0) * 110ms);
+}
+@keyframes fx-render {
+  0% { clip-path: inset(0 0 100% 0); opacity: 0.2; }
+  35% { opacity: 1; }
+  45% { opacity: 0.55; }
+  60% { opacity: 1; }
+  100% { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+
+/* แถบสแกนกวาดลงครั้งเดียวตอนเปิดหน้า */
+.fx-boot {
+  position: relative;
+}
+.fx-boot::before {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 28px;
+  pointer-events: none;
+  z-index: 5;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--hud) 28%, transparent) 70%,
+    var(--hud)
+  );
+  opacity: 0;
+  animation: fx-boot-sweep 1100ms linear 1;
+}
+@keyframes fx-boot-sweep {
+  0% { transform: translateY(-28px); opacity: 0.9; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* ตัวเลขเปลี่ยนค่า: กะพริบแบบจอ CRT ตอนอัปเดต (ใส่ key ให้เล่นใหม่ทุกครั้งที่ค่าเปลี่ยน) */
+.fx-tick {
+  animation: fx-tick 420ms steps(2, jump-none) 1;
+}
+@keyframes fx-tick {
+  0% { opacity: 0.1; transform: translateY(-6px); }
+  40% { opacity: 1; }
+  60% { opacity: 0.3; }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* เรืองแบบ phosphor (ไม่ใช่ animation) */
+.fx-glow {
+  text-shadow: 0 0 8px color-mix(in srgb, currentColor 55%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fx-shake,
   .fx-blink-danger,
   .is-active .fx-pulse,
-  .is-active .fx-scanline::after {
+  .is-active .fx-scanline::after,
+  .fx-render,
+  .fx-boot::before,
+  .fx-tick {
     animation: none;
   }
 }
