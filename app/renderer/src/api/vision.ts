@@ -9,6 +9,8 @@ declare global {
   interface Window {
     wai?: {
       onVisionEvent: (cb: (raw: Partial<VisionEvent>) => void) => () => void
+      /** หน้าหลัก: เปิด Terminal รัน Codex CLI ให้ผู้ใช้พิมพ์ /hooks กด trust (spike) */
+      openCodexHooks?: () => Promise<{ ok: boolean; error?: string }>
     }
   }
 }

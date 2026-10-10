@@ -13,6 +13,7 @@ export const subscribeVision = USE_MOCK ? mock.subscribeVision : realVision.subs
 export const subscribeStatus = USE_MOCK ? mock.subscribeStatus : realStatus.subscribeStatus
 export const setEnabled = USE_MOCK ? mock.setEnabled : realStatus.setEnabled
 export const sendTestRequest = USE_MOCK ? mock.sendTestRequest : realStatus.sendTestRequest
+export const openCodexHooks: typeof realStatus.openCodexHooks = USE_MOCK ? async () => ({ ok: true }) : realStatus.openCodexHooks
 export const skipItem = USE_MOCK ? async (_id: string) => {} : realQueue.skipItem
 
 // ของ DebugPanel (app/ ห้าม import mocks ตรง ต้องผ่าน api ตามทิศ app → api → mocks)

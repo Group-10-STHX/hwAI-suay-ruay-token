@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
-import { sendTestRequest, setEnabled, subscribeStatus, USE_MOCK, type AppStatus } from '../api'
+import { openCodexHooks, sendTestRequest, setEnabled, subscribeStatus, USE_MOCK, type AppStatus } from '../api'
 import { fontSize, providerAccent, radius, space, v } from '../theme/tokens'
 
 // หน้าหลัก: เปิดตอนเริ่มแอป ปิดแล้วแอปยังอยู่บน menu bar
@@ -13,6 +13,7 @@ const TOOLS = [
 export function HomeWindow() {
   const [status, setStatus] = useState<AppStatus | null>(null)
   const [offline, setOffline] = useState(false)
+  const [codexMsg, setCodexMsg] = useState<string | null>(null)
   const now = useNow()
 
   useEffect(
@@ -74,6 +75,19 @@ export function HomeWindow() {
             </div>
           )
         })}
+        {/* Codex ไม่รัน hook ที่ยังไม่ trust ต้องเข้า /hooks ใน CLI กด trust เอง */}
+        <button
+          onClick={async () => {
+            const r = await openCodexHooks()
+            setCodexMsg(r.ok ? 'เปิด Terminal แล้ว พิมพ์ /hooks แล้วกด trust ทุกตัว จากนั้นปิด-เปิดแอป Codex ใหม่' : `เปิดไม่ได้: ${r.error}`)
+          }}
+          style={{ ...ghostButton, width: '100%', marginTop: space.md }}
+        >
+          อนุญาต hook ของ Codex
+        </button>
+        {codexMsg && (
+          <p style={{ color: v('textDim'), fontSize: fontSize.small, margin: `${space.sm}px 0 0` }}>{codexMsg}</p>
+        )}
       </Section>
 
       <Section title="วันนี้">

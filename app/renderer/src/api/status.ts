@@ -43,3 +43,9 @@ export async function sendTestRequest(): Promise<void> {
     body: JSON.stringify({ source: 'test', kind: 'prompt', session_id: 'home-test', agent_label: 'ทดสอบจากหน้าหลัก' }),
   })
 }
+
+/** เปิด Terminal ให้ trust hook ของ Codex (ผ่าน IPC ของ Electron ไม่ใช่ HTTP กันเว็บอื่นสั่ง) */
+export async function openCodexHooks(): Promise<{ ok: boolean; error?: string }> {
+  if (!window.wai?.openCodexHooks) return { ok: false, error: 'ต้องเปิดในแอป (ไม่ใช่ browser)' }
+  return window.wai.openCodexHooks()
+}
