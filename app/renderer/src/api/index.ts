@@ -1,0 +1,11 @@
+// จุดเดียวที่ app/ ใช้ดึงข้อมูล เลือก real หรือ mock จาก VITE_USE_MOCK
+import * as mock from '../mocks/mockFeed'
+import * as realQueue from './queue'
+import * as realVision from './vision'
+
+export * from './types'
+
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK === '1'
+
+export const subscribeQueue = USE_MOCK ? mock.subscribeQueue : realQueue.subscribeQueue
+export const subscribeVision = USE_MOCK ? mock.subscribeVision : realVision.subscribeVision
