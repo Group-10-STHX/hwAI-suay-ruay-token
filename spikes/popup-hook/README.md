@@ -69,7 +69,7 @@ powershell -ExecutionPolicy Bypass -File spikes\popup-hook\install-shortcut.ps1 
 
 **รู้ไว้ก่อน**
 - เขียนบน mac ยังไม่เคยรันบน Windows จริง · สคริปต์ .ps1 ต้องเป็น UTF-8 **มี BOM** (5.1 อ่านไทยเพี้ยนถ้าไม่มี) แก้ไฟล์แล้วอย่าให้ editor ลบ BOM
-- คำสั่ง hook ที่ `install-hooks.mjs` สร้างตอนนี้เป็นแบบ POSIX (`WAI_HOOK=1 ELECTRON_RUN_AS_NODE=1 '...'`) ใช้บน cmd ไม่ได้ ต้องรอ shim `%USERPROFILE%\.waikusa\hook.cmd`
+- hook บน Windows ชี้ไปที่ shim `%USERPROFILE%\.waikusa\hook.cmd` (Claude Code ใช้ exec form `cmd /d /c call …`, Codex ใช้ `cmd.exe /d /c call "…" codex; exit $LASTEXITCODE`) ยังไม่ได้ลองบนเครื่องจริง
 - SmartScreen/antivirus อาจเตือน `electron.exe` หรือ `wscript` · บางองค์กรปิด Windows Script Host → shortcut เปิดไม่ขึ้น
 - execution policy: ใช้ `-ExecutionPolicy Bypass` เสมอ (launcher ก็ใส่ไว้แล้ว)
 - tray บน Windows ต้องมี `.ico` · กล้องไม่ต้องขอสิทธิ์แบบ mac แต่ Windows Privacy → Camera ต้องเปิดให้แอป desktop
@@ -78,6 +78,8 @@ powershell -ExecutionPolicy Bypass -File spikes\popup-hook\install-shortcut.ps1 
 ## Onboarding (เปิดแอปครั้งแรก)
 ต้อนรับ → ขอกล้อง → ☐ Claude Code ☐ Codex (+ ปุ่มเปิด Codex ให้ trust) → ☐ เปิดตอนเข้าเครื่อง → เริ่มใช้งาน
 เปิดใหม่ได้จากปุ่ม ⚙ ในหน้าหลัก · สถานะเก็บที่ `~/.waikusa/config.json` (ลบไฟล์นี้ = เห็น onboarding อีกรอบ)
-- `install-hooks.mjs`: merge ลง settings เดิม ไม่ทับ hook อื่น, backup `.wai.bak` ครั้งแรก, ถอดเฉพาะของเรา (marker `WAI_HOOK=1`), JSON เสียอยู่แล้ว = ไม่แตะ
+- `install-hooks.mjs`: merge ลง settings เดิม ไม่ทับ hook อื่น, backup `.wai.bak` ครั้งแรก, ถอดเฉพาะของเรา (หาจาก marker `WAI_HOOK=1` / path ของ shim `~/.waikusa/hook.sh|.cmd` / path ของ hook.mjs), JSON เสียอยู่แล้ว = ไม่แตะ
 - hook รันด้วย Electron (`ELECTRON_RUN_AS_NODE=1`) ไม่ต้องมี node · dev = `~/wai-sandbox`, แอปที่ package = global (`WAI_HOOK_SCOPE` บังคับได้)
 - เปิดตอนเข้าเครื่องตอน dev ชี้ไปที่ `~/Applications/ไหว้กูซะ.app` (ต้องลง shortcut ก่อน)
+
+> ⚠️ คำสั่ง hook เปลี่ยนมาใช้ shim ที่ `~/.waikusa/` แล้ว (mac ด้วย) → ติด hook ใหม่แล้ว Codex ต้อง `/hooks` trust ใหม่อีกรอบเดียว หลังจากนั้น path คงที่ ไม่ต้อง trust ใหม่ทุกเวอร์ชัน
