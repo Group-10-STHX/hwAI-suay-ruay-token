@@ -118,7 +118,8 @@ function loop() {
       face: landmarkers.face.detectForVideo(video, ts),
       hands: landmarkers.hands.detectForVideo(video, ts),
     };
-    const result = tracker.update(det, video.videoWidth, video.videoHeight, dt);
+    // requiredLevel keeps a lower wai from using up the one pass per wai while a higher one is needed
+    const result = tracker.update(det, video.videoWidth, video.videoHeight, dt, requiredLevel);
     const facePresent = det.face.faceLandmarks.length > 0;
     const passed = result.passed && result.stable >= requiredLevel;
     const reasons = reasonsFor(result, { facePresent, posePresent: det.pose.landmarks.length > 0 }, tracker.th, requiredLevel);
