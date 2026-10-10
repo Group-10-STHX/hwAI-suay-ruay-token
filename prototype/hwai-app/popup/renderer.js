@@ -123,7 +123,20 @@ function emptyBlock(text, mood) {
   return group;
 }
 
+// Look-and-feel from the mini window's settings: Jason's size, bubbles, accent color.
+const SIZES = { s: [84, 36], m: [112, 46], l: [148, 60] };
+function applyPrefs(p) {
+  if (!p) return;
+  const [big, small] = SIZES[p.mascotSize] ?? SIZES.m;
+  const root = document.documentElement.style;
+  root.setProperty("--big", `${big}px`);
+  root.setProperty("--small", `${small}px`);
+  root.setProperty("--accent", p.accentColor ?? "#fff");
+  document.body.classList.toggle("no-bubbles", p.bubbles === false);
+}
+
 function render(payload) {
+  applyPrefs(payload.prefs);
   if (payload.logos && payload.logos.base) logoBase = payload.logos.base;
   const nodes = [];
   if (!payload.ok) {

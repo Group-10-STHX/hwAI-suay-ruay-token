@@ -3,7 +3,9 @@
 // Local HTTP daemon on 127.0.0.1 only. The Electron app starts it, the MediaPipe Lab page
 // is served from it (same origin, so no CORS), and Claude Code hooks call it.
 //
-//   GET  /lab/*                  control panel (static files from ./lab)
+//   GET  /mini/*                 mini window (static files from ./mini)
+//   GET  /lab/*                  full control panel (static files from ./lab)
+//   GET  /prefs, POST /prefs     look-and-feel prefs (theme, accent, mascot size, ...)
 //   GET  /logos.json             logo manifest for the popup and lab
 //   GET  /agents                 agents for the popup
 //   GET  /state                  mode, credits, queue, pass threshold
@@ -91,22 +93,30 @@ function serveStatic(res, rootDir, relPath) {
  * @param {object} opts
  * @param {import('./gate').Gate} opts.gate
  * @param {string} opts.labDir        folder with the lab page
+ * @param {string} opts.miniDir       folder with the mini window page
  * @param {string} opts.logosPath     path to logos.json
+ * @param {{get: () => object, set: (patch: object) => object}} opts.prefs  look-and-feel prefs
  * @param {number} [opts.port]
  */
-function createDaemon({ gate, labDir, logosPath, port = DEFAULT_PORT }) {
+function createDaemon({ gate, labDir, miniDir, logosPath, prefs, port = DEFAULT_PORT }) {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${HOST}`);
     const p = url.pathname;
     try {
       if (req.method === "GET") {
         if (p === "/") {
-          res.writeHead(302, { Location: "/lab/" });
+          res.writeHead(302, { Location: "/mini/" });
           return res.end();
         }
+        if (p === "/mini" || p === "/mini/") return serveStatic(res, miniDir, "");
+        if (p.startsWith("/mini/"))
+          return serveStatic(res, miniDir, p.slice("/mini/".length));
+        if (p === "/prefs") return send(res, 200, prefs.get());
         if (p === "/lab" || p === "/lab/") return serveStatic(res, labDir, "");
         if (p.startsWith("/lab/"))
           return serveStatic(res, labDir, p.slice("/lab/".length));
+        if (p.startsWith("/assets/jason/"))
+          return serveStatic(res, path.dirname(logosPath), p.slice("/assets/jason/".length));
         if (p === "/logos.json")
           return send(res, 200, fs.readFileSync(logosPath), TYPES[".json"]);
         if (p === "/agents")
@@ -135,6 +145,7 @@ function createDaemon({ gate, labDir, logosPath, port = DEFAULT_PORT }) {
           gate.setMode(body.mode);
           return send(res, 200, gate.snapshot());
         }
+        if (p === "/prefs") return send(res, 200, prefs.set(body));
         if (p === "/settings") {
           try {
             gate.setPassMinScore(Number(body.passMinScore));

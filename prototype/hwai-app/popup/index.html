@@ -50,16 +50,20 @@
       }
       .jason img {
         display: block;
-        filter: invert(1) drop-shadow(0 0 1px rgba(0, 0, 0, 0.7))
+        /* White ink on the desktop; hue-rotate keeps Jason's accent colors close to the original. */
+        filter: invert(1) hue-rotate(180deg) drop-shadow(0 0 1px rgba(0, 0, 0, 0.7))
           drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
       }
       .big img {
-        width: 112px;
-        height: 112px;
+        width: var(--big, 112px);
+        height: var(--big, 112px);
       }
       .small img {
-        width: 46px;
-        height: 46px;
+        width: var(--small, 46px);
+        height: var(--small, 46px);
+      }
+      body.no-bubbles .bubble {
+        display: none;
       }
       .bubble {
         position: relative;
@@ -67,7 +71,7 @@
         padding: 6px 10px;
         border-radius: 14px;
         background: rgba(20, 18, 16, 0.62);
-        border: 1.5px solid #fff;
+        border: 1.5px solid var(--accent, #fff);
         color: #fff;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
         backdrop-filter: blur(6px);
@@ -83,8 +87,8 @@
         height: 10px;
         transform: translateY(-50%) rotate(45deg);
         background: rgba(20, 18, 16, 0.62);
-        border-right: 1.5px solid #fff;
-        border-bottom: 1.5px solid #fff;
+        border-right: 1.5px solid var(--accent, #fff);
+        border-bottom: 1.5px solid var(--accent, #fff);
       }
       .bubble.small {
         font-size: 11px;

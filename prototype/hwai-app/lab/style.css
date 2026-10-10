@@ -439,3 +439,248 @@ button:disabled {
     animation: none !important;
   }
 }
+
+/* ---------- cute theme: warm cream, rounded cards, a mascot in the header ---------- */
+
+:root {
+  --bg: #fdf6ee;
+  --fg: #3b2f2a;
+  --muted: #9a8a80;
+  --card: #fffdf9;
+  --line: #f0e4d7;
+  --accent: #ff8a65;
+  --ok: #3fae8c;
+  --warn: #e8a13a;
+  --bad: #e76f6f;
+  --radius: 22px;
+  --shadow: 0 10px 30px rgba(120, 80, 50, 0.08);
+  --pastel-mint: #d9f5ea;
+  --pastel-peach: #ffe3d6;
+  --pastel-lilac: #ebe4ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1f1a17;
+    --fg: #f6ebe1;
+    --muted: #a8968a;
+    --card: #2a231f;
+    --line: #3d332d;
+    --accent: #ffa27f;
+    --ok: #6fd3b1;
+    --warn: #f5bd62;
+    --bad: #ff9a9a;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    --pastel-mint: #20382f;
+    --pastel-peach: #3d2a22;
+    --pastel-lilac: #2c2740;
+  }
+}
+
+body {
+  font-family: "Noto Sans Thai", "Sukhumvit Set", system-ui, sans-serif;
+  background: radial-gradient(
+      900px 400px at 10% -10%,
+      var(--pastel-peach),
+      transparent 60%
+    ),
+    radial-gradient(
+      800px 380px at 100% 0%,
+      var(--pastel-lilac),
+      transparent 60%
+    ),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+.topbar {
+  border-bottom: 0;
+  padding-bottom: 6px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.mascot-wrap {
+  width: 92px;
+  height: 92px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--pastel-mint);
+  box-shadow: var(--shadow);
+}
+
+.mascot {
+  width: 80px;
+  height: 80px;
+  filter: none;
+  animation: bob 2.6s ease-in-out infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-5px) rotate(-2deg);
+  }
+}
+
+.say {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 24px;
+  letter-spacing: 0.2px;
+}
+
+.mode {
+  background: var(--card);
+  box-shadow: var(--shadow);
+  border: 0;
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.seg {
+  border-radius: 999px;
+  color: var(--muted);
+  font-weight: 600;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.seg.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 138, 101, 0.35);
+}
+
+.box {
+  border: 0;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.box-head h2 {
+  font-size: 16px;
+}
+
+.camera .box-head h2::before {
+  content: "📷 ";
+}
+
+.gate .box-head h2::before {
+  content: "🙏 ";
+}
+
+.agents .box-head h2::before {
+  content: "🤖 ";
+}
+
+.settings .box-head h2::before {
+  content: "🎚️ ";
+}
+
+.log-box .box-head h2::before {
+  content: "📝 ";
+}
+
+button {
+  border: 0;
+  border-radius: 14px;
+  background: var(--pastel-peach);
+  color: var(--fg);
+  font-weight: 600;
+  box-shadow: 0 2px 0 rgba(120, 80, 50, 0.12);
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(120, 80, 50, 0.15);
+  border-color: transparent;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.stage {
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 4px var(--card);
+}
+
+.cell {
+  border: 0;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.cell strong {
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.pill {
+  border: 0;
+  background: var(--pastel-lilac);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+
+.pill.ok {
+  background: var(--pastel-mint);
+}
+
+.agent {
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg);
+}
+
+.agent .badge {
+  background: var(--accent);
+  color: #fff;
+}
+
+.agent.running .state {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.agent.queued {
+  border: 2px dashed var(--warn);
+  background: var(--pastel-peach);
+}
+
+.log {
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+  height: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot {
+    animation: none;
+  }
+}
