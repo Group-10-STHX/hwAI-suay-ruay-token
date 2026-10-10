@@ -4,7 +4,8 @@
   "type": "module",
   "main": "main.mjs",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "icons": "node assets/make-icons.mjs"
   },
   "devDependencies": {
     "electron": "33.2.1"
