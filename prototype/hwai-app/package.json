@@ -1,0 +1,14 @@
+{
+  "name": "hwai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "hwAI desktop app: wai gate daemon, MediaPipe Lab control panel, and floating agent popup",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/gate.test.js"
+  },
+  "devDependencies": {
+    "electron": "44.4.5"
+  }
+}
