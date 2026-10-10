@@ -35,3 +35,11 @@ bash spikes/popup-hook/setup-sandbox.sh    # 3. ติด hook ใน ~/wai-sand
 ## Tray (menu bar)
 ไอคอน 🙏 บน menu bar (💤 = ปิด) · เมนู: สถานะ, จำนวนที่รอไหว้, เปิดใช้งาน (ติ๊กออก = bypass ทุกคำขอผ่านทันที + ปล่อยใบที่ค้าง), โชว์ popup, ออก
 ไม่ขึ้นใน Dock · `WAI_BYPASS=1` = เริ่มแบบปิดอยู่ · ยังไม่มีไอคอนจริง (Windows ต้องมี)
+
+## Shortcut (mac)
+```bash
+bash spikes/popup-hook/install-shortcut.sh              # สร้าง ~/Applications/ไหว้กูซะ.app
+bash spikes/popup-hook/install-shortcut.sh --uninstall  # ลบ
+```
+กดเปิดจาก Spotlight/Launchpad → build renderer แล้วเปิดแอปจากไฟล์ (ไม่ต้องรัน vite) · เปิดซ้ำ = เด้งหน้าหลักของตัวเดิม
+log: `~/Library/Logs/wai-kusa.log` · แอปชี้มาที่ path ของ repo นี้ ถ้าย้าย repo ให้รันใหม่

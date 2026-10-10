@@ -1,10 +1,19 @@
 // SPIKE: daemon :7777 + popup แบบโง่ที่สุด (ยังไม่มีกล้อง ใช้ปุ่ม skip แทนการไหว้)
 // ของจริงเป็นงานของ #1 (/app/main) อันนี้แค่พิสูจน์ว่า hook → popup → ปลด ทำงานได้
-import { app, BrowserWindow, Menu, nativeImage, screen, Tray } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, Tray } from 'electron'
+import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import http from 'node:http'
 
+const HERE = dirname(fileURLToPath(import.meta.url))
+const SANDBOX = join(homedir(), 'wai-sandbox')
+const CODEX_CLI = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex' // มากับแอป ChatGPT/Codex
 const PORT = 7777
+// dev: vite (:5173) · แอปจาก shortcut: ไฟล์ที่ build แล้ว (WAI_RENDERER_URL=file://.../dist/)
 const RENDERER = process.env.WAI_RENDERER_URL ?? 'http://localhost:5173/'
 const WAIT_MS = 55_000 // long-poll รอบละไม่เกิน 60 วิ ตาม contract
 const EXPIRE_MS = 300_000 // hook timeout
@@ -58,6 +67,7 @@ function openHome() {
     backgroundColor: '#0A0A0C',
     titleBarStyle: 'hiddenInset',
     resizable: false,
+    webPreferences: { preload: join(HERE, 'preload.cjs') },
   })
   home.loadURL(RENDERER + 'home.html')
   app.dock?.show()
@@ -192,6 +202,21 @@ setInterval(() => {
   for (const q of queue) if (now - q.created_at > EXPIRE_MS) resolve(q.id, { passed: false, level: 0, score: 0, action: 'deny' })
 }, 5_000)
 
+// ปุ่มในหน้าหลัก: ติด hook ใน sandbox แล้วเปิด Terminal รัน Codex CLI ให้ผู้ใช้พิมพ์ /hooks กด trust เอง
+ipcMain.handle('wai:open-codex-hooks', async () => {
+  if (!existsSync(CODEX_CLI)) return { ok: false, error: 'ไม่เจอ Codex CLI ในแอป ChatGPT' }
+  await new Promise((ok, fail) => execFile('bash', [join(HERE, 'setup-sandbox.sh'), SANDBOX], (e) => (e ? fail(e) : ok())))
+  const cmd = `cd '${SANDBOX}' && '${CODEX_CLI}'`
+  await new Promise((ok, fail) =>
+    execFile(
+      'osascript',
+      ['-e', `tell application "Terminal" to do script "${cmd}"`, '-e', 'tell application "Terminal" to activate'],
+      (e) => (e ? fail(e) : ok()),
+    ),
+  )
+  return { ok: true }
+})
+
 function setEnabled(next) {
   enabled = next
   // ปิดแล้ว ปล่อยทุกใบที่ค้างอยู่ ไม่ให้ AI ค้าง
@@ -215,6 +240,10 @@ function updateTray() {
     ]),
   )
 }
+
+// เปิดได้ตัวเดียว: กด shortcut ซ้ำ = เปิดหน้าหลักของตัวที่รันอยู่ (ไม่งั้นชน port 7777)
+if (!app.requestSingleInstanceLock()) app.quit()
+app.on('second-instance', () => openHome())
 
 app.whenReady().then(() => {
   app.dock?.hide() // เป็นแอป menu bar ไม่ขึ้น Dock
