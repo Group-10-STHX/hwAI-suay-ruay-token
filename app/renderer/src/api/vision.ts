@@ -11,6 +11,8 @@ declare global {
       onVisionEvent: (cb: (raw: Partial<VisionEvent>) => void) => () => void
       /** หน้าหลัก: เปิด Terminal รัน Codex CLI ให้ผู้ใช้พิมพ์ /hooks กด trust (spike) */
       openCodexHooks?: () => Promise<{ ok: boolean; error?: string }>
+      /** onboarding: ติด/ถอด hook, ขอกล้อง, เปิดตอนเข้าเครื่อง (spike) */
+      setup?: import('./setup').SetupBridge
     }
   }
 }

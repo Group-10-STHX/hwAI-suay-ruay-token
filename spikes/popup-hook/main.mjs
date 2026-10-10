@@ -1,16 +1,32 @@
 // SPIKE: daemon :7777 + popup แบบโง่ที่สุด (ยังไม่มีกล้อง ใช้ปุ่ม skip แทนการไหว้)
 // ของจริงเป็นงานของ #1 (/app/main) อันนี้แค่พิสูจน์ว่า hook → popup → ปลด ทำงานได้
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, Tray } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron'
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { randomUUID } from 'node:crypto'
 import http from 'node:http'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const SANDBOX = join(homedir(), 'wai-sandbox')
+// ตอน dev ติด hook แค่ใน ~/wai-sandbox · แอปที่ package แล้วค่อย global (ผู้ใช้ติ๊กเองใน onboarding)
+const SCOPE = process.env.WAI_HOOK_SCOPE ?? (app.isPackaged ? 'global' : 'sandbox')
+const SHORTCUT = join(homedir(), 'Applications', 'ไหว้กูซะ.app')
+const CONFIG = join(homedir(), '.waikusa', 'config.json')
+
+function readConfig() {
+  try {
+    return JSON.parse(readFileSync(CONFIG, 'utf8'))
+  } catch {
+    return {}
+  }
+}
+function saveConfig(patch) {
+  mkdirSync(dirname(CONFIG), { recursive: true })
+  writeFileSync(CONFIG, JSON.stringify({ ...readConfig(), ...patch }, null, 2))
+}
 const CODEX_CLI = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex' // มากับแอป ChatGPT/Codex
 const PORT = 7777
 // dev: vite (:5173) · แอปจาก shortcut: ไฟล์ที่ build แล้ว (WAI_RENDERER_URL=file://.../dist/)
@@ -205,8 +221,8 @@ setInterval(() => {
 // ปุ่มในหน้าหลัก: ติด hook ใน sandbox แล้วเปิด Terminal รัน Codex CLI ให้ผู้ใช้พิมพ์ /hooks กด trust เอง
 ipcMain.handle('wai:open-codex-hooks', async () => {
   if (!existsSync(CODEX_CLI)) return { ok: false, error: 'ไม่เจอ Codex CLI ในแอป ChatGPT' }
-  await new Promise((ok, fail) => execFile('bash', [join(HERE, 'setup-sandbox.sh'), SANDBOX], (e) => (e ? fail(e) : ok())))
-  const cmd = `cd '${SANDBOX}' && '${CODEX_CLI}'`
+  install('codex', SCOPE, process.execPath)
+  const cmd = `cd '${SCOPE === 'global' ? homedir() : SANDBOX}' && '${CODEX_CLI}'`
   await new Promise((ok, fail) =>
     execFile(
       'osascript',
@@ -214,6 +230,57 @@ ipcMain.handle('wai:open-codex-hooks', async () => {
       (e) => (e ? fail(e) : ok()),
     ),
   )
+  return { ok: true }
+})
+
+// ---------- onboarding ----------
+const run = (bin, args) => new Promise((ok, fail) => execFile(bin, args, (e, out) => (e ? fail(e) : ok(out))))
+
+ipcMain.handle('wai:setup-status', () => {
+  const cfg = readConfig()
+  return {
+    scope: SCOPE,
+    folder: SCOPE === 'global' ? homedir() : SANDBOX,
+    onboarded: Boolean(cfg.onboarded),
+    camera: process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('camera') : 'granted',
+    claude: { installed: installed('claude', SCOPE) },
+    codex: { installed: installed('codex', SCOPE), trusted: codexTrusted(SCOPE), cli: existsSync(CODEX_CLI) },
+    loginItem: Boolean(cfg.loginItem),
+    canLoginItem: app.isPackaged || existsSync(SHORTCUT),
+  }
+})
+
+ipcMain.handle('wai:hooks', (_e, tool, on) => {
+  try {
+    const file = on ? install(tool, SCOPE, process.execPath) : uninstall(tool, SCOPE)
+    console.log(`[wai] hook ${tool} ${on ? 'install' : 'uninstall'} → ${file}`)
+    return { ok: true, file }
+  } catch (e) {
+    return { ok: false, error: `อ่านไฟล์ settings ไม่ได้ (JSON เสีย?) ไม่ได้แก้อะไร: ${e.message}` }
+  }
+})
+
+ipcMain.handle('wai:camera', async () => {
+  if (process.platform !== 'darwin') return { ok: true }
+  return { ok: await systemPreferences.askForMediaAccess('camera') }
+})
+
+// เปิดตอนเข้าเครื่อง: แอปจริงใช้ API ของ Electron · ตอน dev ชี้ไปที่ shortcut (ไม่งั้นจะเปิด Electron เปล่า)
+ipcMain.handle('wai:login-item', async (_e, on) => {
+  try {
+    if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: on })
+    else if (!existsSync(SHORTCUT)) return { ok: false, error: 'ติดตั้ง shortcut ก่อน (install-shortcut.sh)' }
+    else if (on) await run('osascript', ['-e', `tell application "System Events" to make login item at end with properties {path:"${SHORTCUT}", hidden:true}`])
+    else await run('osascript', ['-e', 'tell application "System Events" to delete (every login item whose name is "ไหว้กูซะ")'])
+    saveConfig({ loginItem: on })
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e.message }
+  }
+})
+
+ipcMain.handle('wai:onboarded', (_e, done) => {
+  saveConfig({ onboarded: done })
   return { ok: true }
 })
 

@@ -1,6 +1,8 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
-import { openCodexHooks, sendTestRequest, setEnabled, subscribeStatus, USE_MOCK, type AppStatus } from '../api'
-import { fontSize, providerAccent, radius, space, v } from '../theme/tokens'
+import { useEffect, useState, type ReactNode } from 'react'
+import { openCodexHooks, sendTestRequest, setEnabled, setup, subscribeStatus, USE_MOCK, type AppStatus } from '../api'
+import { fontSize, providerAccent, space, v } from '../theme/tokens'
+import { dragBar, ghostButton, page, panel, row } from './homeStyles'
+import { Onboarding } from './Onboarding'
 
 // หน้าหลัก: เปิดตอนเริ่มแอป ปิดแล้วแอปยังอยู่บน menu bar
 // (SPIKE: หน้านี้ยังไม่ได้ทำตาม wireframe)
@@ -14,7 +16,16 @@ export function HomeWindow() {
   const [status, setStatus] = useState<AppStatus | null>(null)
   const [offline, setOffline] = useState(false)
   const [codexMsg, setCodexMsg] = useState<string | null>(null)
+  const [onboarding, setOnboarding] = useState(false)
   const now = useNow()
+
+  // เปิดครั้งแรก (ยังไม่เคย onboard) → โชว์ onboarding · ใน browser ธรรมดาไม่มี bridge ก็ข้ามไป
+  useEffect(() => {
+    setup
+      .status()
+      .then((s) => setOnboarding(!s.onboarded))
+      .catch(() => {})
+  }, [])
 
   useEffect(
     () =>
@@ -30,6 +41,8 @@ export function HomeWindow() {
 
   const on = status?.enabled ?? false
   const tone = on ? 'hud' : 'sulk'
+
+  if (onboarding) return <Onboarding onDone={() => setOnboarding(false)} />
 
   return (
     <div className={on ? 'is-active' : undefined} style={page}>
@@ -105,6 +118,10 @@ export function HomeWindow() {
       <p style={{ color: v('textDim'), fontSize: fontSize.small, margin: 0 }}>
         ปิดหน้านี้ได้ แอปยังทำงานอยู่บน menu bar (🙏)
       </p>
+
+      <button onClick={() => setOnboarding(true)} style={{ ...ghostButton, border: 'none', color: v('textDim') }}>
+        ⚙ ตั้งค่าการต่อ AI / กล้อง / เปิดตอนเข้าเครื่อง
+      </button>
     </div>
   )
 }
@@ -145,48 +162,4 @@ function useNow() {
     return () => clearInterval(t)
   }, [])
   return now
-}
-
-const page: CSSProperties = {
-  height: '100%',
-  overflow: 'auto',
-  background: v('bg'),
-  color: v('text'),
-  padding: `${space.xl}px ${space.lg}px ${space.lg}px`,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: space.lg,
-  userSelect: 'none',
-}
-
-// แถบบนให้ลาก window ได้ (titleBarStyle: hiddenInset)
-const dragBar = { position: 'fixed', top: 0, left: 0, right: 0, height: 32, WebkitAppRegion: 'drag' } as CSSProperties
-
-const panel: CSSProperties = {
-  display: 'block',
-  width: '100%',
-  background: v('surface'),
-  color: 'inherit',
-  font: 'inherit',
-  border: `1px solid ${v('hudDim')}`,
-  borderRadius: radius.md,
-  padding: space.lg,
-}
-
-const row: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: `${space.sm}px 0`,
-  borderBottom: `1px solid ${v('hudDim')}`,
-}
-
-const ghostButton: CSSProperties = {
-  background: 'transparent',
-  color: v('text'),
-  font: 'inherit',
-  border: `1px dashed ${v('hud')}`,
-  borderRadius: radius.md,
-  padding: `${space.md}px`,
-  cursor: 'pointer',
 }

@@ -1,6 +1,7 @@
 // จุดเดียวที่ app/ ใช้ดึงข้อมูล เลือก real หรือ mock จาก VITE_USE_MOCK
 import * as mock from '../mocks/mockFeed'
 import * as realQueue from './queue'
+import { setup as realSetup } from './setup'
 import * as realStatus from './status'
 import * as realVision from './vision'
 
@@ -19,3 +20,6 @@ export const skipItem = USE_MOCK ? async (_id: string) => {} : realQueue.skipIte
 // ของ DebugPanel (app/ ห้าม import mocks ตรง ต้องผ่าน api ตามทิศ app → api → mocks)
 export { getMockControl, onMockControl, setMockControl, type MockControl } from '../mocks/mockFeed'
 export { DEFAULT_QUEUE_SIZE, QUEUE_SIZES, SCENARIOS, type ScenarioName } from '../mocks/scenarios'
+
+export type { HookTool, SetupStatus } from './setup'
+export const setup = USE_MOCK ? mock.mockSetup : realSetup

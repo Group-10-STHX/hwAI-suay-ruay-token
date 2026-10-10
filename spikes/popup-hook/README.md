@@ -43,3 +43,10 @@ bash spikes/popup-hook/install-shortcut.sh --uninstall  # ลบ
 ```
 กดเปิดจาก Spotlight/Launchpad → build renderer แล้วเปิดแอปจากไฟล์ (ไม่ต้องรัน vite) · เปิดซ้ำ = เด้งหน้าหลักของตัวเดิม
 log: `~/Library/Logs/wai-kusa.log` · แอปชี้มาที่ path ของ repo นี้ ถ้าย้าย repo ให้รันใหม่
+
+## Onboarding (เปิดแอปครั้งแรก)
+ต้อนรับ → ขอกล้อง → ☐ Claude Code ☐ Codex (+ ปุ่มเปิด Codex ให้ trust) → ☐ เปิดตอนเข้าเครื่อง → เริ่มใช้งาน
+เปิดใหม่ได้จากปุ่ม ⚙ ในหน้าหลัก · สถานะเก็บที่ `~/.waikusa/config.json` (ลบไฟล์นี้ = เห็น onboarding อีกรอบ)
+- `install-hooks.mjs`: merge ลง settings เดิม ไม่ทับ hook อื่น, backup `.wai.bak` ครั้งแรก, ถอดเฉพาะของเรา (marker `WAI_HOOK=1`), JSON เสียอยู่แล้ว = ไม่แตะ
+- hook รันด้วย Electron (`ELECTRON_RUN_AS_NODE=1`) ไม่ต้องมี node · dev = `~/wai-sandbox`, แอปที่ package = global (`WAI_HOOK_SCOPE` บังคับได้)
+- เปิดตอนเข้าเครื่องตอน dev ชี้ไปที่ `~/Applications/ไหว้กูซะ.app` (ต้องลง shortcut ก่อน)

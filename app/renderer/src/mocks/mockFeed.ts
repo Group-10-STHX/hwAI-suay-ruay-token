@@ -1,4 +1,5 @@
 import { QUEUE_POLL_MS, type AppStatus, type QueueSnapshot, type VisionEvent } from '../api/types'
+import type { SetupBridge, SetupStatus } from '../api/setup'
 import { DEFAULT_QUEUE_SIZE, SCENARIOS, scenarioSnapshot, type ScenarioName } from './scenarios'
 
 // ยิง scenario เป็นคิว + vision event ปลอม
@@ -94,4 +95,36 @@ export async function setEnabled(enabled: boolean) {
 
 export async function sendTestRequest() {
   setMockControl({ scenario: 'demand', queueSize: Math.min(5, control.queueSize + 1) })
+}
+
+// ---------- onboarding ----------
+const mockSetupState: SetupStatus = {
+  scope: 'sandbox',
+  folder: '~/wai-sandbox',
+  onboarded: false,
+  camera: 'not-determined',
+  claude: { installed: false },
+  codex: { installed: false, trusted: false, cli: true },
+  loginItem: false,
+  canLoginItem: true,
+}
+
+export const mockSetup: SetupBridge = {
+  status: async () => structuredClone(mockSetupState),
+  hooks: async (tool, on) => {
+    mockSetupState[tool].installed = on
+    return { ok: true, file: `mock/${tool}` }
+  },
+  camera: async () => {
+    mockSetupState.camera = 'granted'
+    return { ok: true }
+  },
+  loginItem: async (on) => {
+    mockSetupState.loginItem = on
+    return { ok: true }
+  },
+  onboarded: async (done) => {
+    mockSetupState.onboarded = done
+    return { ok: true }
+  },
 }
