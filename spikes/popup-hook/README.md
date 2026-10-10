@@ -32,8 +32,24 @@ bash spikes/popup-hook/setup-sandbox.sh    # 3. ติด hook ใน ~/wai-sand
 - tool แตก subagent ชื่อ `Agent` แล้ว (เดิม `Task`) ใช้ matcher `Task|Agent`
 - hook หมดเวลา = prompt ผ่านไปเลย ถ้าจะบล็อกต้องใส่ `onFailure: "block"`
 
+## หนีเมาส์ (ANNOYED, FRONT_RULES §4)
+หัวคิวอยู่ state ANNOYED (fail 3–4) → popup วิ่งหนีเคอร์เซอร์ ทำใน main เพราะ renderer มองไม่เห็นเมาส์นอก window
+- `flee.mjs` (pure, เทสใน `test/flee.test.mjs`): เมาส์เข้ามาใกล้ขอบ window ≤120px (หรืออยู่ข้างใน) → glide หนีไปจุดที่ห่างเมาส์ ~220px ที่ใกล้สุด (ทีละ 6–28px/tick, ไถไปตามขอบจอได้ ไม่วิ่งย้อนผ่านเมาส์) หยุดเมื่อเมาส์ห่าง ≥170px · โดนต้อนติดขอบ → วาร์ปไปอีกฝั่งของจอ (พัก 600ms ก่อนวาร์ปซ้ำ)
+- ห้ามออกนอก workArea ของจอที่ window อยู่ (margin 16px) · ขนาดคงที่ 380×600 (`setBounds` ด้วยค่าคงที่) · ห้ามบังหน้าต่างกล้องถ้ามันโผล่ · หน้าหลักพยายามไม่บัง
+- timer ~30 fps มีเฉพาะตอน ANNOYED กับตอน glide กลับที่เดิม (ขอบขวา กลางจอ) · คิวหมด = วางกลับทันทีแล้วหยุด · IDLE ไม่มี timer
+- IPC ถึง Avatar window: `wai:flee` `{ active, fleeing }` ส่งเฉพาะตอนเปลี่ยน (active = โหมดหนีเปิด, fleeing = ขยับภายใน 300ms) · renderer ฟังผ่าน `window.wai.onFlee(cb)` คืนฟังก์ชันเลิกฟัง
+- ปิด: `WAI_NO_FLEE=1` หรือ tray ติ๊ก "หนีเมาส์" ออก (ตอนต้องกดปุ่มข้าม dev) · `WAI_DEBUG_FLEE=1` พิมพ์ทุกการขยับ
+
+ลองคู่กับตัวที่รันอยู่ได้ (userData/โฟลเดอร์ daemon แยกใน temp, ไม่เปิดกล้อง, ไม่ sync เว็บ, ไม่เปิดหน้าหลักเอง):
+```bash
+WAI_DEV_INSTANCE=1 WAI_PORT=7778 WAI_DEBUG_FLEE=1 WAI_DEV_CURSOR=984,435 npm --prefix spikes/popup-hook start
+curl -XPOST localhost:7778/wai/request -d '{"session_id":"t"}'
+curl -XPOST localhost:7778/wai/dev/fail   # ×3 = ANNOYED · /wai/dev/pass = ไหว้ผ่าน (dev instance เท่านั้น)
+```
+`WAI_DEV_CURSOR=x,y` = เมาส์ปลอม (ไม่ต้องขยับเมาส์จริง) · renderer ยังคุยกับ :7777 ตาม `VITE_DAEMON_URL`
+
 ## Tray (menu bar)
-ไอคอน 🙏 บน menu bar (💤 = ปิด) · เมนู: สถานะ, จำนวนที่รอไหว้, เปิดใช้งาน (ติ๊กออก = bypass ทุกคำขอผ่านทันที + ปล่อยใบที่ค้าง), โชว์ popup, ออก
+ไอคอน 🙏 บน menu bar (💤 = ปิด) · เมนู: สถานะ, จำนวนที่รอไหว้, เปิดใช้งาน (ติ๊กออก = bypass ทุกคำขอผ่านทันที + ปล่อยใบที่ค้าง), หนีเมาส์, โชว์ popup, ออก
 ไม่ขึ้นใน Dock · `WAI_BYPASS=1` = เริ่มแบบปิดอยู่ · ยังไม่มีไอคอนจริง (Windows ต้องมี)
 
 ## Shortcut (mac)

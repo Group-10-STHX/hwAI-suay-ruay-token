@@ -3,20 +3,26 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron'
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { createSessions, planVision } from './session-state.mjs' // state machine ต่อ session (contract §4)
+import { FLEE, homePosition, nextPosition, stepToward } from './flee.mjs' // หนีเมาส์ช่วง ANNOYED (pure, มีเทส)
 import { createWaiLog } from './wai-log.mjs' // ~/.waikusa/wais.jsonl + สถิติ + sync ขึ้นเว็บ (contract §2, §3)
 import { randomUUID } from 'node:crypto'
 import http from 'node:http'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
+// WAI_DEV_INSTANCE=1: ตัวที่สองไว้ลองของ รันคู่กับตัวจริงได้ (userData/โฟลเดอร์ daemon แยก, ไม่เปิดกล้อง, ไม่ sync เว็บ)
+// ต้องตั้ง userData ก่อน requestSingleInstanceLock (lock ผูกกับ userData) · ใช้คู่กับ WAI_PORT=7778
+const DEV_INSTANCE = process.env.WAI_DEV_INSTANCE === '1'
+const DEV_DIR = join(tmpdir(), 'wai-dev-instance')
+if (DEV_INSTANCE) app.setPath('userData', join(DEV_DIR, 'userData'))
 // ตอน dev ติด hook แค่ใน ~/wai-sandbox · แอปที่ package แล้วค่อย global (ผู้ใช้ติ๊กเองใน onboarding)
 const SCOPE = process.env.WAI_HOOK_SCOPE ?? (app.isPackaged ? 'global' : 'sandbox')
 const SHORTCUT = join(homedir(), 'Applications', 'ไหว้กูซะ.app')
-const WAI_HOME = join(homedir(), '.waikusa') // โฟลเดอร์ของ daemon: config.json, wais.jsonl
+const WAI_HOME = process.env.WAI_HOME ?? (DEV_INSTANCE ? join(DEV_DIR, 'waikusa') : join(homedir(), '.waikusa')) // โฟลเดอร์ของ daemon: config.json, wais.jsonl
 const CONFIG = join(WAI_HOME, 'config.json')
 
 function readConfig() {
@@ -31,7 +37,7 @@ function saveConfig(patch) {
   writeFileSync(CONFIG, JSON.stringify({ ...readConfig(), ...patch }, null, 2))
 }
 const CODEX_CLI = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex' // มากับแอป ChatGPT/Codex
-const PORT = 7777
+const PORT = Number(process.env.WAI_PORT) || 7777
 // dev: vite (:5173) · แอปจาก shortcut: ไฟล์ที่ build แล้ว (WAI_RENDERER_URL=file://.../dist/)
 const RENDERER = process.env.WAI_RENDERER_URL ?? 'http://localhost:5173/'
 const WAIT_MS = 55_000 // long-poll รอบละไม่เกิน 60 วิ ตาม contract
@@ -59,17 +65,15 @@ let enabled = process.env.WAI_BYPASS !== '1'
 // ความโกรธต่อ session_id (RETRY/ANNOYED/SULKING/RAGE_QUIT/FORGIVE) ตัดสินจาก vision:pass / vision:fail ของหัวคิว
 const sessions = createSessions()
 // บันทึกการไหว้จริงทุกครั้ง (ผ่าน/ไม่ผ่าน) ไม่บันทึก skip, bypass, หมดเวลา, ปิดแอป
-const waiLog = createWaiLog({ home: WAI_HOME })
+const waiLog = createWaiLog({ home: WAI_HOME, sync: !DEV_INSTANCE })
+// ขนาด Avatar window คงที่ตลอด (FRONT_RULES §2) · ตอนหนีเมาส์ก็ setBounds ด้วยค่านี้เสมอ กันขนาดเพี้ยนบน Windows ที่ scale DPI
+const AVATAR = Object.freeze({ width: 380, height: 600 })
 
 function createWindow() {
   const { workArea } = screen.getPrimaryDisplay()
-  const width = 380
-  const height = 600
   win = new BrowserWindow({
-    width,
-    height,
-    x: workArea.x + workArea.width - width - 16,
-    y: workArea.y + Math.round((workArea.height - height) / 2),
+    ...AVATAR,
+    ...homePosition(workArea, AVATAR), // ขอบขวา กลางแนวตั้ง
     transparent: true,
     frame: false,
     resizable: false,
@@ -81,6 +85,7 @@ function createWindow() {
   })
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  win.webContents.on('did-finish-load', () => win.webContents.send('wai:flee', fleeSent)) // หน้า reload แล้วไม่หลุด state
   win.loadURL(RENDERER + 'avatar.html')
 }
 
@@ -165,6 +170,110 @@ function syncWindow() {
   if (!win) return
   if (queue.length > 0 && !win.isVisible()) win.showInactive()
   if (queue.length === 0 && win.isVisible()) win.hide()
+  syncFlee()
+}
+
+// ---------- หนีเมาส์ (FRONT_RULES §4): ช่วง ANNOYED ตัว popup วิ่งหนีเคอร์เซอร์ ----------
+// renderer มองไม่เห็นเมาส์นอก window เลยทำใน main: timer ~30 fps อ่าน cursor → nextPosition (flee.mjs) → setBounds
+// timer มีเฉพาะตอนหนี + ตอน glide กลับที่เดิม · IDLE/คิวว่าง ไม่มี timer (FRONT_RULES: ห้ามวนไม่จบตอนไม่มีคำขอ)
+// ส่ง 'wai:flee' {active, fleeing} ให้ Avatar window เฉพาะตอนค่าเปลี่ยน
+//   active  = โหมดหนีเปิดอยู่ (หัวคิว ANNOYED และไม่ได้ปิดไว้) · fleeing = window ขยับภายใน ~300ms ล่าสุด (ขากลับบ้านไม่นับ)
+// ปิดได้: WAI_NO_FLEE=1 (เริ่มแบบปิด) หรือ tray ติ๊ก "หนีเมาส์" ออก (เวลาต้องกดปุ่มข้าม dev)
+let fleeOn = process.env.WAI_NO_FLEE !== '1'
+let fleeTimer = null
+let fleeMem = {}
+let fleeSent = { active: false, fleeing: false }
+let fleeDisplaced = false // หนีจนออกจากที่เดิมแล้ว ต้องพากลับ (ไม่แตะตำแหน่งถ้าไม่ได้หนี)
+const DEBUG_FLEE = process.env.WAI_DEBUG_FLEE === '1'
+// ตัวลองของเท่านั้น: WAI_DEV_CURSOR="x,y" แทนเมาส์จริง ไว้ทดสอบโดยไม่ต้องขยับเมาส์ของคนใช้เครื่อง
+const DEV_CURSOR = DEV_INSTANCE && /^-?\d+,-?\d+$/.test(process.env.WAI_DEV_CURSOR ?? '') ? (([x, y]) => ({ x, y }))(process.env.WAI_DEV_CURSOR.split(',').map(Number)) : null
+
+function fleeWanted() {
+  const top = queue[0]
+  return Boolean(fleeOn && enabled && top && win && !win.isDestroyed() && win.isVisible() && sessions.get(top.session_id).state === 'ANNOYED')
+}
+
+function sendFlee(active, fleeing) {
+  if (active === fleeSent.active && fleeing === fleeSent.fleeing) return
+  fleeSent = { active, fleeing }
+  if (DEBUG_FLEE) console.log('[flee] send', JSON.stringify(fleeSent))
+  if (win && !win.isDestroyed()) win.webContents.send('wai:flee', fleeSent)
+}
+
+/** หน้าต่างที่ห้ามบัง: กล้อง (ถ้าโผล่มา) ห้ามเด็ดขาด · หน้าหลักพยายามไม่บัง (soft) */
+function fleeAvoid() {
+  const out = []
+  if (vision && !vision.isDestroyed() && vision.isVisible()) out.push(vision.getBounds())
+  if (home && !home.isDestroyed() && home.isVisible() && !home.isMinimized()) out.push({ ...home.getBounds(), soft: true })
+  return out
+}
+
+const placeAvatar = ({ x, y }) => win.setBounds({ x, y, ...AVATAR }) // ขนาดคงที่เสมอ
+/** ที่พักของ popup บนจอที่ window อยู่ตอนนี้ (ไม่ข้ามจอ) */
+const avatarHome = () => homePosition(screen.getDisplayMatching(win.getBounds()).workArea, AVATAR)
+
+function stopFleeTimer() {
+  if (!fleeTimer) return
+  clearInterval(fleeTimer)
+  fleeTimer = null
+  if (DEBUG_FLEE) console.log('[flee] timer stop')
+}
+
+function startFleeTimer() {
+  if (fleeTimer) return
+  fleeTimer = setInterval(fleeTick, FLEE.TICK_MS)
+  if (DEBUG_FLEE) console.log('[flee] timer start')
+}
+
+/** เรียกทุกครั้งที่คิว/state/สวิตช์เปลี่ยน (ผ่าน syncWindow) */
+function syncFlee() {
+  if (!win || win.isDestroyed()) return stopFleeTimer()
+  if (fleeWanted()) {
+    sendFlee(true, fleeSent.fleeing)
+    return startFleeTimer()
+  }
+  fleeMem = {}
+  sendFlee(false, false)
+  if (!fleeDisplaced) return stopFleeTimer()
+  if (win.isVisible()) return startFleeTimer() // ยังเห็นอยู่ (เช่น ANNOYED → SULKING): ค่อยๆ glide กลับ แล้ว timer หยุดเอง
+  stopFleeTimer() // ซ่อนอยู่ (คิวหมด): วางกลับที่เดิมทันที ไม่ต้อง animate
+  const h = avatarHome()
+  placeAvatar(h)
+  fleeDisplaced = false
+  if (DEBUG_FLEE) console.log(`[flee] home ${h.x},${h.y} (hidden, snap)`)
+}
+
+function fleeTick() {
+  if (!win || win.isDestroyed()) return stopFleeTimer()
+  const b = win.getBounds()
+  const { workArea } = screen.getDisplayMatching(b)
+  if (fleeWanted()) {
+    const r = nextPosition({
+      cursor: DEV_CURSOR ?? screen.getCursorScreenPoint(),
+      bounds: { x: b.x, y: b.y, ...AVATAR },
+      workArea,
+      avoid: fleeAvoid(),
+      now: Date.now(),
+      mem: fleeMem,
+    })
+    fleeMem = r.mem
+    if (r.x !== b.x || r.y !== b.y) {
+      placeAvatar(r)
+      fleeDisplaced = true
+      if (DEBUG_FLEE) console.log(`[flee] ${r.jumped ? 'jump' : 'move'} ${b.x},${b.y} → ${r.x},${r.y}`)
+    }
+    return sendFlee(true, r.fleeing)
+  }
+  sendFlee(false, false)
+  if (!fleeDisplaced) return stopFleeTimer()
+  const h = homePosition(workArea, AVATAR)
+  const p = win.isVisible() ? stepToward(b, h) : h // ซ่อนอยู่ก็วางทีเดียว
+  placeAvatar(p)
+  if (p.x === h.x && p.y === h.y) {
+    fleeDisplaced = false
+    stopFleeTimer()
+    if (DEBUG_FLEE) console.log(`[flee] home ${h.x},${h.y}`)
+  }
 }
 
 function resolve(id, result) {
@@ -265,6 +374,14 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ok: true })
   }
 
+  // POST /wai/dev/fail · /wai/dev/pass ← WAI_DEV_INSTANCE เท่านั้น (ไม่มีกล้อง) ไว้ดัน state เช่นให้ถึง ANNOYED แล้วดูหนีเมาส์
+  if (DEV_INSTANCE && req.method === 'POST' && route === 'dev' && (id === 'fail' || id === 'pass')) {
+    if (!queue[0]) return send(res, 409, { error: 'queue empty' })
+    onVision(id, id === 'pass' ? { level: 3, score: 90, holdMs: 1100 } : { level: 1, score: 30, holdMs: 400, reasons: ['HANDS_TOO_LOW'] })
+    const top = queue[0] ? sessions.get(queue[0].session_id) : null
+    return send(res, 200, { state: top ? top.state : 'IDLE', fail_count: top ? top.fails : 0 })
+  }
+
   // GET /wai/status ← หน้าหลัก (contract §5): requests/passed/bypassed ของรอบนี้ + today/total/best_score จาก wais.jsonl
   if (req.method === 'GET' && route === 'status') {
     return send(res, 200, { enabled, pending: queue.length, stats: { ...stats, ...waiLog.stats() }, last_seen: lastSeen })
@@ -358,6 +475,13 @@ function setEnabled(next) {
   if (!enabled) for (const q of [...queue]) resolve(q.id, { passed: true, level: 0, score: 0, action: 'allow' })
   updateTray()
   syncVision()
+  syncFlee()
+}
+
+function setFlee(on) {
+  fleeOn = on
+  syncFlee()
+  updateTray()
 }
 
 function updateTray() {
@@ -369,6 +493,7 @@ function updateTray() {
       { label: `รอไหว้ ${queue.length} ใบ`, enabled: false },
       { type: 'separator' },
       { label: 'เปิดใช้งาน', type: 'checkbox', checked: enabled, click: (i) => setEnabled(i.checked) },
+      { label: 'หนีเมาส์', type: 'checkbox', checked: fleeOn, click: (i) => setFlee(i.checked) },
       { label: 'เปิดหน้าหลัก', click: openHome },
       { label: 'โชว์ popup', click: () => win?.showInactive() },
       { type: 'separator' },
@@ -386,8 +511,8 @@ app.whenReady().then(() => {
   tray = new Tray(nativeImage.createEmpty()) // SPIKE: ยังไม่มีไอคอน (Windows ต้องมีไอคอนจริง)
   updateTray()
   createWindow()
-  createVision()
-  openHome()
+  if (!DEV_INSTANCE) createVision() // ตัวลองของไม่เปิดกล้อง ใช้ POST /wai/dev/fail แทน
+  if (!DEV_INSTANCE) openHome() // ตัวลองของไม่แย่ง focus (เปิดจาก tray ได้)
   server.listen(PORT, '127.0.0.1', () => console.log(`[wai] daemon on http://127.0.0.1:${PORT} → ${RENDERER}`))
 })
 app.on('window-all-closed', (e) => e.preventDefault()) // daemon อยู่ต่อแม้ไม่มี window
