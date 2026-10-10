@@ -1,7 +1,7 @@
 # SPIKE: hook → popup → skip
 
 พิสูจน์ว่าส่ง prompt ใน Claude Code แล้ว popup เด้ง กดข้ามแล้ว AI ทำงานต่อ
-**ยังไม่มีกล้อง** ใช้ปุ่ม "ข้าม (dev)" แทนการไหว้ · ดัก `UserPromptSubmit` (prompt) + `PreToolUse` (subagent: Claude `Task|Agent`, Codex `spawn_agent|Agent`) ทั้ง Claude Code และ Codex
+**กล้องต่อแล้ว**: หน้าต่างกล้องที่ซ่อนอยู่ (`vision/worker`) เปิดเฉพาะตอนมีคนรอไหว้ ส่ง VisionEvent ~15 fps ให้ popup/หน้าหลัก และไหว้ผ่าน 1 ครั้ง = ปลดคำขอเก่าสุด 1 ใบ · ปุ่ม "ข้าม (dev)" ยังอยู่ไว้ทดสอบ · `WAI_DEBUG_VISION=1` พิมพ์สิ่งที่กล้องเห็นทุก ~2 วิ · ดัก `UserPromptSubmit` (prompt) + `PreToolUse` (subagent: Claude `Task|Agent`, Codex `spawn_agent|Agent`) ทั้ง Claude Code และ Codex
 ของจริงย้ายไป `/app/main` (#1) กับ `/integrations` (#4)
 
 ## รัน (3 terminal)

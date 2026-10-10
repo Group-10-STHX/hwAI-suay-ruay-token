@@ -1,4 +1,4 @@
-// SPIKE: daemon :7777 + popup แบบโง่ที่สุด (ยังไม่มีกล้อง ใช้ปุ่ม skip แทนการไหว้)
+// SPIKE: daemon :7777 + popup + กล้องตรวจไหว้ (vision/worker) ปุ่ม skip ยังอยู่ไว้ dev
 // ของจริงเป็นงานของ #1 (/app/main) อันนี้แค่พิสูจน์ว่า hook → popup → ปลด ทำงานได้
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron'
 import { execFile } from 'node:child_process'
@@ -33,6 +33,8 @@ const PORT = 7777
 const RENDERER = process.env.WAI_RENDERER_URL ?? 'http://localhost:5173/'
 const WAIT_MS = 55_000 // long-poll รอบละไม่เกิน 60 วิ ตาม contract
 const EXPIRE_MS = 300_000 // hook timeout
+// หน้าต่างกล้องที่ซ่อนอยู่ ใช้ heuristic ของ Vision (vision/wai-heuristic.js)
+const VISION_PAGE = join(HERE, '..', '..', 'vision', 'worker', 'index.html')
 
 /** @type {Array<{id:string, source:string, kind:string, session_id:string, agent_label:string, created_at:number}>} */
 let queue = []
@@ -43,6 +45,7 @@ const waiters = new Map()
 
 let win = null
 let home = null
+let vision = null
 let tray = null
 // สถิติให้หน้าหลัก (หายเมื่อปิดแอป)
 const stats = { requests: 0, passed: 0, bypassed: 0 }
@@ -67,6 +70,7 @@ function createWindow() {
     skipTaskbar: true,
     hasShadow: false,
     show: false,
+    webPreferences: { preload: join(HERE, 'preload.cjs') }, // window.wai.onVisionEvent
   })
   win.setAlwaysOnTop(true, 'screen-saver')
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
@@ -93,9 +97,50 @@ function openHome() {
   })
 }
 
+// ---------- กล้อง: เปิดเฉพาะตอนมีคนรอไหว้ ----------
+function createVision() {
+  vision = new BrowserWindow({
+    show: false,
+    webPreferences: { preload: join(HERE, 'vision-preload.cjs'), backgroundThrottling: false },
+  })
+  vision.webContents.on('console-message', (_e, _level, message) => {
+    if (message.startsWith('[vision]')) console.log(message)
+  })
+  vision.loadFile(VISION_PAGE)
+  vision.on('closed', () => (vision = null))
+}
+
+/** สั่งกล้องเปิด/ปิดตามคิว */
+function syncVision() {
+  if (!vision || vision.isDestroyed()) return
+  vision.webContents.send('vision:control', { run: enabled && queue.length > 0, requiredLevel: 1 })
+}
+
+ipcMain.on('vision:ready', syncVision)
+
+// VisionEvent ส่งต่อให้หน้าจอของ Front (popup + หน้าหลัก)
+// WAI_DEBUG_VISION=1 พิมพ์ event ทุก ~2 วิ ไว้ดูว่ากล้องเห็นอะไร
+let lastVisionLog = 0
+ipcMain.on('vision:event', (_e, event) => {
+  if (process.env.WAI_DEBUG_VISION === '1' && Date.now() - lastVisionLog > 2000) {
+    lastVisionLog = Date.now()
+    console.log('[vision] event', JSON.stringify(event))
+  }
+  for (const w of [win, home]) if (w && !w.isDestroyed()) w.webContents.send('vision:event', event)
+})
+
+// ไหว้ผ่าน 1 ครั้ง = ปลดคำขอเก่าสุด 1 ใบ
+ipcMain.on('vision:pass', (_e, { level, score }) => {
+  const top = queue[0]
+  if (!enabled || !top) return
+  console.log('[wai] pass', top.id, `level ${level} score ${score}`)
+  resolve(top.id, { passed: true, level, score, action: 'allow' })
+})
+
 /** มีคิว = เด้ง popup, คิวหมด = ซ่อน */
 function syncWindow() {
   if (tray) updateTray()
+  syncVision()
   if (!win) return
   if (queue.length > 0 && !win.isVisible()) win.showInactive()
   if (queue.length === 0 && win.isVisible()) win.hide()
@@ -289,6 +334,7 @@ function setEnabled(next) {
   // ปิดแล้ว ปล่อยทุกใบที่ค้างอยู่ ไม่ให้ AI ค้าง
   if (!enabled) for (const q of [...queue]) resolve(q.id, { passed: true, level: 0, score: 0, action: 'allow' })
   updateTray()
+  syncVision()
 }
 
 function updateTray() {
@@ -317,6 +363,7 @@ app.whenReady().then(() => {
   tray = new Tray(nativeImage.createEmpty()) // SPIKE: ยังไม่มีไอคอน (Windows ต้องมีไอคอนจริง)
   updateTray()
   createWindow()
+  createVision()
   openHome()
   server.listen(PORT, '127.0.0.1', () => console.log(`[wai] daemon on http://127.0.0.1:${PORT} → ${RENDERER}`))
 })

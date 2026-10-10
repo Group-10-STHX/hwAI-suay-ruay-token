@@ -2,7 +2,12 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('wai', {
-  onVisionEvent: () => () => {}, // ยังไม่มีกล้องใน spike
+  // VisionEvent ~15 fps จากหน้าต่างกล้อง (vision/worker) ส่งต่อผ่าน main คืนฟังก์ชันเลิกฟัง
+  onVisionEvent: (cb) => {
+    const h = (_e, d) => cb(d)
+    ipcRenderer.on('vision:event', h)
+    return () => ipcRenderer.off('vision:event', h)
+  },
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),
