@@ -6,17 +6,11 @@
 
 ---
 
-## 1. ขอบเขตและเจ้าของงาน
+## 1. ขอบเขต
 
-ทีม Front ทำงานใน `/app/renderer` เท่านั้น
+ทีม Front ทำงานใน `/app/renderer` เท่านั้น ใครทำอะไรคุยกันเอง
 
-| คน | เจ้าของ | โฟลเดอร์ |
-|---|---|---|
-| Lead | Shell ของ window, การดึงข้อมูล, mock, CI, รีวิว PR | `src/app`, `src/api`, `src/mocks`, `src/theme` |
-| คนที่ 1 | น้องหุ่น, popup ของแต่ละ state, animation โกรธและหนีเมาส์ | `src/mascot`, `src/states` |
-| คนที่ 2 | กองการ์ด, แถบ level/score, วงค้างท่า, UI ที่ซ้อนบน webcam | `src/queue`, `src/meter`, `src/camera-overlay` |
-
-- ห้ามแก้โฟลเดอร์ของคนอื่น ถ้าต้องใช้ของเขา ให้ import ผ่าน `index.ts` ของโฟลเดอร์นั้น
+- ห้ามแก้โฟลเดอร์ที่คนอื่นกำลังทำโดยไม่บอกก่อน ถ้าต้องใช้ของเขา ให้ import ผ่าน `index.ts` ของโฟลเดอร์นั้น
 - ใช้ mock ทำงานไปก่อนจนกว่าจะถึงช่วง integrate
 - แยก branch คนละอัน ตั้งชื่อ `front/<ชื่อเรื่อง>` แล้วส่ง PR เล็กๆ ให้ Lead รีวิวก่อนส่งต่อให้ #1 merge
 
@@ -150,7 +144,7 @@ app/renderer/
 ├── debug.html                  # entry ของ Debug panel (dev เท่านั้น)
 ├── vite.config.ts              # multi-page: 3 entry ข้างบน
 └── src/
-    ├── app/                    # Lead
+    ├── app/
     │   ├── main-avatar.tsx         mount AvatarWindow
     │   ├── main-camera.tsx         mount CameraOverlayWindow
     │   ├── main-debug.tsx          mount DebugPanel
@@ -158,44 +152,44 @@ app/renderer/
     │   ├── CameraOverlayWindow.tsx ประกอบ ScanFrame + LevelMeter + HoldRing + ReasonChip
     │   ├── DebugPanel.tsx          ปุ่มสลับ scenario
     │   └── store.tsx               React context + useReducer เก็บ queue, sessionState, vision
-    ├── api/                    # Lead
+    ├── api/
     │   ├── types.ts                QueueItem, SessionState, VisionEvent, WaiReason
     │   ├── queue.ts                poll GET /wai/queue ทุก 500ms
     │   ├── vision.ts               subscribe IPC vision:event
     │   └── index.ts                เลือก real หรือ mock จาก env VITE_USE_MOCK
-    ├── mocks/                  # Lead
+    ├── mocks/
     │   ├── scenarios.ts            demand, retry, annoyed, sulk, rageQuit, forgive, pass
     │   └── mockFeed.ts             ยิง scenario เป็น queue + vision event ปลอม 15 fps
-    ├── theme/                  # Lead
+    ├── theme/
     │   ├── tokens.ts               สี ฟอนต์ ระยะ จากข้อ 5
     │   ├── global.css              reset, ฟอนต์, พื้นโปร่งใส
     │   └── effects.css             scanline, shake, bless flash
-    ├── mascot/                 # คนที่ 1
+    ├── mascot/
     │   ├── Mascot.tsx              รับ pose + providerColor
     │   ├── poses.ts                state → pose (crossArms, stick, laserGun, sulk, spaceship, wai)
     │   ├── parts/                  Head.tsx, Body.tsx, Eyes.tsx, Stick.tsx, LaserGun.tsx, Halo.tsx, Spaceship.tsx
     │   └── index.ts
-    ├── states/                 # คนที่ 1
+    ├── states/
     │   ├── Island.tsx              กล่องลอยไม่มีกรอบ จัด Mascot + SpeechBubble + slot การ์ด
     │   ├── SpeechBubble.tsx
     │   ├── useFlee.ts              logic หนีเมาส์ (ห้ามออกนอกจอ ห้ามบัง webcam)
     │   ├── copy.ts                 ข้อความทุกอันของน้อง + map WaiReason → ข้อความ (ทีม Voice ใช้ร่วม)
     │   └── index.ts
-    ├── queue/                  # คนที่ 2
+    ├── queue/
     │   ├── CardStack.tsx           ซ้อนสูงสุด 3 ใบ ใบบนปลิวออกตอนผ่าน
     │   ├── AgentCard.tsx           source, agent_label, เวลาที่เหลือ
     │   ├── PendingCount.tsx        "รอไหว้อีก N ตัว" (ตัวสำรองถ้า CardStack ไม่ทัน)
     │   └── index.ts
-    ├── meter/                  # คนที่ 2
+    ├── meter/
     │   ├── LevelMeter.tsx          4 ช่อง 0–3 + เส้นเป้าตอน ANNOYED
     │   ├── HoldRing.tsx            วงค้างท่า + score ตรงกลาง
     │   ├── SurvivalBar.tsx         โอกาสรอดเมื่อ AI ยึดโลก
     │   └── index.ts
-    ├── camera-overlay/         # คนที่ 2
+    ├── camera-overlay/
     │   ├── ScanFrame.tsx           มุมกรอบสแกน 4 มุม + ป้าย SCAN มนุษย์
     │   ├── ReasonChip.tsx          เหตุผลที่ไหว้ผิด
     │   └── index.ts
-    └── extras/                 # ยังไม่มีเจ้าของ ห้ามเริ่มก่อน P0 เสร็จ
+    └── extras/                 # ห้ามเริ่มก่อน P0 เสร็จ
         ├── SurvivalReport.tsx      กราฟระฆังคว่ำ + percentile
         ├── Leaderboard.tsx
         ├── StickerMaker.tsx

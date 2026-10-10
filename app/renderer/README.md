@@ -18,7 +18,7 @@ npm run check:hex    # หา hex ที่หลุดนอก src/theme (DoD)
 
 ## ของที่เป็น stub
 `mascot/`, `states/`, `queue/`, `meter/`, `camera-overlay/` ตอนนี้เป็นตัวชั่วคราวให้ compile ได้
-เจ้าของเปลี่ยนข้างในได้เลย แต่ **props ใน type ห้ามเปลี่ยนโดยไม่บอก Lead** เพราะ `app/` ส่งตามนั้น
+คนทำเปลี่ยนข้างในได้เลย แต่ **ถ้าจะเปลี่ยน props ให้บอกคนทำ `app/` ก่อน** เพราะ `app/` ส่งตามนั้น
 
 ## ยังรอทีมอื่น
 - #1: ใส่ `state`, `fail_count`, `bypass` ใน `GET /wai/queue` · preload expose `window.wai.onVisionEvent` · `setIgnoreMouseEvents` สำหรับคลิกทะลุ
