@@ -9,7 +9,7 @@ type RawQueueItem = {
   source: string
   kind: 'prompt' | 'subagent'
   agent_label?: string
-  created_at?: number
+  created_at?: number // epoch ms (รอยืนยันกับ #1 ว่า ms หรือวินาที)
 }
 type RawQueue =
   | RawQueueItem[]
@@ -17,18 +17,25 @@ type RawQueue =
 
 const KNOWN_SOURCES: Source[] = ['claude-code', 'chatgpt', 'terminal']
 
+// ถ้า daemon ไม่ส่ง created_at มา ใช้เวลาที่เห็นการ์ดครั้งแรกแทน
+// (ห้ามใช้ Date.now() ตรงๆ ไม่งั้นนับถอยหลังรีเซ็ตทุก poll)
+const firstSeen = new Map<string, number>()
+
 function toItem(raw: RawQueueItem): QueueItem {
   return {
     id: raw.id,
     source: KNOWN_SOURCES.includes(raw.source as Source) ? (raw.source as Source) : 'terminal',
     kind: raw.kind,
     agentLabel: raw.agent_label ?? raw.kind,
-    createdAt: raw.created_at ?? Date.now(),
+    createdAt: raw.created_at ?? firstSeen.get(raw.id)!,
   }
 }
 
 export function toSnapshot(raw: RawQueue): QueueSnapshot {
   const obj = Array.isArray(raw) ? { items: raw } : raw
+  const now = Date.now()
+  for (const it of obj.items) if (!firstSeen.has(it.id)) firstSeen.set(it.id, now)
+  for (const id of firstSeen.keys()) if (!obj.items.some((it) => it.id === id)) firstSeen.delete(id)
   const items = obj.items.map(toItem)
   return {
     items,

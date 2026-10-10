@@ -211,6 +211,7 @@ app ──► mascot, states, queue, meter, camera-overlay ──► theme
 ```
 
 - Component ใน `mascot`, `states`, `queue`, `meter`, `camera-overlay` **รับข้อมูลทาง props เท่านั้น** ห้าม import `api` หรือ `store` เอง เพื่อให้ดูด้วย mock ได้ทุกตัว
+  - ข้อยกเว้นเดียว: `import type { ... } from '../api/types'` ได้ เพราะเป็นแค่ type หายไปตอน build (ห้าม import ค่าหรือฟังก์ชันจาก `api`)
 - มีแค่ `app/` ที่อ่าน store แล้วส่ง props ลงไป
 - ข้ามโฟลเดอร์ต้อง import ผ่าน `index.ts` เท่านั้น
 

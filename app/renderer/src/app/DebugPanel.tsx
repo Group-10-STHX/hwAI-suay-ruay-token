@@ -1,7 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { USE_MOCK } from '../api'
-import { getMockControl, onMockControl, setMockControl } from '../mocks/mockFeed'
-import { DEFAULT_QUEUE_SIZE, QUEUE_SIZES, SCENARIOS, type ScenarioName } from '../mocks/scenarios'
+import {
+  DEFAULT_QUEUE_SIZE,
+  getMockControl,
+  onMockControl,
+  QUEUE_SIZES,
+  SCENARIOS,
+  setMockControl,
+  USE_MOCK,
+  type ScenarioName,
+} from '../api'
 import { v } from '../theme/tokens'
 import { useStore } from './store'
 

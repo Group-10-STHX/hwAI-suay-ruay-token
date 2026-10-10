@@ -25,7 +25,7 @@ export function CameraOverlayWindow() {
         <HoldRing holdMs={vision.holdMs} holdTargetMs={HOLD_TARGET_MS} score={vision.score} isWai={vision.isWai} />
       </div>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 32, display: 'flex', justifyContent: 'center' }}>
-        <ReasonChip reasons={vision.reasons} />
+        <ReasonChip messages={vision.reasons} /* TODO: map ผ่าน states/copy.ts เมื่อคนที่ 1 ทำเสร็จ */ />
       </div>
     </div>
   )

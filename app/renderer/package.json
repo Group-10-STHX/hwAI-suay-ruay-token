@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:mock": "VITE_USE_MOCK=1 vite",
+    "dev:mock": "vite --mode mock",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "check:hex": "! grep -rnE '#[0-9A-Fa-f]{3,8}\\b' src --include=*.ts --include=*.tsx --include=*.css | grep -v '^src/theme/'"
+    "check:hex": "node scripts/check-hex.mjs"
   },
   "dependencies": {
     "@fontsource/chakra-petch": "^5.0.0",
