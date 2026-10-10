@@ -22,5 +22,5 @@ npm run check:hex    # หา hex ที่หลุดนอก src/theme (DoD)
 
 ## ยังรอทีมอื่น
 - #1: ใส่ `state`, `fail_count`, `bypass` ใน `GET /wai/queue` · preload expose `window.wai.onVisionEvent` · `setIgnoreMouseEvents` สำหรับคลิกทะลุ
-- Vision: `reasons`, `facePresent`, `snapshotId`, `style` · เวลาค้างท่าที่ต้องได้ (ตอนนี้เดา 1500ms)
+- Vision: `reasons`, `facePresent`, `snapshotId`, `style` 
 - ตอนนี้ adapter ใน `src/api/` เติม default ให้ฟิลด์ที่ยังไม่มา component ไม่ต้องสนใจ

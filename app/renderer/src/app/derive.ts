@@ -27,5 +27,5 @@ export const CAMERA_ON: Record<SessionState, boolean> = {
   FORGIVE: true,
 }
 
-/** ต้องค้างท่ากี่ ms (เดาเอง รอยืนยันกับ Vision) */
-export const HOLD_TARGET_MS = 1500
+/** ต้องค้างท่ากี่ ms (artifact.md: ค้าง ≥ 1 วินาที) */
+export const HOLD_TARGET_MS = 1000
