@@ -20,6 +20,18 @@ hook / shell / extension ──POST /wai/request──▶ daemon :7777 ──▶
 There is one integration point: **when the daemon decides the `action` for an attempt, call `sync.record(attempt)`.**
 Everything else (queueing, retries, auth, privacy filtering) lives in [`sdk/wai-sync.mjs`](../sdk/wai-sync.mjs).
 
+## Status & known gaps (as of 2026-10-10)
+
+| Area | State |
+|---|---|
+| Web app, API, upload SDK, docs | Done. `npm run build` passes and `npm run smoke` passes 24/24 against the mock store |
+| SDK end to end | Tested against the mock server: register, upload, offline outbox, 429 retry, `WAI_BYPASS` |
+| Supabase store | **Not run against a real database yet.** It compiles only. Apply `supabase/migrations/0001_init.sql`, set `WAI_DATA=supabase`, then run `npm run smoke` |
+| Deployment | **No public URL yet.** The booth `base_url` is still to be decided |
+| Daemon (`/app/main`) | **Doesn't exist yet.** §4 describes the integration point by contract, not by file |
+| Root contract | **Not yet in the root `CLAUDE.md`.** Per team rule, add the daemon → web upload there and get #1's agreement |
+| Stickers | **Not in v1.** `sticker_url` is always `null` and there is no upload endpoint |
+
 ## 1. Ground rules (non-negotiable)
 
 1. **Never block or slow the hook path.** `record()` is synchronous and returns in microseconds. Never `await` the network
