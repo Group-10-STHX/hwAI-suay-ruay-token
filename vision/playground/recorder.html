@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wai Recorder</title>
+<style>
+  :root { color-scheme: dark; --bg: #111; --fg: #eee; --muted: #888; --line: #333; --ok: #5d5; --no: #e66; --warn: #fd3; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif;
+         display: flex; gap: 16px; padding: 16px; flex-wrap: wrap; align-items: flex-start; }
+  #stage { position: relative; width: 640px; max-width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  #stage video, #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+  #panel { flex: 1; min-width: 300px; max-width: 460px; }
+  #phase { font-size: 30px; font-weight: 700; }
+  #level { font-size: 16px; color: var(--muted); }
+  #sub { color: var(--muted); min-height: 1.4em; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; align-items: center; }
+  button, select { font: inherit; padding: 6px 10px; }
+  button.on { background: #a33; color: #fff; }
+  button.lbl.active { outline: 2px solid var(--ok); }
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+  td, th { padding: 3px 6px; border-bottom: 1px solid var(--line); text-align: left; font-variant-numeric: tabular-nums; }
+  td:first-child { color: var(--muted); }
+  canvas#timeline { width: 100%; height: 70px; background: #181818; border: 1px solid var(--line); }
+  .ok { color: var(--ok); } .no { color: var(--no); } .warn { color: var(--warn); }
+  small { color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="stage"><video id="video" playsinline muted></video><canvas id="canvas"></canvas></div>
+<div id="panel">
+  <div id="status">กำลังโหลดโมเดล...</div>
+  <div id="phase">-</div>
+  <div id="level"></div>
+  <div id="sub"></div>
+
+  <div class="row">
+    <small>ระดับจริง (label):</small>
+    <button class="lbl" data-label="0">0 ไม่ไหว้</button>
+    <button class="lbl" data-label="1">1 เพื่อน</button>
+    <button class="lbl" data-label="2">2 ผู้ใหญ่</button>
+    <button class="lbl" data-label="3">3 พระ</button>
+  </div>
+  <div class="row">
+    <small>ลักษณะ:</small>
+    <select id="variant"></select>
+    <small>คุณภาพ:</small>
+    <select id="quality">
+      <option value="1">1 ไม่ชัด</option><option value="2">2</option><option value="3" selected>3 พอใช้</option>
+      <option value="4">4</option><option value="5">5 สวย</option>
+    </select>
+    <button id="rec">● บันทึก (R)</button>
+    <button id="calib">ตั้งศูนย์ (C)</button>
+  </div>
+  <div class="row">
+    <button id="dl">ดาวน์โหลด JSON</button>
+    <button id="clr">ล้างข้อมูล</button>
+    <small id="saved"></small>
+  </div>
+
+  <canvas id="timeline" width="800" height="140"></canvas>
+  <small>เส้นเทา = raw (ดิบ, เปลี่ยนทุกเฟรม) · เส้นสี = stable (หลังกรองหน้าต่าง 0.4 วินาที)</small>
+
+  <h4>รอบการไหว้ล่าสุด</h4>
+  <table id="attempts"><tr><th>เริ่ม</th><th>ยาว</th><th>ค้างสูงสุด</th><th>ระดับที่ผ่าน</th></tr></table>
+
+  <h4>จำนวนเฟรมที่เก็บแล้ว (ระดับ × ลักษณะ)</h4>
+  <table id="counts"></table>
+
+  <h4>ค่าปัจจุบัน</h4>
+  <table id="stats"></table>
+</div>
+
+<script type="module">
+import { FilesetResolver, PoseLandmarker, FaceLandmarker, HandLandmarker, DrawingUtils }
+  from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.0/vision_bundle.mjs';
+
+const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.0/wasm';
+const MODELS = 'https://storage.googleapis.com/mediapipe-models';
+const LEVEL_NAMES = ['ไม่ไหว้', 'ไหว้เพื่อน', 'ไหว้ผู้ใหญ่', 'ไหว้พระ'];
+const VARIANTS = ['front', 'tilt-left', 'tilt-right', 'low-angle', 'close', 'far', 'hands-high', 'hands-low', 'other'];
+const SCHEMA_VERSION = 1;
+
+// Same thresholds as mediapipe.html, in shoulder-width units.
+const TH = {
+  gapMax: 0.45, centerMax: 0.5, fingersUpMin: 0.15, tipNoseMin: -0.02,
+  thumbBrowMin: -0.05, bowMinDeg: 12, neckDropMin: 0.08,
+};
+const WIN = 12;        // frames for the majority filter (~0.4 s at 30 fps)
+const SHARE = 0.6;     // share of WIN that a level needs before it becomes "stable"
+const HOLD_MS = 700;   // stable level held this long counts as a pass
+
+const $ = (id) => document.getElementById(id);
+const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
+const tl = $('timeline'), tctx = tl.getContext('2d');
+const draw = new DrawingUtils(ctx);
+
+const fileset = await FilesetResolver.forVisionTasks(WASM);
+const opts = (path) => ({ baseOptions: { modelAssetPath: `${MODELS}/${path}`, delegate: 'GPU' }, runningMode: 'VIDEO' });
+const [pose, face, hands] = await Promise.all([
+  PoseLandmarker.createFromOptions(fileset, {
+    ...opts('pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task'), numPoses: 1 }),
+  FaceLandmarker.createFromOptions(fileset, {
+    ...opts('face_landmarker/face_landmarker/float16/latest/face_landmarker.task'), numFaces: 1,
+    outputFacialTransformationMatrixes: true }),
+  HandLandmarker.createFromOptions(fileset, {
+    ...opts('hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task'), numHands: 2,
+    minHandDetectionConfidence: 0.3, minHandPresenceConfidence: 0.3, minTrackingConfidence: 0.3 }),
+]);
+
+$('status').textContent = 'ขอสิทธิ์กล้อง...';
+video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+await video.play();
+const W = canvas.width = video.videoWidth, H = canvas.height = video.videoHeight;
+$('status').textContent = 'พร้อม — เลือกระดับ/ลักษณะ แล้วกด R เพื่อบันทึก';
+
+const px = (l) => ({ x: l.x * W, y: l.y * H });
+const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const r3 = (v) => (v == null ? null : Math.round(v * 1000) / 1000);
+
+// ---- variant select ----
+for (const v of VARIANTS) $('variant').add(new Option(v, v));
+const variant = () => $('variant').value;
+
+// ---- state ----
+let label = null;          // ground truth set by the user (0-3)
+let recording = false;
+const rows = [];           // recorded frames
+const ema = {};
+const smooth = (k, v, a = 0.4) => (ema[k] = v == null ? null : ema[k] == null ? v : ema[k] + a * (v - ema[k]));
+const calib = { pitch: null, neck: null };
+let last = {};
+let prevTs = performance.now(), fps = 0;
+
+// ---- per-frame features ----
+function features(p, f, h) {
+  const pl = p.landmarks[0];
+  if (!pl) return null;
+  const hl = h.landmarks;
+  // Pose wrists drop out when hands are together or below the frame. Fall back to the hand
+  // model's wrist points when both hands are seen (the recording showed ~half the frames lost here).
+  let lWr, rWr;
+  if (pl[15].visibility >= 0.5 && pl[16].visibility >= 0.5) {
+    lWr = px(pl[15]); rWr = px(pl[16]);
+  } else if (hl.length >= 2) {
+    lWr = px(hl[0][0]); rWr = px(hl[1][0]);
+  } else {
+    return null;
+  }
+
+  const lSh = px(pl[11]), rSh = px(pl[12]);
+  const sw = dist(lSh, rSh), shMid = mid(lSh, rSh), wrMid = mid(lWr, rWr);
+  const tips = hl.length ? hl.flatMap((x) => [px(x[8]), px(x[12])]) : [px(pl[19]), px(pl[20])];
+  const thumbs = hl.length ? hl.map((x) => px(x[4])) : [px(pl[21]), px(pl[22])];
+
+  const fl = f.faceLandmarks[0];
+  const nose = fl ? px(fl[1]) : px(pl[0]);
+  const browY = fl ? px(fl[9]).y : (px(pl[2]).y + px(pl[5]).y) / 2 - 0.1 * sw;
+  const m = f.facialTransformationMatrixes?.[0];
+  const pitch = m ? (Math.atan2(m.data[6], m.data[10]) * 180) / Math.PI : null;
+
+  const raw = {
+    sw,
+    gap: dist(lWr, rWr) / sw,
+    center: Math.abs(wrMid.x - shMid.x) / sw,       // absolute, so left and right lean both count
+    leanX: (nose.x - shMid.x) / sw,                 // signed, kept for analysis only
+    roll: (Math.atan2(rSh.y - lSh.y, rSh.x - lSh.x) * 180) / Math.PI,
+    fingersUp: ((lWr.y + rWr.y) / 2 - Math.min(...tips.map((t) => t.y))) / sw,
+    tipNose: (nose.y - Math.min(...tips.map((t) => t.y))) / sw,
+    thumbBrow: (browY - Math.min(...thumbs.map((t) => t.y))) / sw,
+    neck: (shMid.y - nose.y) / sw,
+    pitch,
+    handCount: hl.length,
+  };
+  const F = {};
+  for (const [k, v] of Object.entries(raw)) F[k] = k === 'handCount' ? v : smooth(k, v);
+  F.bow = pitch != null && calib.pitch != null ? Math.abs(F.pitch - calib.pitch) : null;
+  F.neckDrop = calib.neck != null ? calib.neck - F.neck : null;
+  last = { noseY: nose.y, browY, pitch: F.pitch, neck: F.neck };
+  return F;
+}
+
+// ---- one-frame classification (what mediapipe.html does) ----
+function classify(F) {
+  if (!F) return 0;
+  if (!(F.gap < TH.gapMax && F.center < TH.centerMax && F.fingersUp > TH.fingersUpMin)) return 0;
+  let level = F.tipNose > TH.tipNoseMin ? 2 : 1;
+  const bowed = F.bow != null ? F.bow > TH.bowMinDeg : F.neckDrop != null ? F.neckDrop > TH.neckDropMin : true;
+  if (F.thumbBrow > TH.thumbBrowMin && bowed) level = 3;
+  return level;
+}
+
+// ---- temporal filter: majority over a short window ----
+const rawHist = [];
+let stable = 0;
+function stabilize(raw) {
+  rawHist.push(raw);
+  if (rawHist.length > WIN) rawHist.shift();
+  const counts = [0, 0, 0, 0];
+  for (const v of rawHist) counts[v]++;
+  const best = counts.indexOf(Math.max(...counts));
+  if (counts[best] / WIN >= SHARE && rawHist.length === WIN) stable = best;
+  return stable;
+}
+
+// ---- attempt tracking: one wai = stable > 0 from start until back to 0 ----
+const attempts = [];
+let att = null;
+let holdMs = 0, phase = 'IDLE';
+function updatePhase(now, dt, prevStable) {
+  if (stable > 0) {
+    if (!att) att = { start: now, peak: 0, passLevel: null, maxHold: 0, lean: [] };
+    att.peak = Math.max(att.peak, stable);
+    holdMs = stable === prevStable ? holdMs + dt : 0;
+    att.maxHold = Math.max(att.maxHold, holdMs);
+    if (holdMs >= HOLD_MS) att.passLevel = Math.max(att.passLevel ?? 0, stable);
+    phase = holdMs >= HOLD_MS ? 'ค้างท่า' : 'กำลังไหว้';
+  } else {
+    if (att) {
+      attempts.unshift({ ...att, end: now, dur: now - att.start });
+      attempts.length = Math.min(attempts.length, 8);
+      att = null;
+      renderAttempts();
+    }
+    holdMs = 0;
+    phase = 'ว่าง';
+  }
+}
+
+// ---- recording ----
+function compact(p, f, h) {
+  const pl = p.landmarks[0];
+  return {
+    pose: pl ? pl.slice(0, 23).map((l) => [r3(l.x), r3(l.y), r3(l.visibility)]) : null,
+    hands: h.landmarks.map((hand, i) => ({
+      side: h.handednesses?.[i]?.[0]?.categoryName ?? null,
+      pts: hand.map((l) => [r3(l.x), r3(l.y)]),
+    })),
+    face: f.faceLandmarks[0] ? [1, 9, 10].map((i) => [r3(f.faceLandmarks[0][i].x), r3(f.faceLandmarks[0][i].y)]) : null,
+  };
+}
+
+function record(now, p, f, h, F, rawLevel) {
+  if (!recording) return;
+  if (label == null) { $('saved').textContent = 'ยังไม่ได้เลือกระดับ'; return; }
+  rows.push({
+    t: Math.round(now), label, variant: variant(), quality: Number($('quality').value),
+    raw: rawLevel, stable, phase,
+    feat: F ? Object.fromEntries(Object.entries(F).map(([k, v]) => [k, typeof v === 'number' ? r3(v) : v])) : null,
+    lm: compact(p, f, h),
+  });
+  $('saved').textContent = `เก็บแล้ว ${rows.length} เฟรม`;
+  updateCounts();
+}
+
+function updateCounts() {
+  const c = {};
+  for (const r of rows) c[`${r.label}|${r.variant}`] = (c[`${r.label}|${r.variant}`] ?? 0) + 1;
+  $('counts').innerHTML = [0, 1, 2, 3].map((lv) =>
+    `<tr><td>${lv} ${LEVEL_NAMES[lv]}</td><td>${VARIANTS.map((v) => `${v}:${c[`${lv}|${v}`] ?? 0}`).join(' · ')}</td></tr>`
+  ).join('');
+}
+
+function renderAttempts() {
+  const head = '<tr><th>เริ่ม</th><th>ยาว</th><th>ค้างสูงสุด</th><th>ระดับที่ผ่าน</th></tr>';
+  const body = attempts.slice(0, 6).map((a, i) =>
+    `<tr><td>#${attempts.length - i}</td><td>${(a.dur / 1000).toFixed(1)}s</td>` +
+    `<td>${(a.maxHold / 1000).toFixed(1)}s</td>` +
+    `<td>${a.passLevel != null ? `<span class="ok">${a.passLevel} ${LEVEL_NAMES[a.passLevel]}</span>` : '<span class="no">ไม่ผ่าน</span>'}</td></tr>`
+  ).join('');
+  $('attempts').innerHTML = head + body;
+}
+
+// ---- timeline: raw vs stable over the last 15 s ----
+const hist = [];
+function drawTimeline(now) {
+  hist.push({ t: now, raw: lastRaw, stable });
+  while (hist.length && now - hist[0].t > 15000) hist.shift();
+  const w = tl.width, h = tl.height;
+  tctx.clearRect(0, 0, w, h);
+  const y = (lv) => h - 10 - lv * ((h - 20) / 3);
+  tctx.fillStyle = '#444'; tctx.font = '12px system-ui';
+  for (let lv = 0; lv <= 3; lv++) tctx.fillText(String(lv), 2, y(lv) + 4);
+  const x = (t) => w - ((now - t) / 15000) * w;
+  const plot = (key, color, width) => {
+    tctx.strokeStyle = color; tctx.lineWidth = width; tctx.beginPath();
+    hist.forEach((s, i) => { const px_ = x(s.t), py = y(s[key]); i ? tctx.lineTo(px_, py) : tctx.moveTo(px_, py); });
+    tctx.stroke();
+  };
+  plot('raw', '#888', 1);
+  plot('stable', '#5d5', 3);
+}
+let lastRaw = 0;
+
+// ---- overlay ----
+function render(p, f, h, F, rawLevel) {
+  ctx.clearRect(0, 0, W, H);
+  for (const lm of p.landmarks) {
+    draw.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, { color: '#ffffff88', lineWidth: 2 });
+    draw.drawLandmarks(lm, { color: '#fff', radius: 2 });
+  }
+  for (const lm of h.landmarks) {
+    draw.drawConnectors(lm, HandLandmarker.HAND_CONNECTIONS, { color: '#3cf', lineWidth: 2 });
+    draw.drawLandmarks(lm, { color: '#3cf', radius: 2 });
+  }
+  for (const [y, color] of [[last.noseY, '#fd3'], [last.browY, '#f93']]) {
+    if (y == null) continue;
+    ctx.strokeStyle = color; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  $('phase').textContent = phase;
+  $('level').innerHTML = `raw ${rawLevel} · stable <b>${stable}</b> ${LEVEL_NAMES[stable]}` +
+    (label != null ? ` · label <b>${label}</b>` : '');
+  $('sub').textContent = F ? '' : 'ไม่เจอข้อมือ/คน';
+
+  const yes = (b) => `<span class="${b ? 'ok' : 'no'}">${b ? 'เจอ' : 'ไม่เจอ'}</span>`;
+  const f1 = (v, d = 2) => (v == null ? '-' : v.toFixed(d));
+  const rows_ = F ? [
+    ['fps', fps.toFixed(0)],
+    ['pose / face', `${yes(p.landmarks.length)} / ${yes(f.faceLandmarks.length)}`],
+    ['มือที่เจอ', `${h.landmarks.length}`],
+    [`gap < ${TH.gapMax}`, f1(F.gap)],
+    [`center < ${TH.centerMax}`, f1(F.center)],
+    ['leanX (ซ้าย-, ขวา+)', f1(F.leanX)],
+    ['roll (°)', f1(F.roll, 1)],
+    [`fingersUp > ${TH.fingersUpMin}`, f1(F.fingersUp)],
+    [`tipNose > ${TH.tipNoseMin}`, f1(F.tipNose)],
+    [`thumbBrow > ${TH.thumbBrowMin}`, f1(F.thumbBrow)],
+    [`bow > ${TH.bowMinDeg}°`, calib.pitch == null ? 'กด C ก่อน' : f1(F.bow, 1)],
+    ['holdMs', Math.round(holdMs)],
+  ] : [['สถานะ', 'ไม่เจอคน/ข้อมือ']];
+  $('stats').innerHTML = rows_.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+}
+
+// ---- controls ----
+function setLabel(v) {
+  label = v;
+  document.querySelectorAll('button.lbl').forEach((b) => b.classList.toggle('active', Number(b.dataset.label) === v));
+}
+document.querySelectorAll('button.lbl').forEach((b) => (b.onclick = () => setLabel(Number(b.dataset.label))));
+function setRec(on) {
+  recording = on;
+  $('rec').classList.toggle('on', on);
+  $('rec').textContent = on ? '■ หยุด (R)' : '● บันทึก (R)';
+}
+$('rec').onclick = () => setRec(!recording);
+$('calib').onclick = () => { calib.pitch = last.pitch ?? null; calib.neck = last.neck ?? null; };
+$('clr').onclick = () => { rows.length = 0; attempts.length = 0; updateCounts(); renderAttempts(); $('saved').textContent = 'ล้างแล้ว'; };
+$('dl').onclick = () => {
+  const blob = new Blob([JSON.stringify({
+    schema: SCHEMA_VERSION, createdAt: new Date().toISOString(), thresholds: TH,
+    window: { frames: WIN, share: SHARE, holdMs: HOLD_MS }, frames: rows, attempts,
+  })], { type: 'application/json' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `wai-${Date.now()}.json` });
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'SELECT') return;
+  if (/^[0-3]$/.test(e.key)) setLabel(Number(e.key));
+  else if (e.key === 'r' || e.key === 'R') setRec(!recording);
+  else if (e.key === 'c' || e.key === 'C') $('calib').click();
+});
+
+// ---- main loop ----
+function loop() {
+  const ts = performance.now();
+  const dt = ts - prevTs;
+  if (video.readyState >= 2 && dt > 0) {
+    prevTs = ts;
+    fps = fps * 0.9 + (1000 / dt) * 0.1;
+    const p = pose.detectForVideo(video, ts);
+    const f = face.detectForVideo(video, ts);
+    const h = hands.detectForVideo(video, ts);
+    const F = features(p, f, h);
+    const rawLevel = classify(F);
+    lastRaw = rawLevel;
+    const prevStable = stable;
+    stabilize(rawLevel);
+    updatePhase(ts, dt, prevStable);
+    record(ts, p, f, h, F, rawLevel);
+    drawTimeline(ts);
+    render(p, f, h, F, rawLevel);
+  }
+  requestAnimationFrame(loop);
+}
+updateCounts();
+loop();
+</script>
+</body>
+</html>

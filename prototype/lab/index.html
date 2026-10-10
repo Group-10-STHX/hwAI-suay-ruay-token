@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MediaPipe Lab · hwAI</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;800&display=swap"
+    />
+    <link rel="stylesheet" href="/lab/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="title">
+        <h1>MediaPipe Lab</h1>
+        <p class="muted">ควบคุมโมเดลไหว้และสถานะเอเจนต์ในที่เดียว</p>
+      </div>
+      <div class="mode" role="group" aria-label="เลือกโหมด">
+        <button id="mode-real" class="seg" type="button">โหมดจริง</button>
+        <button id="mode-demo" class="seg" type="button">โหมดสาธิต</button>
+      </div>
+      <p id="mode-text" class="mode-text muted"></p>
+    </header>
+
+    <main class="grid">
+      <!-- Camera and detection -->
+      <section class="box camera">
+        <div class="box-head">
+          <h2>กล้องและการตรวจจับ</h2>
+          <div class="btns">
+            <button id="cam-start" type="button">เปิดกล้อง</button>
+            <button
+              id="calib"
+              type="button"
+              disabled
+              title="กดตอนยืนตรงมองกล้อง (C)"
+            >
+              ตั้งศูนย์ (C)
+            </button>
+            <button id="cam-stop" type="button" disabled>ปิดกล้อง</button>
+          </div>
+        </div>
+        <div class="stage">
+          <video id="video" playsinline muted></video>
+          <canvas id="overlay"></canvas>
+        </div>
+        <div class="readouts">
+          <div class="cell">
+            <span>ระดับ (stable)</span><strong id="level">-</strong>
+          </div>
+          <div class="cell">
+            <span>คะแนน</span><strong id="score">-</strong>
+          </div>
+          <div class="cell">
+            <span>ค้างท่า</span><strong id="hold">-</strong>
+          </div>
+          <div class="cell">
+            <span>ดิบ (raw)</span><strong id="raw">-</strong>
+          </div>
+          <div class="cell">
+            <span>สถานะ</span><span id="pass" class="pill">-</span>
+          </div>
+          <div class="cell"><span>fps</span><strong id="fps">-</strong></div>
+        </div>
+        <p id="reason" class="muted small"></p>
+      </section>
+
+      <!-- Gate -->
+      <section class="box gate">
+        <div class="box-head"><h2>ด่านไหว้</h2></div>
+        <div class="cells">
+          <div class="cell">
+            <span>เครดิตที่มี</span><strong id="credits">0</strong>
+          </div>
+          <div class="cell">
+            <span>รอไหว้</span><strong id="queued">0</strong>
+          </div>
+          <div class="cell">
+            <span>เกณฑ์คะแนนผ่าน</span><strong id="pass-min">-</strong>
+          </div>
+        </div>
+        <p class="muted small">
+          ไหว้ผ่าน 1 ครั้ง = ปลดเอเจนต์ 1 ตัวจากคิว ระหว่างนี้ตัวที่รอจะไม่ทำงาน
+        </p>
+        <div class="btns">
+          <button id="fake-pass" type="button">จำลองไหว้ผ่าน (คะแนน 90)</button>
+        </div>
+      </section>
+
+      <!-- Agents -->
+      <section class="box agents">
+        <div class="box-head">
+          <h2>เอเจนต์</h2>
+          <div class="btns">
+            <button id="sim" type="button">จำลองเซสชัน</button>
+            <button id="clear" type="button">ล้าง</button>
+          </div>
+        </div>
+        <ul id="agents" class="agent-list"></ul>
+      </section>
+
+      <!-- Settings -->
+      <section class="box settings">
+        <div class="box-head">
+          <h2>ค่าการตรวจจับ</h2>
+          <div class="btns">
+            <button id="reset-th" type="button">ค่าเริ่มต้น</button>
+            <button id="push-score" type="button">
+              ส่งเกณฑ์คะแนนไป server
+            </button>
+          </div>
+        </div>
+        <div class="fields">
+          <label class="field"
+            ><span>ค้างท่า (ms)</span
+            ><input
+              type="range"
+              data-th="holdMs"
+              min="200"
+              max="2000"
+              step="50" /><output></output
+          ></label>
+          <label class="field"
+            ><span>เกณฑ์คะแนนผ่าน</span
+            ><input
+              type="range"
+              data-th="passMinScore"
+              min="0"
+              max="100"
+              step="1" /><output></output
+          ></label>
+          <label class="field"
+            ><span>ระยะมือ (gapMax)</span
+            ><input
+              type="range"
+              data-th="gapMax"
+              min="0.2"
+              max="1.2"
+              step="0.05" /><output></output
+          ></label>
+          <label class="field"
+            ><span>นิ้วสูงกว่าข้อมือ (fingersUpMin)</span
+            ><input
+              type="range"
+              data-th="fingersUpMin"
+              min="0"
+              max="0.4"
+              step="0.01" /><output></output
+          ></label>
+          <label class="field"
+            ><span>ปลายนิ้วถึงจมูก (tipNoseMin)</span
+            ><input
+              type="range"
+              data-th="tipNoseMin"
+              min="-0.2"
+              max="0.3"
+              step="0.01" /><output></output
+          ></label>
+          <label class="field"
+            ><span>นิ้วโป้งถึงคิ้ว (thumbBrowMin)</span
+            ><input
+              type="range"
+              data-th="thumbBrowMin"
+              min="-0.4"
+              max="0.2"
+              step="0.01" /><output></output
+          ></label>
+          <label class="field"
+            ><span>สัดส่วนโหวต (share)</span
+            ><input
+              type="range"
+              data-th="share"
+              min="0.3"
+              max="1"
+              step="0.05" /><output></output
+          ></label>
+        </div>
+      </section>
+
+      <!-- Log -->
+      <section class="box log-box">
+        <div class="box-head"><h2>บันทึกเหตุการณ์</h2></div>
+        <div id="log" class="log"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/lab/app.js"></script>
+  </body>
+</html>

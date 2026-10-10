@@ -1,0 +1,43 @@
+{
+  "pin": "simple-icons@16.32.0",
+  "base": "https://cdn.jsdelivr.net/npm/simple-icons@16.32.0/icons/",
+  "logos": [
+    {
+      "id": "claude",
+      "name": "Claude"
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic"
+    },
+    {
+      "id": "googlegemini",
+      "name": "Gemini"
+    },
+    {
+      "id": "meta",
+      "name": "Meta (Llama)"
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek"
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama"
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity"
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face"
+    },
+    {
+      "id": null,
+      "name": "ChatGPT",
+      "note": "ไม่มีในชุด simple-icons จึงใช้ป้ายข้อความ"
+    }
+  ]
+}
