@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MAX_VISIBLE_CARDS } from '../api'
+import { MAX_VISIBLE_CARDS, skipItem } from '../api'
 import { Mascot } from '../mascot'
 import { CardStack, PendingCount } from '../queue'
 import { Island } from '../states'
@@ -38,9 +38,24 @@ export function AvatarWindow() {
           }
         />
       )}
+      {top && (
+        <button className="interactive mono" onClick={() => skipItem(top.id)} style={skipStyle}>
+          ข้าม (dev) ▶
+        </button>
+      )}
     </div>
   )
 }
+
+// ปุ่มแทนการไหว้ ใช้จนกว่ากล้องจะต่อเสร็จ
+const skipStyle = {
+  marginTop: 12,
+  background: v('surface'),
+  color: v('text'),
+  border: `1px solid ${v('hud')}`,
+  padding: '8px 14px',
+  cursor: 'pointer',
+} as const
 
 function Badge({ tone, children }: { tone: 'hud' | 'blessed'; children: string }) {
   return (

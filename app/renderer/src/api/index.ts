@@ -9,6 +9,7 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK === '1'
 
 export const subscribeQueue = USE_MOCK ? mock.subscribeQueue : realQueue.subscribeQueue
 export const subscribeVision = USE_MOCK ? mock.subscribeVision : realVision.subscribeVision
+export const skipItem = USE_MOCK ? async (_id: string) => {} : realQueue.skipItem
 
 // ของ DebugPanel (app/ ห้าม import mocks ตรง ต้องผ่าน api ตามทิศ app → api → mocks)
 export { getMockControl, onMockControl, setMockControl, type MockControl } from '../mocks/mockFeed'

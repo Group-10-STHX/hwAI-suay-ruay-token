@@ -72,3 +72,8 @@ export function subscribeQueue(
     clearTimeout(timer)
   }
 }
+
+/** ข้ามการไหว้ใบนี้ (dev/spike เท่านั้น ใช้แทนกล้องจนกว่า Vision จะต่อเสร็จ ไม่อยู่ใน contract) */
+export async function skipItem(id: string): Promise<void> {
+  await fetch(`${DAEMON_URL}/wai/skip/${id}`, { method: 'POST' })
+}
