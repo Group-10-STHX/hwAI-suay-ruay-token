@@ -314,3 +314,22 @@ test('engine:system persona (p4 Siri-style) never calls Paxa and prewarm skips i
   assert.equal(w.fetched, 0);
   assert.equal(s.voice.list().find((p) => p.id === 'p4').engine, 'system');
 });
+
+test("mode 'siri': recordings and Paxa are skipped, everything goes to system voice; 'human' restores them", async () => {
+  const s = setup();
+  const rec = join(s.home, 'voice', 'recordings', 'p1');
+  mkdirSync(rec, { recursive: true });
+  writeFileSync(join(rec, 'p1-demanding-1.wav'), 'RIFF');
+  assert.equal(s.voice.getMode(), 'human');
+  assert.equal((await s.voice.speak({ state: 'DEMANDING', persona: 'p1' })).source, 'recording');
+  assert.equal(s.voice.setMode('siri'), 'siri');
+  s.clock.t += 5000;
+  const r = await s.voice.speak({ state: 'DEMANDING', persona: 'p1' });
+  assert.equal(r.source, 'say');
+  assert.equal(s.calls.length, 0);
+  assert.equal(s.voice.status().mode, 'siri');
+  assert.equal(s.voice.setMode('nope'), 'siri'); // ค่าแปลก = ไม่เปลี่ยน
+  s.voice.setMode('human');
+  s.clock.t += 5000;
+  assert.equal((await s.voice.speak({ state: 'DEMANDING', persona: 'p1' })).source, 'recording');
+});

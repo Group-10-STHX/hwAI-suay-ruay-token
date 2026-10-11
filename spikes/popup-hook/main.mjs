@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { createSessions, planVision } from './session-state.mjs' // state machine ต่อ session (contract §4)
 import { createAvatars, handleAvatarRoute } from './avatars.mjs' // เลือก/เสิร์ฟตัวละคร (~/.waikusa/avatars)
+import { BRIBE_AMOUNT_BAHT, canBribe, checkVoucher } from './bribe.mjs' // ง้อด้วยซอง True Money (mock ล้อเล่น)
 import { createVoice, defaultPlayImpl } from './voice.mjs'
 import { createVoiceAdmin } from './voice-admin.mjs' // หลังบ้านอัดเสียง /admin/voice // เสียงพูด: เสียงที่เพื่อนอัด → Paxa TTS (แคช) → say กันยา
 import { createStickers, isStickerStyle, normalizeStickerStyle, STICKER_FILE_RE, STICKER_STYLES } from './stickers.mjs' // สติ๊กเกอร์ตอนไหว้ผ่าน (~/.waikusa/stickers)
@@ -125,13 +126,19 @@ const sessions = createSessions()
 const waiLog = createWaiLog({ home: WAI_HOME, sync: !DEV_INSTANCE })
 const avatars = createAvatars({ home: WAI_HOME })
 const stickers = createStickers({ home: WAI_HOME })
-const voice = createVoice({ home: WAI_HOME, log: console.log }) // key อ่านจาก ~/.waikusa/secrets.json
+const voice = createVoice({ home: WAI_HOME, log: console.log, mode: readConfig().voice_mode }) // key อ่านจาก ~/.waikusa/secrets.json
 const REPO_ROOT = join(HERE, '..', '..')
 const voiceAdmin = createVoiceAdmin({
   home: WAI_HOME,
   linesFile: join(REPO_ROOT, 'voice', 'lines.all.json'),
   adminDir: join(REPO_ROOT, 'voice', 'admin'),
   play: (file) => defaultPlayImpl({ kind: 'file', path: file })?.done,
+  getMode: () => voice.getMode(),
+  setMode: (m) => {
+    const r = voice.setMode(m)
+    saveConfig({ voice_mode: r })
+    return r
+  },
   now: Date.now,
   log: console.log,
 })
@@ -222,14 +229,27 @@ function openHome() {
 }
 
 /** หน้าต่างกล้อง (viewfinder SCAN มนุษย์): window ปกติ ไม่โปร่ง ไม่ alwaysOnTop · ปิด = กล้องดับ + heartbeat preview หยุด · ไม่เปิดเองตอนเริ่มแอป */
-function openCameraView() {
+// auto = ขึ้นเองตอนมีคำขอรอไหว้ (ไม่แย่ง focus, อยู่บนสุดซ้ายของน้อง, ปิดเองเมื่อไม่มีคำขอ) · เปิดมือ = หน้าต่างปกติ ไม่ปิดเอง
+let cameraAuto = false
+let cameraDismissed = false // ผู้ใช้ปิดหน้าต่างอัตโนมัติเองระหว่างคิวนี้ = ไม่เด้งซ้ำจนกว่าคิวจะว่าง
+function openCameraView({ auto = false } = {}) {
   if (cameraView && !cameraView.isDestroyed()) {
+    if (auto) return
+    cameraAuto = false // ผู้ใช้เปิดเอง: ไม่ปิดให้เอง
     if (cameraView.isMinimized()) cameraView.restore()
     cameraView.show()
     return cameraView.focus()
   }
+  cameraAuto = auto
+  const place = auto ? (() => {
+    const { workArea } = screen.getPrimaryDisplay()
+    const w = 460
+    return { x: Math.max(workArea.x, workArea.x + workArea.width - AVATAR.width - w - 24), y: workArea.y + Math.max(0, Math.round((workArea.height - 420) / 2)) }
+  })() : {}
   cameraView = new BrowserWindow({
     icon: ICON,
+    ...place,
+    ...(auto ? { show: false, alwaysOnTop: true } : {}),
     width: 460,
     height: 420,
     useContentSize: true,
@@ -241,9 +261,23 @@ function openCameraView() {
   })
   if (!MAC) cameraView.removeMenu()
   cameraView.loadURL(RENDERER + 'camera-view.html')
+  if (auto) cameraView.once('ready-to-show', () => cameraView && !cameraView.isDestroyed() && cameraView.showInactive())
   cameraView.on('closed', () => {
+    if (cameraAuto && queue.some((q) => !q.monitor)) cameraDismissed = true
     cameraView = null
+    cameraAuto = false
   })
+}
+
+/** มีคำขอรอไหว้จริง → กล้องขึ้นเอง · ไม่มีแล้ว → ปิดเฉพาะที่ขึ้นเอง (ที่ผู้ใช้เปิดเองไม่แตะ) */
+function syncCameraView() {
+  const need = enabled && queue.some((q) => !q.monitor)
+  if (need) {
+    if (!cameraDismissed && !(cameraView && !cameraView.isDestroyed())) openCameraView({ auto: true })
+    return
+  }
+  cameraDismissed = false
+  if (cameraAuto && cameraView && !cameraView.isDestroyed() && lingerMsLeft() === 0) cameraView.close()
 }
 ipcMain.handle('wai:open-camera-view', () => {
   openCameraView()
@@ -415,6 +449,22 @@ function onVision(type, payload = {}) {
 ipcMain.on('wai:interactive', (e, on) => {
   if (win && !win.isDestroyed() && e.sender === win.webContents) win.setIgnoreMouseEvents(!on, { forward: true })
 })
+// ง้อ AI ด้วยรหัสซอง True Money 500 บาท (MOCK ล้อเล่น ไม่ตรวจจริง) · IPC จาก popup เท่านั้น ไม่เปิด HTTP กันเว็บอื่นยิงข้าม
+// รหัสไม่ถูกเก็บ ไม่ log ไม่ส่งต่อ: ใช้แค่ตัดสินว่ากรอกมาหรือยัง แล้วทิ้ง
+ipcMain.handle('wai:bribe', (e, code) => {
+  if (!win || win.isDestroyed() || e.sender !== win.webContents) return { ok: false, message: 'ไม่รับจากที่นี่' }
+  const top = queue[0]
+  if (!top || top.monitor) return { ok: false, message: 'ตอนนี้ไม่มีใครรอไหว้อยู่' }
+  const st = sessions.get(top.session_id).state
+  if (!canBribe(st)) return { ok: false, message: 'น้องยังไม่งอน ไหว้เองก็ผ่าน' }
+  const v = checkVoucher(code)
+  if (!v.ok) return v
+  sessions.reset(top.session_id)
+  console.log(`[wai] ค่าไถ่ ${BRIBE_AMOUNT_BAHT} บาท (mock) → ปลด session ${top.session_id}`)
+  for (const q of queue.filter((x) => x.session_id === top.session_id)) resolve(q.id, { passed: true, level: 0, score: 0, action: 'allow' })
+  speak('PASSED')
+  return { ok: true, message: `รับ ${BRIBE_AMOUNT_BAHT} บาทแล้ว หายงอนก็ได้` }
+})
 ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
 ipcMain.on('vision:fail', (_e, payload) => onVision('fail', payload))
 
@@ -439,6 +489,7 @@ function syncWindow() {
   } else if (win && !win.isDestroyed() && win.isVisible()) {
     win.hide()
   }
+  syncCameraView()
   syncFlee()
 }
 
@@ -698,6 +749,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJson(req)
       if (typeof body.persona === 'string') voice.setPersona(body.persona)
       if (typeof body.muted === 'boolean') voice.setMuted(body.muted)
+      if (body.mode === 'siri' || body.mode === 'human') saveConfig({ voice_mode: voice.setMode(body.mode) })
       // ลองฟังเสียงตาม state โดยไม่ต้องมีคำขอ: { demo: 'RETRY', persona?: 'p7' } (ใช้ทดสอบอารมณ์ของเสียง)
       if (typeof body.demo === 'string') voice.speak({ state: body.demo, persona: typeof body.persona === 'string' ? body.persona : undefined })
     }

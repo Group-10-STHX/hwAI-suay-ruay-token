@@ -502,7 +502,39 @@
     $('fPersona').hidden = true;
     var tp = $('tPerson'); if (tp && tp.parentNode) tp.parentNode.hidden = true;
   }
+  // ---------- โหมดเสียงของแอป: siri (เสียงระบบ) | human (เสียงที่อัดไว้) ----------
+  var VM = { mode: null, recorded: 0, total: 0 };
+  function renderVoiceMode() {
+    var box = $('modeBox'); if (!box) return;
+    ['siri', 'human'].forEach(function (m) {
+      var el = document.querySelector('[data-voice-mode="' + m + '"]');
+      if (el) el.classList.toggle('on', VM.mode === m);
+    });
+    $('modeNote').textContent = VM.total ? 'อัดแล้ว ' + VM.recorded + ' / ' + VM.total + ' ประโยค' : '';
+    $('humanDesc').textContent = VM.recorded >= VM.total && VM.total
+      ? 'ใช้เสียงที่เพื่อนอัดครบทุกบทแล้ว'
+      : 'ใช้เสียงที่เพื่อนอัดจากหน้านี้ · ยังไม่อัด ' + Math.max(0, VM.total - VM.recorded) + ' ประโยค (บทที่ยังไม่อัดใช้เสียงสังเคราะห์แทนชั่วคราว)';
+  }
+  function loadVoiceMode(body) {
+    var opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
+    return api('/wai/voice/mode', opts).then(function (d) { VM = d; renderVoiceMode(); return d; }, function () {});
+  }
+  function pickVoiceMode(m) {
+    loadVoiceMode({ mode: m }).then(function () {
+      // ฟังตัวอย่างทันที (ใช้ตัวละครที่เลือกอยู่ในแอป)
+      fetch('/wai/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ demo: 'DEMANDING' }) }).catch(function () {});
+    });
+  }
+  function initVoiceMode() {
+    if (CHAR || !$('modeBox')) return;
+    document.querySelectorAll('[data-voice-mode]').forEach(function (b) {
+      b.addEventListener('click', function () { pickVoiceMode(b.getAttribute('data-voice-mode')); });
+    });
+    loadVoiceMode();
+  }
+
   function init() {
+    initVoiceMode();
     fetch('/admin/voice/characters.json').then(function (r) { return r.json(); }).then(function (j) { DIRS = j || {}; if (S.data) { if (CHAR) renderBrief(); renderAll(); } }, function () {});
     setupPage();
     $('modeList').addEventListener('click', function () { setMode('list'); });

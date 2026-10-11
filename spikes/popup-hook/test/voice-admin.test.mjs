@@ -42,7 +42,8 @@ before(async () => {
   writeFileSync(linesFile, JSON.stringify({ entries: ENTRIES }));
   writeFileSync(join(dataDir, 'personas.json'), JSON.stringify({ personas: [{ id: 'p1', name: 'ผู้คุมโหด' }] }));
   played = [];
-  const admin = createVoiceAdmin({ home, linesFile, adminDir, play: (f) => { played.push(f); }, now: () => 1234, log: () => {} });
+  let modeNow = 'human';
+  const admin = createVoiceAdmin({ home, linesFile, adminDir, play: (f) => { played.push(f); }, now: () => 1234, log: () => {}, getMode: () => modeNow, setMode: (m) => (modeNow = m) });
   server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
     if (!(await admin.handle(req, res, url))) { res.writeHead(404); res.end('other'); }
@@ -207,4 +208,15 @@ test('character pages /admin/voice/c/<id> serve the same index.html; bad ids do 
   assert.equal(ok.status, 200);
   assert.match(await ok.text(), /idx/);
   assert.equal((await fetch(base + '/admin/voice/c/p3/extra')).status, 404);
+});
+
+test('voice mode API: read, switch with header, reject bad value and missing header', async () => {
+  const r0 = await (await fetch(base + '/wai/voice/mode')).json();
+  assert.equal(r0.mode, 'human');
+  assert.equal(r0.total, 3); // dupOf ไม่นับ
+  const r1 = await (await post('/wai/voice/mode', JSON.stringify({ mode: 'siri' }))).json();
+  assert.equal(r1.mode, 'siri');
+  assert.equal((await post('/wai/voice/mode', JSON.stringify({ mode: 'robot' }))).status, 400);
+  assert.equal((await post('/wai/voice/mode', JSON.stringify({ mode: 'human' }), {})).status, 403);
+  assert.equal((await (await fetch(base + '/wai/voice/mode')).json()).mode, 'siri');
 });

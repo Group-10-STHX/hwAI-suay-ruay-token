@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('wai', {
   setInteractive: (on) => ipcRenderer.send('wai:interactive', Boolean(on)),
   // หน้าหลัก: เปิด/โฟกัสหน้าต่างกล้อง (หน้าต่างเดียว)
   openCameraView: () => ipcRenderer.invoke('wai:open-camera-view'),
+  // ง้อด้วยรหัสซอง True Money 500 บาท (mock ล้อเล่น) → {ok, message}
+  bribe: (code) => ipcRenderer.invoke('wai:bribe', String(code ?? '').slice(0, 200)),
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),

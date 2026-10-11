@@ -63,7 +63,7 @@ function readJson(file, fallback) {
   try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return fallback; }
 }
 
-export function createVoiceAdmin({ home, linesFile, adminDir, play = null, now = Date.now, log = () => {} } = {}) {
+export function createVoiceAdmin({ home, linesFile, adminDir, play = null, now = Date.now, log = () => {}, getMode = null, setMode = null } = {}) {
   if (!home || !linesFile) throw new Error('createVoiceAdmin: home and linesFile are required');
   const recRoot = join(home, 'voice', 'recordings');
 
@@ -170,7 +170,7 @@ export function createVoiceAdmin({ home, linesFile, adminDir, play = null, now =
     const path = url.pathname;
     const method = String(req.method || 'GET').toUpperCase();
     const isStatic = path === '/admin/voice' || path.startsWith('/admin/voice/');
-    const isApi = path.startsWith('/wai/voice/') && ['/wai/voice/lines', '/wai/voice/recording', '/wai/voice/play'].includes(path);
+    const isApi = path.startsWith('/wai/voice/') && ['/wai/voice/lines', '/wai/voice/recording', '/wai/voice/play', '/wai/voice/mode'].includes(path);
     if (!isStatic && !isApi) return false;
 
     if (!hostOk(req)) { json(res, 403, { error: 'bad host', code: 'bad_host' }); return true; }
@@ -205,6 +205,22 @@ export function createVoiceAdmin({ home, linesFile, adminDir, play = null, now =
 
     try {
       if (path === '/wai/voice/lines' && method === 'GET') { json(res, 200, snapshot()); return true; }
+
+      // โหมดเสียงทั้งแอป: 'human' (เสียงคนจริงที่อัดไว้) | 'siri' (เสียงระบบ) · อ่านได้พร้อมจำนวนที่อัดแล้ว
+      if (path === '/wai/voice/mode') {
+        if (typeof getMode !== 'function') { json(res, 501, { error: 'mode not available', code: 'no_mode' }); return true; }
+        if (method === 'POST') {
+          let body = {};
+          try { body = JSON.parse((await readBody(req, 1024)).toString('utf8') || '{}'); } catch { /* ว่างเปล่า = อ่านอย่างเดียว */ }
+          if (body.mode !== 'siri' && body.mode !== 'human') { json(res, 400, { error: 'mode must be siri|human', code: 'bad_mode' }); return true; }
+          if (typeof setMode === 'function') setMode(body.mode);
+          log(`voice-admin: mode -> ${getMode()}`);
+        } else if (method !== 'GET') { json(res, 405, { error: 'method not allowed' }); return true; }
+        const entries = loadEntries().filter((e) => !e.dupOf);
+        const recorded = entries.filter((e) => statusOf(e).recorded).length;
+        json(res, 200, { mode: getMode(), recorded, total: entries.length });
+        return true;
+      }
 
       if (path === '/wai/voice/recording') {
         const found = lookup(url);

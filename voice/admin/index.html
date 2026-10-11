@@ -30,6 +30,21 @@
 
 <main>
   <section id="hubView" hidden>
+    <div class="modebox" id="modeBox">
+      <h2>โหมดเสียงของแอป <small id="modeNote"></small></h2>
+      <div class="modecards">
+        <button type="button" class="modecard" id="modeSiri" data-voice-mode="siri">
+          <b>🍎 เสียงสิริ</b>
+          <span>เสียงระบบของเครื่อง (Kanya) พูดทุกบท ไม่ต้องอัด พร้อมใช้ทันที น้ำเสียงเรียบเหมือนผู้ช่วย</span>
+          <em>กดเพื่อใช้ + ฟังตัวอย่าง</em>
+        </button>
+        <button type="button" class="modecard" id="modeHuman" data-voice-mode="human">
+          <b>🎙️ เสียงคนจริง</b>
+          <span id="humanDesc">ใช้เสียงที่เพื่อนอัดจากหน้านี้ บทไหนยังไม่อัดจะใช้เสียงสังเคราะห์แทนชั่วคราว</span>
+          <em>กดเพื่อใช้ + ฟังตัวอย่าง</em>
+        </button>
+      </div>
+    </div>
     <p class="hub-intro">เลือกตัวละครที่จะอัด แต่ละตัวมีเสียงของตัวเอง ให้เพื่อนแต่ละคนอัดคนละตัวหรือคนละสไตล์ เสียงจะได้ไม่ซ้ำกัน</p>
     <div class="hub" id="hub"></div>
   </section>
