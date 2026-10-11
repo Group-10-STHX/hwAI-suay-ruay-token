@@ -1,13 +1,13 @@
 import type { CSSProperties } from 'react'
 import { fontSize, radius, space, v } from '../theme/tokens'
 
-// แถบแท็บของหน้าหลัก: กล้อง | หน้าหลัก · props เท่านั้น
+// แถบแท็บของหน้าหลัก: หน้าหลัก | กล้อง · props เท่านั้น
 
 export type HomeTab = 'camera' | 'home'
 
 const TABS: { id: HomeTab; label: string }[] = [
-  { id: 'camera', label: '● กล้อง' },
   { id: 'home', label: 'หน้าหลัก' },
+  { id: 'camera', label: '● กล้อง' },
 ]
 
 const btn = (on: boolean): CSSProperties => ({

@@ -23,16 +23,18 @@ export type IslandProps = {
    * fleeing = window เพิ่งขยับ · dodges = หนีไปแล้วกี่ครั้ง ใช้หมุนคำแซว (app/ นับให้)
    */
   flee?: { fleeing: boolean; dodges: number }
+  /** ไหว้ผ่านแล้วน้องคุยต่อ: ข้อความนี้แทนข้อความของ state และพิมพ์ทีละตัวอักษร (app/ เป็นคนเลื่อนบรรทัด) */
+  chat?: string
 }
 
 const SHOW_SCORE: Partial<Record<SessionState, true>> = { RETRY: true, ANNOYED: true }
 
 /** island ลอย: ไม่มีกรอบรวม (§2) ฟองคำพูดซ้าย น้องขวาอยู่บนแผ่นพื้นหลังทึบมี padding การ์ดเรียงข้างล่าง */
-export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards, flee }: IslandProps) {
+export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards, flee, chat }: IslandProps) {
   const tone = stateColor[state]
   // ตอนหนี: ข้อความหลักเป็นคำแซว (เปลี่ยนทุกครั้งที่หนี) บรรทัดรองบอกวิธีให้หยุด
-  const text = flee ? fleeTaunt(flee.dodges) : SPEECH[state]
-  const hint = flee ? FLEE_HINT : SPEECH_HINT[state]
+  const text = flee ? fleeTaunt(flee.dodges) : chat ?? SPEECH[state]
+  const hint = flee ? FLEE_HINT : chat ? undefined : SPEECH_HINT[state]
   const reason = reasons[0]
   const mascotFx = state === 'ANNOYED' ? 'fx-shake fx-blink-danger' : state === 'PASSED' || state === 'FORGIVE' ? 'fx-bless' : undefined
 
@@ -40,7 +42,7 @@ export function Island({ state, failCount, score, reasons, providerColor, provid
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: space.sm + 2, width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', gap: space.sm }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: space.xs + 2, paddingBottom: space.md }}>
-          <SpeechBubble text={text} tone={tone} textFx={flee ? 'fx-pop' : undefined} phraseWrap={!!flee}>
+          <SpeechBubble text={text} tone={tone} textFx={flee ? 'fx-pop' : undefined} phraseWrap={!!flee} typing={!!chat}>
             {SHOW_SCORE[state] && (
               <div className="mono" style={{ fontSize: fontSize.score, lineHeight: 1, color: v(tone), marginTop: space.xs }}>
                 {score}

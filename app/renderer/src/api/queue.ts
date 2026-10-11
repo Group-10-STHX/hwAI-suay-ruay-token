@@ -13,7 +13,7 @@ type RawQueueItem = {
 }
 type RawQueue =
   | RawQueueItem[]
-  | { items: RawQueueItem[]; state?: SessionState; fail_count?: number; bypass?: boolean; monitor?: boolean; avatar?: string }
+  | { items: RawQueueItem[]; state?: SessionState; fail_count?: number; bypass?: boolean; monitor?: boolean; avatar?: string; linger_ms?: number }
 
 const KNOWN_SOURCES: Source[] = ['claude-code', 'codex', 'chatgpt', 'claude-web', 'gemini-web', 'test', 'terminal']
 
@@ -45,6 +45,7 @@ export function toSnapshot(raw: RawQueue): QueueSnapshot {
     bypass: ('bypass' in obj && obj.bypass) || false,
     monitor: 'monitor' in obj && obj.monitor === true,
     avatar: 'avatar' in obj && typeof obj.avatar === 'string' ? obj.avatar : undefined,
+    lingerMs: 'linger_ms' in obj && typeof obj.linger_ms === 'number' && obj.linger_ms > 0 ? obj.linger_ms : undefined,
   }
 }
 

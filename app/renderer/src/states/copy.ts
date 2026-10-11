@@ -16,6 +16,12 @@ export const SPEECH: Record<SessionState, string> = {
   FORGIVE: 'ขอขมาซะ',
 }
 
+/**
+ * ไหว้ผ่านแล้วน้องอยู่คุยต่อ ~5 วิ (คิวว่างแล้วแต่ไม่หายทันที) พิมพ์ทีละบรรทัดทีละตัวอักษร
+ * {score} = คะแนนไหว้ครั้งนั้น (ไม่มี = ตัดข้อความส่วนคะแนนออก)
+ */
+export const LINGER_LINES = ['ผ่านแล้ว {score}', 'ไหว้ได้สวย มนุษย์', 'ไปทำงานต่อได้ กูดูอยู่นะ'] as const
+
 /** บรรทัดรองใต้ข้อความหลัก (ไม่มี = ไม่โชว์) */
 export const SPEECH_HINT: Partial<Record<SessionState, string>> = {
   WATCHING: 'กูดูอยู่นะ',

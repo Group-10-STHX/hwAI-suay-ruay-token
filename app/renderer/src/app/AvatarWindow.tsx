@@ -4,7 +4,7 @@ import { avatarMoodFor, Mascot } from '../mascot'
 import { useSfxLevel } from '../sfx/store'
 import { useScoreSound } from '../sfx/useScoreSound'
 import { CardStack, PendingCount, TimeLeft } from '../queue'
-import { Island } from '../states'
+import { Island, LINGER_LINES } from '../states'
 import { providerAccent, v } from '../theme/tokens'
 import { splitQueue } from './derive'
 import { useStore } from './store'
@@ -22,6 +22,9 @@ export function AvatarWindow() {
   const { top, waiting, shown, hidden } = splitQueue(queue.items, MAX_VISIBLE_CARDS)
   const accent = top ? providerAccent[top.source] : undefined
   const active = queue.state !== 'IDLE'
+  // ไหว้ผ่านแล้วคิวว่าง: น้องยังอยู่คุยต่อ ~5 วิ ก่อนหาย
+  const lingering = queue.items.length === 0 && queue.state === 'PASSED' && (queue.lingerMs ?? 0) > 0
+  const chat = useLingerChat(lingering, vision.score)
   // main หนีเฉพาะ ANNOYED อยู่แล้ว เช็กซ้ำเพราะ IPC กับ poll คิวมาไม่พร้อมกัน (กันท่าหนีค้างตอน state เปลี่ยน)
   const fleeOn = flee.active && queue.state === 'ANNOYED'
 
@@ -55,6 +58,7 @@ export function AvatarWindow() {
           providerColor={accent?.color}
           providerLabel={accent?.label}
           agentLabel={top?.agentLabel}
+          chat={chat}
           flee={fleeOn ? { fleeing: flee.fleeing, dodges: fleeCount } : undefined}
           timeLeft={top && <TimeLeft createdAt={top.createdAt} now={now} timeoutMs={REQUEST_TIMEOUT_MS} />}
           mascot={<Mascot state={queue.state} providerColor={accent?.color ?? v('hudDim')} avatar={avatar} avatarSrc={avatarSrc} />}
@@ -99,6 +103,23 @@ function Badge({ tone, children }: { tone: 'hud' | 'blessed'; children: string }
       {children}
     </div>
   )
+}
+
+/** บรรทัดคุยต่อหลังไหว้ผ่าน: เปลี่ยนบรรทัดทุก ~1.6 วิ เริ่มใหม่ทุกครั้งที่เข้าช่วงคุย · ไม่คุย = undefined */
+const LINGER_LINE_MS = 1600
+function useLingerChat(on: boolean, score: number) {
+  const [i, setI] = useState(0)
+  const [frozen, setFrozen] = useState(score)
+  useEffect(() => {
+    if (!on) return setI(0)
+    setFrozen(score) // คะแนนไหว้ครั้งที่ผ่าน (ตอนนั้น worker หยุดส่งแล้ว ค่าค้างอยู่)
+    setI(0)
+    const t = setInterval(() => setI((n) => Math.min(n + 1, LINGER_LINES.length - 1)), LINGER_LINE_MS)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on])
+  if (!on) return undefined
+  return LINGER_LINES[i].replace('{score}', frozen > 0 ? `${Math.round(frozen)} คะแนน` : '').trim()
 }
 
 /** เวลาปัจจุบัน อัปเดตทุกวิ เฉพาะตอนมีการ์ด (ไม่วนตอนว่าง) */

@@ -403,6 +403,9 @@ function syncWindow() {
   if (queue.length > 0) {
     const w = livePopup()
     if (!w.isVisible()) w.showInactive()
+  } else if (lingerMsLeft() > 0) {
+    const w = livePopup()
+    if (!w.isVisible()) w.showInactive()
   } else if (win && !win.isDestroyed() && win.isVisible()) {
     win.hide()
   }
@@ -512,10 +515,24 @@ function fleeTick() {
   }
 }
 
+// ไหว้ผ่านแล้วน้องอยู่คุยต่ออีกนิด (ไม่หายทันที) · มีผลเฉพาะตอนคิวหมดและเป็นการไหว้จริง (level > 0, ไม่ใช่โหมดสังเกต)
+// ใบใหม่เข้าคิว = เลิกคุย ขึ้นการ์ดใหม่ทันที · มีเวลาจำกัด ไม่มี timer วนหลังจากนั้น
+const LINGER_MS = 5000
+let lingerUntil = 0
+let lingerTimer = null
+const lingerMsLeft = () => (queue.length === 0 ? Math.max(0, lingerUntil - Date.now()) : 0)
+function startLinger() {
+  lingerUntil = Date.now() + LINGER_MS
+  clearTimeout(lingerTimer)
+  lingerTimer = setTimeout(syncWindow, LINGER_MS + 50)
+}
+
 function resolve(id, result) {
   // level 0 = ถูกปล่อยตอนปิดแอป · ไม่ผ่าน (deny/rage_quit) ไม่นับทั้งคู่
+  const wasMonitor = queue.find((q) => q.id === id)?.monitor
   if (queue.some((q) => q.id === id) && result.passed) result.level > 0 ? stats.passed++ : stats.bypassed++
   queue = queue.filter((q) => q.id !== id)
+  if (queue.length === 0 && result.passed && result.level > 0 && !wasMonitor && enabled) startLinger()
   results.set(id, result)
   for (const res of waiters.get(id) ?? []) send(res, 200, result)
   waiters.delete(id)
@@ -607,9 +624,11 @@ const server = http.createServer(async (req, res) => {
   // GET /wai/queue → คิว + state/fail_count จริงของ session หัวคิว (contract §4) · ไม่มีคิว = IDLE
   if (req.method === 'GET' && route === 'queue') {
     const top = queue[0] ? sessions.get(queue[0].session_id) : null
+    const lingering = !top && lingerMsLeft() > 0
     return send(res, 200, {
       items: queue,
-      state: top ? top.state : 'IDLE',
+      state: top ? top.state : lingering ? 'PASSED' : 'IDLE',
+      ...(lingering ? { linger_ms: lingerMsLeft() } : {}),
       fail_count: top ? top.fails : 0,
       bypass: !enabled,
       monitor: queue.length > 0 && queue.every((q) => q.monitor),
