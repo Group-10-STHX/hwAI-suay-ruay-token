@@ -24,9 +24,9 @@ function center(h) {
 
 export function createSixSevenTracker({
   needSwings = 4,
-  windowMs = 3000,
-  minAmp = 0.05,
-  minSep = 0.15,
+  windowMs = 3500,
+  minAmp = 0.035,
+  minSep = 0.12,
   lostMs = 800,
 } = {}) {
   const hyst = minAmp / 2;

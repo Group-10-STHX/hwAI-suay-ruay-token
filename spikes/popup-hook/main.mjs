@@ -738,6 +738,12 @@ function syncWindow() {
   }
   if (tray) updateTray()
   syncVision()
+  // อีสเตอร์เอ้ก 67 โหมด "ทุกครั้ง": เริ่มทันทีที่คำขอขึ้นหัวคิว ไม่ต้องรอผลไหว้ก่อน
+  if (queue[0] && !queue[0].monitor && enabled && events.getModes().sixseven === 'always' && events.maybeSixSeven(queue[0].id, -1)) {
+    console.log(`[wai] 67! (always) → ต้องทำท่า 6-7 (${queue[0].id})`)
+    voice.say(events.active().text)
+    setTimeout(syncWindow, events.active().msLeft + 50)
+  }
   if (queue.length > 0) {
     const w = livePopup()
     if (!w.isVisible()) w.showInactive()
@@ -1097,6 +1103,19 @@ const server = http.createServer(async (req, res) => {
       ...(chant.startedAt ? { started_at: chant.startedAt, duration_ms: chant.durationMs } : {}),
       ...(chant.lineStartedAt ? { line: chant.line, line_started_at: chant.lineStartedAt, line_ms: chant.lineMs } : {}),
     })
+  }
+  // POST /wai/egg67 → เริ่มอีสเตอร์เอ้ก 67 กับคำขอหัวคิวทันที (ไว้โชว์/ทดสอบ ไม่ต้องรอคะแนนเป็น 67)
+  if (req.method === 'POST' && route === 'egg67') {
+    const top = queue[0]
+    if (!top || top.monitor || !enabled) return send(res, 409, { error: 'no real request waiting' })
+    const started = events.maybeSixSeven(top.id, -1, { force: true })
+    if (started) {
+      console.log(`[wai] 67! (manual) → ต้องทำท่า 6-7 (${top.id})`)
+      voice.say(events.active().text)
+      setTimeout(syncWindow, events.active().msLeft + 50)
+      syncWindow()
+    }
+    return send(res, 200, { started })
   }
   // POST /wai/camera-preview { on } ← แท็บกล้องของหน้าหลัก (เปิดกล้องวิเคราะห์ไว้โชว์ level/คะแนน ไม่ใช่การไหว้จริง)
   if (req.method === 'POST' && route === 'camera-preview') {

@@ -42,6 +42,7 @@ const attemptTracker = createAttemptTracker();
 const clipPlanner = createClipPlanner();
 const sixSevenTracker = createSixSevenTracker(); // easter egg: runs only while main sets sixSeven=true
 let sixSevenOn = false;
+let lastSixLog = 0;
 let sixSevenDone = false; // fired once; ignored until the flag toggles off/on
 
 let landmarkers = null;
@@ -351,6 +352,20 @@ function stop() {
   attemptTracker.reset();
 }
 
+/** ข้อมือซ้าย/ขวาจาก pose (landmark 15/16) ทำเป็น "มือ" เทียมให้ตัวจับท่า 6-7 (ใช้ศูนย์กลาง = ข้อมือ) · ไม่เห็นชัดทั้งคู่ = null */
+function poseWristHands(pose) {
+  if (!pose) return null;
+  const out = [];
+  for (const i of [15, 16]) {
+    const p = pose[i];
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || (p.visibility !== undefined && p.visibility < 0.3)) return null;
+    const hand = [];
+    hand[0] = hand[5] = hand[17] = { x: p.x, y: p.y };
+    out.push(hand);
+  }
+  return out;
+}
+
 function loop() {
   if (!running) return;
   const ts = performance.now();
@@ -374,8 +389,14 @@ function loop() {
     let six = null;
     if (sixSevenOn) {
       if (!sixSevenDone) {
-        const st = sixSevenTracker.update(det.hands.landmarks, ts);
+        // มือหงายยื่นไปข้างหน้า กล้องเห็นมือแบบสั้นๆ MediaPipe hands มักหลุด → ถ้ามือไม่ครบ 2 ข้างใช้ข้อมือจาก pose แทน
+        const hands2 = det.hands.landmarks.length === 2 ? det.hands.landmarks : poseWristHands(det.pose.landmarks[0]) ?? det.hands.landmarks;
+        const st = sixSevenTracker.update(hands2, ts);
         six = { swings: st.swings, need: st.need };
+        if (ts - lastSixLog > 1000) {
+          lastSixLog = ts;
+          log("67 hands", det.hands.landmarks.length, "src", hands2 === det.hands.landmarks ? "hands" : "pose", "active", st.active, "swings", st.swings);
+        }
         if (st.done) {
           sixSevenDone = true;
           sixSevenTracker.reset();

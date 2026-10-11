@@ -82,9 +82,9 @@ export function createEvents({ rng = Math.random, now = Date.now, enabled = true
    * อีสเตอร์เอ้ก 67: เรียกตอนมีผลไหว้ (pass/fail) พร้อมคะแนน · true = เริ่มเกม 67 (event kind 'sixseven' + บล็อกการไหว้ปกติ)
    * random = คะแนนปัดแล้วเป็น 67 พอดี · always = ทุกคำขอ (ครั้งเดียวต่อคำขอ) · off/ปิดทั้งระบบ = ไม่เกิด
    */
-  function maybeSixSeven(requestId, score) {
-    if (!enabled || !requestId || modes.sixseven === 'off' || blocking() || seen.sixseven.has(requestId)) return false;
-    const hit = modes.sixseven === 'always' || Math.round(Number(score)) === SIXSEVEN_SCORE;
+  function maybeSixSeven(requestId, score, { force = false } = {}) {
+    if (!enabled || !requestId || (modes.sixseven === 'off' && !force) || blocking() || (seen.sixseven.has(requestId) && !force)) return false;
+    const hit = force || modes.sixseven === 'always' || Math.round(Number(score)) === SIXSEVEN_SCORE;
     if (!hit) return false;
     seen.sixseven.add(requestId);
     current = { kind: 'sixseven', text: pick(SIXSEVEN_LINES), until: now() + SIXSEVEN_MS, requestId };
