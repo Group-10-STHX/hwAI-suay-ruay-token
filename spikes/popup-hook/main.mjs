@@ -129,8 +129,10 @@ const avatars = createAvatars({ home: WAI_HOME })
 const stickers = createStickers({ home: WAI_HOME })
 // random event ตอนไหว้ (ปิดได้: WAI_NO_EVENTS=1 หรือ "random_events": false ใน config.json · ปรับโอกาส: "random_events": {"redo":0.15,"tribute":0.08})
 const eventCfg = readConfig().random_events
+// โหมดต่อ event (สวิตช์ในหน้าหลัก): "events": {"redo":"off|random|always","tribute":"off|random|always"} · ไม่ตั้ง = random
 const events = createEvents({
   enabled: process.env.WAI_NO_EVENTS !== '1' && eventCfg !== false,
+  modes: readConfig().events,
   ...(eventCfg && typeof eventCfg === 'object'
     ? { redoP: Number.isFinite(eventCfg.redo) ? eventCfg.redo : undefined, tributeP: Number.isFinite(eventCfg.tribute) ? eventCfg.tribute : undefined }
     : {}),
@@ -842,7 +844,7 @@ const server = http.createServer(async (req, res) => {
 
   // GET /wai/status ← หน้าหลัก (contract §5): requests/passed/bypassed ของรอบนี้ + today/total/best_score จาก wais.jsonl
   if (req.method === 'GET' && route === 'status') {
-    return send(res, 200, { enabled, pending: queue.length, stats: { ...stats, ...waiLog.stats() }, last_seen: lastSeen, avatar: avatars.current(), monitor, web: webLinks() })
+    return send(res, 200, { enabled, pending: queue.length, stats: { ...stats, ...waiLog.stats() }, last_seen: lastSeen, avatar: avatars.current(), monitor, web: webLinks(), events: { ...events.getModes(), locked: !events.enabled } })
   }
 
   // GET /wai/voice → บุคลิก + สถานะเสียง · POST /wai/voice { persona?, muted? } (ไม่มี key ในคำตอบ)
@@ -860,7 +862,8 @@ const server = http.createServer(async (req, res) => {
 
   // GET /wai/stickers → { items:[{id,file,at,score,level}], style } ใหม่สุดก่อน 24 ใบ
   if (req.method === 'GET' && url.pathname === '/wai/stickers') {
-    const items = stickers.list(24).map((s) => {
+    const lim = Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 24))
+    const items = stickers.list(lim).map((s) => {
       const m = waiLog.lookup(s.id)
       return { id: s.id, file: s.file, at: m?.at ?? new Date(s.mtimeMs).toISOString(), score: m?.score ?? 0, level: m?.level ?? 0 }
     })
@@ -894,6 +897,16 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { style: body.style })
   }
 
+  // GET/POST /wai/events { redo?, tribute? } ← สวิตช์ Quick Event ในหน้าหลัก (off | random | always) · WAI_NO_EVENTS=1 = ล็อกปิด
+  if (route === 'events') {
+    if (req.method === 'POST') {
+      const body = await readJson(req)
+      for (const k of ['redo', 'tribute']) if (typeof body[k] === 'string') events.setMode(k, body[k])
+      saveConfig({ events: events.getModes() })
+      syncWindow()
+    }
+    return send(res, 200, { ...events.getModes(), locked: !events.enabled })
+  }
   // POST /wai/camera-preview { on } ← แท็บกล้องของหน้าหลัก (เปิดกล้องวิเคราะห์ไว้โชว์ level/คะแนน ไม่ใช่การไหว้จริง)
   if (req.method === 'POST' && route === 'camera-preview') {
     const body = await readJson(req)

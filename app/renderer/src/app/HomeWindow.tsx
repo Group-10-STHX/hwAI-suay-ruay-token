@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { avatarUrl, listStickers, openCameraView, openWeb, sendTestRequest, setEnabled, setMonitor, setStickerStyle, setup, stickerUrl, subscribeStatus, USE_MOCK, type AppStatus, type StickerItem, type StickerStyle } from '../api'
+import { avatarUrl, listStickers, openCameraView, openWeb, setEventMode, sendTestRequest, setEnabled, setMonitor, setStickerStyle, setup, stickerUrl, subscribeStatus, USE_MOCK, type AppStatus, type StickerItem, type StickerStyle } from '../api'
 import { fontSize, space, v } from '../theme/tokens'
 import { useSfxLevel } from '../sfx/store'
 import { Onboarding } from './Onboarding'
 import { useAvatars } from './useAvatars'
 import { DayChart } from '../meter'
 import { ghostButton } from './homeStyles'
+import { EventSwitches } from './EventSwitches'
 import { HomeA } from './home-variants/HomeA'
 import { HomeB } from './home-variants/HomeB'
 import { HomeC } from './home-variants/HomeC'
@@ -30,10 +31,10 @@ export function HomeWindow() {
   useEffect(() => {
     let alive = true
     const load = () =>
-      listStickers()
+      listStickers(48)
         .then((l) => {
           if (!alive) return
-          setStickers(l.items.slice(0, 6))
+          setStickers(l.items)
           setStickerStyleState(l.style)
         })
         .catch(() => {})
@@ -125,6 +126,9 @@ export function HomeWindow() {
           </div>
         ) : (
           <span style={{ color: v('textDim'), fontSize: fontSize.micro }}>🏆 เว็บอันดับยังไม่ได้เชื่อม (ตั้ง web.enabled ใน ~/.waikusa/config.json)</span>
+        )}
+        {status?.events && (
+          <EventSwitches modes={status.events} locked={status.events.locked} onChange={(k, m) => setEventMode(k, m)} />
         )}
       </div>
     ),

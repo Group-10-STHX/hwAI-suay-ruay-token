@@ -4,9 +4,9 @@ const DAEMON_URL = import.meta.env.VITE_DAEMON_URL ?? 'http://localhost:7777'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === '1'
 
 /** GET /wai/stickers · mock/daemon เก่า = รายการว่าง (หน้าหลักจะซ่อนแถบเอง) */
-export async function listStickers(): Promise<StickerList> {
+export async function listStickers(limit = 24): Promise<StickerList> {
   if (USE_MOCK) return { items: [], style: 'photo' }
-  const res = await fetch(`${DAEMON_URL}/wai/stickers`)
+  const res = await fetch(`${DAEMON_URL}/wai/stickers?limit=${Math.max(1, Math.min(200, Math.trunc(limit)))}`)
   if (!res.ok) throw new Error(`GET /wai/stickers ${res.status}`)
   const raw = (await res.json()) as Partial<StickerList>
   return {

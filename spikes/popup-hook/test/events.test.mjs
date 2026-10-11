@@ -50,3 +50,18 @@ test('card number mock rules', () => {
   assert.equal(checkCardNumber('1234-5678-9012-3456').ok, true);
   assert.equal(checkCardNumber('1'.repeat(25)).ok, false);
 });
+
+test('modes: always fires on every request (once each), off never, setMode off clears the active event', () => {
+  const e = createEvents({ rng: () => 0.999, modes: { redo: 'always', tribute: 'off' } });
+  assert.equal(e.onAttempt('a', 'pass').type, 'redo');
+  assert.equal(e.onAttempt('b', 'pass').type, 'redo'); // ทุกคำขอ
+  assert.equal(e.onAttempt('b', 'pass').type, 'none'); // แต่ครั้งเดียวต่อคำขอ
+  e.setMode('tribute', 'always');
+  assert.equal(e.onAttempt('c', 'fail').type, 'tribute');
+  assert.equal(e.blocking(), true);
+  e.setMode('tribute', 'off');
+  assert.equal(e.blocking(), false);
+  assert.equal(e.setMode('nope', 'off'), false);
+  assert.equal(e.setMode('redo', 'sometimes'), false);
+  assert.deepEqual(e.getModes(), { redo: 'always', tribute: 'off' });
+});

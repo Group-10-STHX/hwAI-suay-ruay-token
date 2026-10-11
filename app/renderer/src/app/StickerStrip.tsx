@@ -1,6 +1,7 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { isStickerStyle, STICKER_STYLES, type StickerItem, type StickerStyle } from '../api'
 import { fontSize, radius, space, v } from '../theme/tokens'
+import { StickerGallery } from './StickerGallery'
 
 // แถบ "สติ๊กเกอร์ล่าสุด" ของหน้าหลัก: props-only สูงไม่เกิน 72px ไม่มีสติ๊กเกอร์ = ไม่วาดอะไรเลย
 // สไตล์มี 6 แบบ ปุ่มสลับไม่พอที่ จึงเป็น <select> เล็กบรรทัดเดียว (หน้าตาแต่ละแบบ: docs/variants/stickers/index.html)
@@ -26,6 +27,7 @@ export type StickerStripProps = {
 }
 
 export function StickerStrip({ items, style, urlFor, onStyle, className, css }: StickerStripProps) {
+  const [gallery, setGallery] = useState<number | 'grid' | null>(null)
   if (items.length === 0) return null
   return (
     <div className={className} style={{ display: 'flex', alignItems: 'center', gap: space.sm, maxHeight: MAX_H, overflow: 'hidden', ...css }}>
@@ -34,16 +36,30 @@ export function StickerStrip({ items, style, urlFor, onStyle, className, css }: 
       </span>
       <div style={{ display: 'flex', gap: space.xs, flex: '1 1 auto', minWidth: 0, overflow: 'hidden' }}>
         {items.slice(0, 6).map((s) => (
-          <img
+          <button
             key={s.file}
-            src={urlFor(s.file)}
-            alt={`สติ๊กเกอร์ ${s.score}`}
-            title={`${s.score} คะแนน`}
-            draggable={false}
-            style={{ height: THUMB, width: THUMB, objectFit: 'contain', background: v('surface'), borderRadius: radius.sm, border: `1px solid ${v('hudDim')}` }}
-          />
+            onClick={() => setGallery(items.indexOf(s))}
+            title={`${s.score} คะแนน · กดเพื่อขยาย`}
+            style={{ padding: 0, background: 'transparent', border: 'none', cursor: 'pointer', flex: '0 0 auto' }}
+          >
+            <img
+              src={urlFor(s.file)}
+              alt={`สติ๊กเกอร์ ${s.score}`}
+              draggable={false}
+              style={{ display: 'block', height: THUMB, width: THUMB, objectFit: 'contain', background: v('surface'), borderRadius: radius.sm, border: `1px solid ${v('hudDim')}` }}
+            />
+          </button>
         ))}
       </div>
+      <button
+        onClick={() => setGallery('grid')}
+        style={{ flex: '0 0 auto', font: 'inherit', fontSize: fontSize.small, color: v('text'), background: 'transparent', border: `1px solid ${v('hudDim')}`, borderRadius: radius.sm, padding: `${space.xs}px ${space.sm}px`, cursor: 'pointer' }}
+      >
+        ดูทั้งหมด ({items.length})
+      </button>
+      {gallery !== null && (
+        <StickerGallery items={items} urlFor={urlFor} startIndex={gallery === 'grid' ? undefined : gallery} onClose={() => setGallery(null)} />
+      )}
       <span style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
         <select
           aria-label="สไตล์สติ๊กเกอร์"

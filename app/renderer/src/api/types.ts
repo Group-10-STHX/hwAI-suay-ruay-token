@@ -106,6 +106,11 @@ export const REQUIRED_LEVEL: Record<SessionState, WaiLevel> = {
   FORGIVE: 3,
 }
 
+/** โหมดของ random event: off ปิด · random สุ่มตามโอกาส · always เกิดทุกคำขอแน่นอน */
+export type EventMode = 'off' | 'random' | 'always'
+export type EventKind = 'redo' | 'tribute'
+export const EVENT_MODES: EventMode[] = ['off', 'random', 'always']
+
 export type DayStats = { wais: number; passed: number; beautiful: number; tokens: number }
 /** 1 วันในกราฟ: day = YYYY-MM-DD (เวลาไทย) */
 export type DayPoint = DayStats & { day: string }
@@ -126,6 +131,7 @@ export type AppStatus = {
   lastSeen: Partial<Record<string, number>> // source → epoch ms ที่เห็นคำขอล่าสุด
   avatar?: string // ชื่อน้องที่เลือกอยู่ (ไม่ส่ง = jason)
   monitor?: boolean // โหมดสังเกตเปิดอยู่ (ไม่ส่ง = false)
+  events?: { redo: EventMode; tribute: EventMode; locked: boolean } // สวิตช์ Quick Event (daemon เก่าไม่ส่ง = ไม่โชว์)
   web?: { rank: string; tv: string; me: string | null } | null // ลิงก์เว็บ WAI-NET (null = ยังไม่ได้เชื่อมเว็บ)
 }
 

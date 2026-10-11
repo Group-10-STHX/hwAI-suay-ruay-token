@@ -16,6 +16,11 @@ export const TRIBUTE_LINES = Object.freeze([
   'เชื่อกู รำคาญมึงว่ะ มึงต้องจ่าย True Money 1,000 บาทก่อนให้กู',
 ])
 
+/** โหมดต่อ event: off = ปิด · random = สุ่มตามโอกาส · always = เกิดทุกคำขอแน่นอน (ครั้งเดียวต่อคำขอ) */
+export const EVENT_MODES = Object.freeze(['off', 'random', 'always']);
+export const EVENT_KINDS = Object.freeze(['redo', 'tribute']);
+export const normalizeMode = (m, d = 'random') => (EVENT_MODES.includes(m) ? m : d);
+
 export const DEFAULTS = Object.freeze({ redoP: 0.15, tributeP: 0.08, redoMs: 4000, tributeMs: 120_000 })
 
 /** เลขบัตร True Money (mock): เอาเฉพาะตัวเลข ต้องมีอย่างน้อย 12 หลัก ไม่ใช่เลขซ้ำตัวเดียว · ไม่ตรวจกับระบบจริง */
@@ -28,8 +33,12 @@ export function checkCardNumber(input) {
   return { ok: true };
 }
 
-export function createEvents({ rng = Math.random, now = Date.now, enabled = true, ...opts } = {}) {
+export function createEvents({ rng = Math.random, now = Date.now, enabled = true, modes: initial = {}, ...opts } = {}) {
   const o = { ...DEFAULTS, ...opts };
+  const modes = { redo: normalizeMode(initial.redo), tribute: normalizeMode(initial.tribute) };
+  /** โอกาสเกิดของแต่ละชนิดตามโหมด */
+  const chance = (kind) => (modes[kind] === 'off' ? 0 : modes[kind] === 'always' ? 1 : kind === 'redo' ? o.redoP : o.tributeP);
+  // rng() < 1 เสมอ → always เกิดแน่ · rng() < 0 ไม่เคย → off ไม่เกิด
   const seen = { redo: new Set(), tribute: new Set() }; // request id ที่เคยเกิดแล้ว
   let current = null; // { kind, text, amount?, until, requestId }
 
@@ -50,12 +59,12 @@ export function createEvents({ rng = Math.random, now = Date.now, enabled = true
   function onAttempt(requestId, type) {
     if (!enabled || !requestId) return { type: 'none' };
     if (blocking()) return { type: 'tribute', event: active(), fresh: false }; // ยังไม่จ่าย: ปัดตกทุกครั้ง
-    if (!seen.tribute.has(requestId) && rng() < o.tributeP) {
+    if (!seen.tribute.has(requestId) && rng() < chance('tribute')) {
       seen.tribute.add(requestId);
       current = { kind: 'tribute', text: pick(TRIBUTE_LINES), amount: TRIBUTE_AMOUNT, until: now() + o.tributeMs, requestId };
       return { type: 'tribute', event: active(), fresh: true };
     }
-    if (type === 'pass' && !seen.redo.has(requestId) && rng() < o.redoP) {
+    if (type === 'pass' && !seen.redo.has(requestId) && rng() < chance('redo')) {
       seen.redo.add(requestId);
       current = { kind: 'redo', text: pick(REDO_LINES), until: now() + o.redoMs, requestId };
       return { type: 'redo', event: active(), fresh: true };
@@ -74,5 +83,13 @@ export function createEvents({ rng = Math.random, now = Date.now, enabled = true
   const dismiss = () => { current = null; };
   const forget = (requestId) => { seen.redo.delete(requestId); seen.tribute.delete(requestId); };
 
-  return { onAttempt, active, blocking, pay, dismiss, forget };
+  function setMode(kind, mode) {
+    if (!EVENT_KINDS.includes(kind) || !EVENT_MODES.includes(mode)) return false;
+    modes[kind] = mode;
+    if (mode === 'off' && current?.kind === kind) current = null; // ปิดแล้ว event ที่ค้างอยู่หายด้วย
+    return true;
+  }
+  const getModes = () => ({ ...modes });
+
+  return { onAttempt, active, blocking, pay, dismiss, forget, setMode, getModes, enabled };
 }
