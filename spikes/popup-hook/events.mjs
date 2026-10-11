@@ -18,7 +18,7 @@ export const TRIBUTE_LINES = Object.freeze([
 
 /** โหมดต่อ event: off = ปิด · random = สุ่มตามโอกาส · always = เกิดทุกคำขอแน่นอน (ครั้งเดียวต่อคำขอ) */
 export const EVENT_MODES = Object.freeze(['off', 'random', 'always']);
-export const EVENT_KINDS = Object.freeze(['redo', 'tribute']);
+export const EVENT_KINDS = Object.freeze(['redo', 'tribute', 'chant']);
 export const normalizeMode = (m, d = 'random') => (EVENT_MODES.includes(m) ? m : d);
 
 export const DEFAULTS = Object.freeze({ redoP: 0.15, tributeP: 0.08, redoMs: 4000, tributeMs: 120_000 })
@@ -35,7 +35,8 @@ export function checkCardNumber(input) {
 
 export function createEvents({ rng = Math.random, now = Date.now, enabled = true, modes: initial = {}, ...opts } = {}) {
   const o = { ...DEFAULTS, ...opts };
-  const modes = { redo: normalizeMode(initial.redo), tribute: normalizeMode(initial.tribute) };
+  // chant = ถามว่าจะให้สวดบอกว่าแก้โค้ด JS อะไร (ตัดสินใจใน main ตอน AI แก้ไฟล์ ไม่ใช่ตอนไหว้) ค่าเริ่มต้น always
+  const modes = { redo: normalizeMode(initial.redo), tribute: normalizeMode(initial.tribute), chant: normalizeMode(initial.chant, 'always') };
   /** โอกาสเกิดของแต่ละชนิดตามโหมด */
   const chance = (kind) => (modes[kind] === 'off' ? 0 : modes[kind] === 'always' ? 1 : kind === 'redo' ? o.redoP : o.tributeP);
   // rng() < 1 เสมอ → always เกิดแน่ · rng() < 0 ไม่เคย → off ไม่เกิด

@@ -6,7 +6,7 @@ import { fontSize, radius, space, v } from '../theme/tokens'
 // ทุกครั้ง = เกิดแน่นอนทุกคำขอ (ครั้งเดียวต่อคำขอ) · ล็อก = daemon ถูกปิดไว้ด้วย WAI_NO_EVENTS=1
 
 export type EventSwitchesProps = {
-  modes: { redo: EventMode; tribute: EventMode }
+  modes: { redo: EventMode; tribute: EventMode; chant: EventMode }
   locked: boolean
   onChange: (kind: EventKind, mode: EventMode) => void
 }
@@ -15,6 +15,7 @@ const LABEL: Record<EventMode, string> = { off: 'ปิด', random: 'สุ่�
 const ROWS: { kind: EventKind; title: string }[] = [
   { kind: 'tribute', title: '💸 เรียกค่าไถ่ True Money 1,000' },
   { kind: 'redo', title: '🙏 สั่งไหว้ใหม่ ("ไหว้ไม่สวย…")' },
+  { kind: 'chant', title: '🪷 ถามสวดบทแก้โค้ด JS' },
 ]
 
 const seg = (on: boolean, locked: boolean): CSSProperties => ({

@@ -1,0 +1,24 @@
+/* หน้าต่างสวดบาลี (ล้อเล่น) · สีมาจาก token ผ่าน var(--…) เท่านั้น */
+.chant-bg {
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--blessed) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--surface), var(--bg));
+  background-size: 100% 100%, 100% 200%;
+  animation: chant-drift 16s ease-in-out infinite alternate;
+}
+@keyframes chant-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 0, 0 100%; }
+}
+.chant-sway { display: inline-block; animation: chant-sway 3.2s ease-in-out infinite alternate; }
+@keyframes chant-sway {
+  from { transform: rotate(-6deg) translateY(0); }
+  to { transform: rotate(6deg) translateY(-4px); }
+}
+.chant-word { transition: color 0.2s, transform 0.2s, text-shadow 0.2s; }
+.chant-runaway { transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.chant-yes:hover { filter: brightness(1.1); }
+@media (prefers-reduced-motion: reduce) {
+  .chant-bg, .chant-sway { animation: none; }
+  .chant-word, .chant-runaway { transition: none; }
+}

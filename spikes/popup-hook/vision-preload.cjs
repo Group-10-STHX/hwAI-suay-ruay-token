@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('visionWorker', {
   pass: (result) => ipcRenderer.send('vision:pass', result),
   fail: (result) => ipcRenderer.send('vision:fail', result),
   sticker: (s) => ipcRenderer.send('vision:sticker', s), // รูปสติ๊กเกอร์ PNG หลัง vision:pass (seq เดียวกัน)
+  gif: (g) => ipcRenderer.send('vision:gif', g), // GIF ตอนไหว้ผ่าน (seq เดียวกับ vision:pass) เก็บในเครื่องเท่านั้น
   clip: (clip) => ipcRenderer.send('vision:clip', clip), // dev เท่านั้น
   onControl: (cb) => ipcRenderer.on('vision:control', (_e, msg) => cb(msg)),
   onWai: (cb) => ipcRenderer.on('vision:wai', (_e, msg) => cb(msg)), // {seq, id} หลัง vision:pass ที่บันทึกแล้ว (seed ของสติ๊กเกอร์)

@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('wai', {
   // ค่าไถ่ True Money 1,000 บาท (mock ล้อเล่น) จากหน้าต่าง tribute → {ok, message} · closeTribute = ปิดหน้าต่าง (คำขอยังรอต่อ)
   tribute: (code) => ipcRenderer.invoke('wai:tribute', String(code ?? '').slice(0, 40)),
   closeTribute: () => ipcRenderer.send('wai:tribute-close'),
+  // สวดบทแก้โค้ด (Paliscript): yes=true เท่านั้นที่ใช้ได้ (ปุ่ม ไม่ฟัง หนีเมาส์) · closeChant = ปิดหน้าต่าง
+  chantAnswer: (yes) => ipcRenderer.invoke('wai:chant-answer', yes === true),
+  closeChant: () => ipcRenderer.send('wai:chant-close'),
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),

@@ -108,7 +108,7 @@ export const REQUIRED_LEVEL: Record<SessionState, WaiLevel> = {
 
 /** โหมดของ random event: off ปิด · random สุ่มตามโอกาส · always เกิดทุกคำขอแน่นอน */
 export type EventMode = 'off' | 'random' | 'always'
-export type EventKind = 'redo' | 'tribute'
+export type EventKind = 'redo' | 'tribute' | 'chant'
 export const EVENT_MODES: EventMode[] = ['off', 'random', 'always']
 
 export type DayStats = { wais: number; passed: number; beautiful: number; tokens: number }
@@ -131,7 +131,7 @@ export type AppStatus = {
   lastSeen: Partial<Record<string, number>> // source → epoch ms ที่เห็นคำขอล่าสุด
   avatar?: string // ชื่อน้องที่เลือกอยู่ (ไม่ส่ง = jason)
   monitor?: boolean // โหมดสังเกตเปิดอยู่ (ไม่ส่ง = false)
-  events?: { redo: EventMode; tribute: EventMode; locked: boolean } // สวิตช์ Quick Event (daemon เก่าไม่ส่ง = ไม่โชว์)
+  events?: { redo: EventMode; tribute: EventMode; chant: EventMode; locked: boolean } // สวิตช์ Quick Event (daemon เก่าไม่ส่ง = ไม่โชว์)
   web?: { rank: string; tv: string; me: string | null } | null // ลิงก์เว็บ WAI-NET (null = ยังไม่ได้เชื่อมเว็บ)
 }
 
@@ -140,5 +140,6 @@ export type AppStatus = {
 export const STICKER_STYLES = ['photo', 'cartoon', 'comic', 'pixel', 'neon', 'kawaii'] as const
 export type StickerStyle = (typeof STICKER_STYLES)[number]
 export const isStickerStyle = (s: unknown): s is StickerStyle => (STICKER_STYLES as readonly unknown[]).includes(s)
-export type StickerItem = { id: string; file: string; at: string; score: number; level: number }
+/** gif = ชื่อไฟล์ GIF ตอนไหว้ (daemon ส่งมา) · gifUrl = URL เต็ม (api/stickers.ts ประกอบให้) ไม่มี = ไม่มี GIF */
+export type StickerItem = { id: string; file: string; at: string; score: number; level: number; gif?: string; gifUrl?: string }
 export type StickerList = { items: StickerItem[]; style: StickerStyle }

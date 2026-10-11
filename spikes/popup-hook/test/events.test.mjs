@@ -63,5 +63,5 @@ test('modes: always fires on every request (once each), off never, setMode off c
   assert.equal(e.blocking(), false);
   assert.equal(e.setMode('nope', 'off'), false);
   assert.equal(e.setMode('redo', 'sometimes'), false);
-  assert.deepEqual(e.getModes(), { redo: 'always', tribute: 'off' });
+  assert.deepEqual(e.getModes(), { redo: 'always', tribute: 'off', chant: 'always' });
 });

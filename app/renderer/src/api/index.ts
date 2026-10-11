@@ -35,3 +35,5 @@ export { listStickers, setStickerStyle, stickerUrl } from './stickers'
 
 export type { HookTool, SetupStatus } from './setup'
 export const setup = USE_MOCK ? mock.mockSetup : realSetup
+
+export { answerChant, closeChant, subscribeChant, type ChantLine, type ChantPhase, type ChantState, type ChantWord } from './chant'

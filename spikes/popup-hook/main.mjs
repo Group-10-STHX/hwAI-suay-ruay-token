@@ -9,10 +9,12 @@ import { fileURLToPath } from 'node:url'
 import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { createSessions, planVision } from './session-state.mjs' // state machine ต่อ session (contract §4)
 import { createAvatars, handleAvatarRoute } from './avatars.mjs' // เลือก/เสิร์ฟตัวละคร (~/.waikusa/avatars)
+import { chantText, estimateDurationMs, extractEdit, loadDict, toChant } from './pali.mjs' // สวดบอกว่าแก้โค้ด JS อะไร (พจนานุกรมจาก sht9-paliscript)
 import { checkCardNumber, createEvents } from './events.mjs' // random event: ไหว้ใหม่ / เรียกค่าไถ่ True Money 1,000 (mock ล้อเล่น)
 import { BRIBE_AMOUNT_BAHT, canBribe, checkVoucher } from './bribe.mjs' // ง้อด้วยซอง True Money (mock ล้อเล่น)
 import { createVoice, defaultPlayImpl } from './voice.mjs'
 import { createVoiceAdmin } from './voice-admin.mjs' // หลังบ้านอัดเสียง /admin/voice // เสียงพูด: เสียงที่เพื่อนอัด → Paxa TTS (แคช) → say กันยา
+import { createGifs } from './gifs.mjs' // GIF ตอนไหว้ผ่าน (~/.waikusa/gifs เฉพาะในเครื่อง)
 import { createStickers, isStickerStyle, normalizeStickerStyle, STICKER_FILE_RE, STICKER_STYLES } from './stickers.mjs' // สติ๊กเกอร์ตอนไหว้ผ่าน (~/.waikusa/stickers)
 import { FLEE, homePosition, nextPosition, stepToward } from './flee.mjs' // หนีเมาส์ช่วง ANNOYED (pure, มีเทส)
 import { createWaiLog } from './wai-log.mjs' // ~/.waikusa/wais.jsonl + สถิติ + sync ขึ้นเว็บ (contract §2, §3)
@@ -127,6 +129,7 @@ const sessions = createSessions()
 const waiLog = createWaiLog({ home: WAI_HOME, sync: !DEV_INSTANCE })
 const avatars = createAvatars({ home: WAI_HOME })
 const stickers = createStickers({ home: WAI_HOME })
+const gifs = createGifs({ home: WAI_HOME })
 // random event ตอนไหว้ (ปิดได้: WAI_NO_EVENTS=1 หรือ "random_events": false ใน config.json · ปรับโอกาส: "random_events": {"redo":0.15,"tribute":0.08})
 const eventCfg = readConfig().random_events
 // โหมดต่อ event (สวิตช์ในหน้าหลัก): "events": {"redo":"off|random|always","tribute":"off|random|always"} · ไม่ตั้ง = random
@@ -312,6 +315,74 @@ function syncTribute() {
   })
 }
 
+// ---------- สวดบอกว่าแก้โค้ดอะไร (Paliscript chant) ----------
+// hook PostToolUse (Claude Code แก้ไฟล์ JS/TS) → POST /wai/code-edit → ขึ้นหน้าต่างถาม "จะให้กูสวดไหม" (ปุ่ม ไม่ฟัง หนีเมาส์ ต้องกด ฟัง)
+// ฟัง → แปลงโค้ดที่เพิ่งแก้เป็นบทสวดบาลี (พจนานุกรม voice/pali) แล้วให้น้องสวด + หน้าต่างโชว์เนื้อเพลงคาราโอเกะ
+// ปิดได้: WAI_NO_CHANT=1 หรือสวิตช์ "ถามสวดบทแก้โค้ด" ในหน้าหลัก (events.chant: off|random|always) · พักถามซ้ำ 20 วิ
+const paliDict = loadDict(join(REPO_ROOT, 'voice', 'pali', 'js-pali-master.json'))
+const CHANT_COOLDOWN_MS = 20_000
+const CHANT_RANDOM_P = 0.35
+let chant = null // { id, file, lines, phase: 'offer'|'playing'|'done', startedAt?, durationMs? }
+let chantWin = null
+let chantCooldownUntil = 0
+
+function offerChant(input) {
+  if (process.env.WAI_NO_CHANT === '1' || !enabled || chant || Date.now() < chantCooldownUntil) return false
+  const mode = events.getModes().chant
+  if (mode === 'off' || (mode === 'random' && Math.random() >= CHANT_RANDOM_P)) return false
+  const edit = extractEdit(input)
+  if (!edit) return false
+  const lines = toChant(edit.code, paliDict)
+  if (!lines.length) return false
+  chant = { id: randomUUID(), file: edit.file, lines, phase: 'offer' }
+  console.log(`[wai] chant offer ${edit.file} (${lines.length} บรรทัด)`)
+  openChantWindow()
+  return true
+}
+
+function openChantWindow() {
+  if (chantWin && !chantWin.isDestroyed()) return
+  chantWin = new BrowserWindow({
+    icon: ICON,
+    width: 480,
+    height: 560,
+    useContentSize: true,
+    title: 'ไหว้กูซะ · สวดบทแก้โค้ด',
+    backgroundColor: '#0A0A0C',
+    alwaysOnTop: true,
+    resizable: false,
+    ...(MAC ? { titleBarStyle: 'hiddenInset' } : { autoHideMenuBar: true, icon: join(HERE, 'assets', 'icon.ico') }),
+    webPreferences: { preload: join(HERE, 'preload.cjs'), backgroundThrottling: false },
+  })
+  if (!MAC) chantWin.removeMenu()
+  chantWin.loadURL(RENDERER + 'chant.html')
+  chantWin.on('closed', () => {
+    chantWin = null
+    chant = null
+    chantCooldownUntil = Date.now() + CHANT_COOLDOWN_MS
+  })
+}
+
+ipcMain.handle('wai:chant-answer', (e, yes) => {
+  if (!chantWin || chantWin.isDestroyed() || e.sender !== chantWin.webContents || !chant || chant.phase !== 'offer') return { ok: false }
+  if (yes !== true) return { ok: false } // ไม่มีทางตอบ "ไม่" ผ่านปุ่ม (ปุ่มหนี) ปิดหน้าต่างเท่านั้น
+  chant.phase = 'playing'
+  chant.durationMs = estimateDurationMs(chant.lines)
+  chant.startedAt = Date.now() + 400 // เผื่อเวลาเริ่มเสียง
+  voice.say(chantText(chant.lines), { persona: 'p3' })
+  const id = chant.id
+  setTimeout(() => {
+    if (chant?.id === id) chant.phase = 'done'
+  }, chant.durationMs + 600)
+  setTimeout(() => {
+    if (chant?.id === id && chantWin && !chantWin.isDestroyed()) chantWin.close() // GUI ปิดเองก่อนอยู่แล้ว นี่กันค้าง
+  }, chant.durationMs + 6000)
+  return { ok: true }
+})
+ipcMain.on('wai:chant-close', (e) => {
+  if (chantWin && !chantWin.isDestroyed() && e.sender === chantWin.webContents) chantWin.close()
+})
+
 /** มีคำขอรอไหว้จริง → กล้องขึ้นเอง · ไม่มีแล้ว → ปิดเฉพาะที่ขึ้นเอง (ที่ผู้ใช้เปิดเองไม่แตะ) */
 function syncCameraView() {
   const need = enabled && queue.some((q) => !q.monitor)
@@ -431,6 +502,31 @@ function finishSticker(seq) {
   console.log(`[wai] sticker ${file} (${Math.round(pend.png.length / 1024)} KB)`)
 }
 
+// GIF ตอนไหว้ผ่าน: worker ส่ง vision:gif {seq, gif} มาคู่กับ vision:pass (ผูก wai id ผ่าน gifIdBySeq) · เก็บในเครื่องเท่านั้น ไม่อัปโหลด
+const gifIdBySeq = new Map() // seq → { id, t }
+const pendingGifs = new Map() // seq → { buf, t }
+function finishGif(seq) {
+  const p = gifIdBySeq.get(seq)
+  const g = pendingGifs.get(seq)
+  if (!p || !g) return
+  gifIdBySeq.delete(seq)
+  pendingGifs.delete(seq)
+  const file = gifs.save(p.id, g.buf)
+  if (file) console.log(`[wai] gif ${file} (${Math.round(g.buf.length / 1024)} KB)`)
+}
+ipcMain.on('vision:gif', (_e, g) => {
+  try {
+    if (!enabled || monitor || !g || !Number.isInteger(g.seq) || !(g.gif instanceof ArrayBuffer || ArrayBuffer.isView(g.gif))) return
+    const cut = Date.now() - STICKER_WAIT_MS
+    for (const mp of [gifIdBySeq, pendingGifs]) for (const [k, v] of mp) if (v.t < cut) mp.delete(k)
+    const buf = Buffer.from(g.gif instanceof ArrayBuffer ? g.gif : g.gif.buffer, g.gif.byteOffset ?? 0, g.gif.byteLength)
+    pendingGifs.set(g.seq, { buf, t: Date.now() })
+    finishGif(g.seq)
+  } catch (e) {
+    console.log('[wai] gif failed:', e.message)
+  }
+})
+
 ipcMain.on('vision:sticker', (_e, s) => {
   try {
     if (!enabled || monitor || !s || !Number.isInteger(s.seq) || !(s.png instanceof ArrayBuffer || ArrayBuffer.isView(s.png))) return
@@ -515,6 +611,8 @@ function onVision(type, payload = {}) {
   const rec = waiLog.record(plan.record)
   if (type === 'pass' && rec?.passed && Number.isInteger(payload.seq) && !top.monitor) {
     passedBySeq.set(payload.seq, { id: rec.id, t: Date.now() })
+    gifIdBySeq.set(payload.seq, { id: rec.id, t: Date.now() })
+    finishGif(payload.seq) // gif มาก่อน pass (ไม่น่าเกิด แต่เผื่อลำดับสลับ)
     // บอก worker ว่า seq นี้คือ wai id ไหน (สไตล์ kawaii ใช้เป็น seed ของดาววิบวับ) · worker ไม่รอเกิน ~0.4 วิ
     if (vision && !vision.isDestroyed()) vision.webContents.send('vision:wai', { seq: payload.seq, id: rec.id })
     finishSticker(payload.seq)
@@ -865,9 +963,26 @@ const server = http.createServer(async (req, res) => {
     const lim = Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 24))
     const items = stickers.list(lim).map((s) => {
       const m = waiLog.lookup(s.id)
-      return { id: s.id, file: s.file, at: m?.at ?? new Date(s.mtimeMs).toISOString(), score: m?.score ?? 0, level: m?.level ?? 0 }
+      return { id: s.id, file: s.file, at: m?.at ?? new Date(s.mtimeMs).toISOString(), score: m?.score ?? 0, level: m?.level ?? 0, ...(gifs.has(s.id) ? { gif: `${s.id}.gif` } : {}) }
     })
     return send(res, 200, { items, style: stickerStyle() })
+  }
+
+  // GET /wai/gif/<file>.gif → ไฟล์ GIF (ชื่อต้องตรง ^[A-Za-z0-9_-]+\.gif$)
+  if (req.method === 'GET' && url.pathname.startsWith('/wai/gif/')) {
+    let name = ''
+    try {
+      name = decodeURIComponent(url.pathname.slice('/wai/gif/'.length))
+    } catch {}
+    const f = gifs.resolveFile(name)
+    if (!f) return send(res, 404, { error: 'not found' })
+    try {
+      const buf = readFileSync(f)
+      res.writeHead(200, { 'Content-Type': 'image/gif', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' })
+      return res.end(buf)
+    } catch {
+      return send(res, 404, { error: 'not found' })
+    }
   }
 
   // GET /wai/sticker/<file>.png → ไฟล์ PNG (ชื่อต้องตรง ^[A-Za-z0-9_-]+\.png$)
@@ -901,11 +1016,27 @@ const server = http.createServer(async (req, res) => {
   if (route === 'events') {
     if (req.method === 'POST') {
       const body = await readJson(req)
-      for (const k of ['redo', 'tribute']) if (typeof body[k] === 'string') events.setMode(k, body[k])
+      for (const k of ['redo', 'tribute', 'chant']) if (typeof body[k] === 'string') events.setMode(k, body[k])
       saveConfig({ events: events.getModes() })
       syncWindow()
     }
     return send(res, 200, { ...events.getModes(), locked: !events.enabled })
+  }
+  // POST /wai/code-edit ← hook PostToolUse (Claude Code แก้ไฟล์) · GET /wai/chant ← หน้าต่างสวด (poll)
+  if (req.method === 'POST' && route === 'code-edit') {
+    const body = await readJson(req)
+    return send(res, 200, { offered: offerChant(body) })
+  }
+  if (req.method === 'GET' && route === 'chant') {
+    if (!chant) return send(res, 200, { active: false })
+    return send(res, 200, {
+      active: true,
+      id: chant.id,
+      phase: chant.phase,
+      file: chant.file,
+      lines: chant.lines,
+      ...(chant.startedAt ? { started_at: chant.startedAt, duration_ms: chant.durationMs } : {}),
+    })
   }
   // POST /wai/camera-preview { on } ← แท็บกล้องของหน้าหลัก (เปิดกล้องวิเคราะห์ไว้โชว์ level/คะแนน ไม่ใช่การไหว้จริง)
   if (req.method === 'POST' && route === 'camera-preview') {

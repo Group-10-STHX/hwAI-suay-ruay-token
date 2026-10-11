@@ -34,6 +34,8 @@ export function StickerGallery({ items, urlFor, startIndex, onClose }: StickerGa
   }, [open, items.length, onClose])
 
   const cur = open === null ? null : items[open]
+  const [still, setStill] = useState(false) // true = ดูรูปนิ่ง แทน GIF
+  useEffect(() => setStill(false), [open])
 
   return createPortal(
     <div
@@ -53,7 +55,13 @@ export function StickerGallery({ items, urlFor, startIndex, onClose }: StickerGa
 
       {cur ? (
         <div onClick={(e) => e.stopPropagation()} style={{ display: 'grid', gap: space.sm, justifyItems: 'center', alignContent: 'center' }}>
-          <img src={urlFor(cur.file)} alt={`สติ๊กเกอร์ ${cur.score} คะแนน`} style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', background: v('surface'), borderRadius: radius.md, border: `1px solid ${v('hudDim')}` }} />
+          <img src={cur.gifUrl && !still ? cur.gifUrl : urlFor(cur.file)} alt={`สติ๊กเกอร์ ${cur.score} คะแนน`} style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', background: v('surface'), borderRadius: radius.md, border: `1px solid ${v('hudDim')}` }} />
+          {cur.gifUrl && (
+            <div style={{ display: 'flex', gap: space.xs }}>
+              <button onClick={() => setStill(false)} aria-pressed={!still} style={{ ...navBtn, borderColor: still ? v('hudDim') : v('hud') }}>🎞 GIF ตอนไหว้</button>
+              <button onClick={() => setStill(true)} aria-pressed={still} style={{ ...navBtn, borderColor: still ? v('hud') : v('hudDim') }}>สติ๊กเกอร์</button>
+            </div>
+          )}
           <div className="mono" style={{ color: v('textDim'), fontSize: fontSize.small }}>
             {cur.score} คะแนน · ระดับ {cur.level} {LEVEL[cur.level] ?? ''} · {when(cur.at)}
           </div>
@@ -69,7 +77,7 @@ export function StickerGallery({ items, urlFor, startIndex, onClose }: StickerGa
             <button key={s.file} onClick={() => setOpen(i)} title={`${s.score} คะแนน · ${when(s.at)}`} style={{ display: 'grid', gap: 2, padding: space.xs, background: v('surface'), border: `1px solid ${v('hudDim')}`, borderRadius: radius.sm, cursor: 'pointer', color: 'inherit', font: 'inherit' }}>
               <img src={urlFor(s.file)} alt={`สติ๊กเกอร์ ${s.score}`} draggable={false} style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'contain' }} />
               <span className="mono" style={{ fontSize: fontSize.micro, color: v('textDim') }}>
-                {s.score} · L{s.level}
+                {s.score} · L{s.level}{s.gifUrl ? ' · GIF' : ''}
               </span>
             </button>
           ))}

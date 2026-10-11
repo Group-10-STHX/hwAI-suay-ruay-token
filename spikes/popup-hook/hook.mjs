@@ -36,6 +36,21 @@ try {
   // stdin เพี้ยน (เช่น encoding ของ PowerShell) → ใช้ค่า default ยังขอไหว้ได้
 }
 
+// PostToolUse (Edit/Write/MultiEdit ของ Claude Code): แค่บอก daemon ว่า AI เพิ่งแก้ไฟล์ แล้วจบทันที ไม่บล็อก ไม่รอไหว้ ไม่ว่าจะเกิดอะไรขึ้น
+if (input.hook_event_name === 'PostToolUse') {
+  try {
+    await fetch(`${DAEMON}/wai/code-edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: input.session_id, tool_name: input.tool_name, tool_input: input.tool_input }),
+      signal: AbortSignal.timeout(1500),
+    })
+  } catch {
+    // daemon ไม่อยู่ก็ช่าง
+  }
+  process.exit(0)
+}
+
 // UserPromptSubmit = prompt หลัก · PreToolUse (Task|Agent / spawn_agent) = subagent
 const isSubagent = input.hook_event_name === 'PreToolUse'
 const tool = input.tool_input ?? {}

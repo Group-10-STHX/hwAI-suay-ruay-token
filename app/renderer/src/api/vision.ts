@@ -26,6 +26,10 @@ declare global {
       bribe?: (code: string) => Promise<{ ok: boolean; message: string }>
       /** หน้าหลัก: เปิด/โฟกัสหน้าต่างกล้อง (IPC wai:open-camera-view) */
       openCameraView?: () => Promise<{ ok: boolean }>
+      /** หน้าต่างสวดบาลี: ตอบ [ฟัง]=true (IPC wai:chant-answer) ห้ามส่ง false จากปุ่มที่วิ่งหนี */
+      chantAnswer?: (yes: boolean) => Promise<{ ok: boolean }>
+      /** ปิดหน้าต่างสวดบาลี (IPC wai:chant-close) */
+      closeChant?: () => void
     }
   }
 }

@@ -29,6 +29,7 @@ export const TOOLS = {
     source: 'claude-code',
     file: (scope) => (scope === 'global' ? join(homedir(), '.claude', 'settings.json') : join(scopeDir(scope), '.claude', 'settings.local.json')),
     subagentMatcher: 'Task|Agent',
+    editMatcher: 'Edit|Write|MultiEdit', // PostToolUse: AI แก้ไฟล์ → ถามว่าจะให้สวดบอกไหม (ไม่บล็อกอะไร)
   },
   codex: {
     source: 'codex',
@@ -163,6 +164,7 @@ export function install(tool, scope, runtime, { platform = process.platform } = 
   const hook = hookEntry(tool, platform, shim)
   json.hooks.UserPromptSubmit = [...(json.hooks.UserPromptSubmit ?? []), { hooks: [hook] }]
   json.hooks.PreToolUse = [...(json.hooks.PreToolUse ?? []), { matcher: t.subagentMatcher, hooks: [hook] }]
+  if (t.editMatcher) json.hooks.PostToolUse = [...(json.hooks.PostToolUse ?? []), { matcher: t.editMatcher, hooks: [hook] }]
   write(file, json)
   return file
 }

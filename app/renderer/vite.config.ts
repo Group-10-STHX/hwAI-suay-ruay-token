@@ -18,6 +18,7 @@ export default defineConfig({
         debug: page('./debug.html'),
         home: page('./home.html'),
         tribute: page('./tribute.html'),
+        chant: page('./chant.html'),
       },
     },
   },

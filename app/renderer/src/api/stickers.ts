@@ -10,7 +10,11 @@ export async function listStickers(limit = 24): Promise<StickerList> {
   if (!res.ok) throw new Error(`GET /wai/stickers ${res.status}`)
   const raw = (await res.json()) as Partial<StickerList>
   return {
-    items: Array.isArray(raw.items) ? raw.items.filter((i) => i && typeof i.file === 'string') : [],
+    items: Array.isArray(raw.items)
+      ? raw.items
+          .filter((i) => i && typeof i.file === 'string')
+          .map((i) => ({ ...i, gifUrl: typeof i.gif === 'string' ? gifUrl(i.gif) : undefined }))
+      : [],
     style: isStickerStyle(raw.style) ? raw.style : 'photo', // daemon เก่า/ค่าแปลก = photo
   }
 }
@@ -18,6 +22,11 @@ export async function listStickers(limit = 24): Promise<StickerList> {
 /** URL รูปสติ๊กเกอร์ (daemon ตรวจชื่อไฟล์อีกชั้น) */
 export function stickerUrl(file: string): string {
   return `${DAEMON_URL}/wai/sticker/${encodeURIComponent(file)}`
+}
+
+/** URL GIF ตอนไหว้ (daemon ตรวจชื่อไฟล์อีกชั้น) */
+export function gifUrl(file: string): string {
+  return `${DAEMON_URL}/wai/gif/${encodeURIComponent(file)}`
 }
 
 /** POST /wai/sticker-style {style} → style ที่ daemon บันทึกจริง */

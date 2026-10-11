@@ -17,6 +17,7 @@
 import { DEFAULT_TH, WaiTracker, reasonsFor } from "../wai-heuristic.js";
 import { computeParts, createAttemptTracker, styleFor } from "./attempts.js";
 import { createClipPlanner } from "./clip-plan.js";
+import { encodeGif } from "./gif.js";
 import {
   STICKER_MAX_SIDE, buildSticker, faceBBox, fitSize, landmarksBBox, maskCoverage, normalizeStyle, orientMask, padFor,
   roundedRectMask,
@@ -119,6 +120,50 @@ async function start() {
     starting = false;
     // main may have asked to stop while the camera was still opening
     if (!wantRun) stop();
+  }
+}
+
+// ---------- GIF ตอนไหว้ผ่าน: เฟรมเล็กๆ ย้อนหลังประมาณ 2.7 วิ + ต่ออีก ~0.5 วิ → GIF หยาบๆ (vision/worker/gif.js) เก็บในเครื่องเท่านั้น ----------
+const GIF_W = 160;
+const GIF_H = 90;
+const GIF_STEP_MS = 125; // 8 fps
+const GIF_MAX_FRAMES = 22; // ย้อนหลัง ~2.7 วิ
+const GIF_AFTER_FRAMES = 4; // หลังไหว้ผ่านอีก ~0.5 วิ
+let gifCanvas = null;
+let gifCtx = null;
+let gifBuf = []; // Uint8ClampedArray (RGBA) ล่าสุด
+let lastGifAt = 0;
+let gifPending = null; // { seq, extra }
+
+function sampleGif(ts) {
+  if (!stickersOn || !video.videoWidth || ts - lastGifAt < GIF_STEP_MS) return;
+  lastGifAt = ts;
+  if (!gifCanvas) {
+    gifCanvas = document.createElement("canvas");
+    gifCanvas.width = GIF_W;
+    gifCanvas.height = GIF_H;
+    gifCtx = gifCanvas.getContext("2d", { willReadFrequently: true });
+  }
+  gifCtx.drawImage(video, 0, 0, GIF_W, GIF_H);
+  gifBuf.push(gifCtx.getImageData(0, 0, GIF_W, GIF_H).data);
+  if (gifBuf.length > GIF_MAX_FRAMES) gifBuf.shift();
+  if (gifPending && --gifPending.extra <= 0) finishGif();
+}
+
+function startGif(seq) {
+  if (!gifBuf.length || gifPending) return;
+  gifPending = { seq, extra: GIF_AFTER_FRAMES };
+}
+
+function finishGif() {
+  const p = gifPending;
+  gifPending = null;
+  if (!p || !gifBuf.length) return;
+  try {
+    const bytes = encodeGif(gifBuf.map((rgba) => ({ rgba })), GIF_W, GIF_H, { delayMs: GIF_STEP_MS });
+    bridge.gif?.({ seq: p.seq, gif: bytes.buffer, w: GIF_W, h: GIF_H, frames: gifBuf.length });
+  } catch (err) {
+    log("gif failed:", err.message);
   }
 }
 
@@ -285,6 +330,9 @@ async function captureSticker(seq, style, box, face) {
 }
 
 function stop() {
+  // ไหว้ผ่านแล้วคิวว่าง main สั่งกล้องดับทันที: ส่ง GIF เท่าที่มีก่อน ไม่งั้นรอเฟรมหลังไหว้ที่ไม่มีวันมา
+  if (gifPending) finishGif();
+  gifBuf = [];
   clearTimeout(timer);
   timer = null;
   if (video.srcObject) {
@@ -329,8 +377,12 @@ function loop() {
         attempts: attemptTracker.attempts,
         style: styleFor(parts),
       });
-      if (stickersOn) captureSticker(seq, stickerStyle, lastPersonBox, lastFaceBox); // async, never blocks the loop
+      if (stickersOn) {
+        captureSticker(seq, stickerStyle, lastPersonBox, lastFaceBox); // async, never blocks the loop
+        startGif(seq);
+      }
     }
+    sampleGif(ts);
     const ended = attemptTracker.step({ ...result, reasons, parts }, dt);
     if (ended) bridge.fail(ended.fail);
     if (devRecord) {
@@ -358,6 +410,10 @@ bridge.onControl(({ run, requiredLevel: level, devRecord: rec, stickerStyle: st,
   stickerStyle = normalizeStyle(st);
   stickerPalette = pal && typeof pal === "object" ? pal : null; // sticker.js validates each colour, bad ones = default
   stickersOn = stickers !== false;
+  if (!stickersOn) {
+    gifBuf = [];
+    gifPending = null;
+  }
   if (typeof level === "number") requiredLevel = Math.max(1, Math.min(3, level));
   devRecord = Boolean(rec);
   wantRun = Boolean(run);

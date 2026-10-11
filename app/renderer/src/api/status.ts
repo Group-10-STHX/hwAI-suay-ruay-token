@@ -14,7 +14,7 @@ type RawStatus = {
   avatar?: string
   monitor?: boolean
   web?: { rank?: string; tv?: string; me?: string | null } | null
-  events?: { redo?: string; tribute?: string; locked?: boolean }
+  events?: { redo?: string; tribute?: string; chant?: string; locked?: boolean }
 }
 
 const day = (d?: RawDay): DayStats => ({ wais: d?.wais ?? 0, passed: d?.passed ?? 0, beautiful: d?.beautiful ?? 0, tokens: d?.tokens ?? 0 })
@@ -42,7 +42,7 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void, onError?: (e: 
       const res = await fetch(`${DAEMON_URL}/wai/status`)
       if (!res.ok) throw new Error(`GET /wai/status ${res.status}`)
       const raw: RawStatus = await res.json()
-      if (!stopped) onStatus({ enabled: raw.enabled, pending: raw.pending, stats: mapStats(raw.stats), lastSeen: raw.last_seen ?? {}, avatar: typeof raw.avatar === 'string' ? raw.avatar : undefined, monitor: raw.monitor === true, events: raw.events ? { redo: mode(raw.events.redo), tribute: mode(raw.events.tribute), locked: raw.events.locked === true } : undefined, web: raw.web?.rank && raw.web?.tv ? { rank: raw.web.rank, tv: raw.web.tv, me: raw.web.me ?? null } : null })
+      if (!stopped) onStatus({ enabled: raw.enabled, pending: raw.pending, stats: mapStats(raw.stats), lastSeen: raw.last_seen ?? {}, avatar: typeof raw.avatar === 'string' ? raw.avatar : undefined, monitor: raw.monitor === true, events: raw.events ? { redo: mode(raw.events.redo), tribute: mode(raw.events.tribute), chant: raw.events.chant === undefined ? 'always' : mode(raw.events.chant), locked: raw.events.locked === true } : undefined, web: raw.web?.rank && raw.web?.tv ? { rank: raw.web.rank, tv: raw.web.tv, me: raw.web.me ?? null } : null })
     } catch (e) {
       onError?.(e)
     }
