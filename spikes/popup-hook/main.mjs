@@ -229,14 +229,27 @@ function openHome() {
 }
 
 /** หน้าต่างกล้อง (viewfinder SCAN มนุษย์): window ปกติ ไม่โปร่ง ไม่ alwaysOnTop · ปิด = กล้องดับ + heartbeat preview หยุด · ไม่เปิดเองตอนเริ่มแอป */
-function openCameraView() {
+// auto = ขึ้นเองตอนมีคำขอรอไหว้ (ไม่แย่ง focus, อยู่บนสุดซ้ายของน้อง, ปิดเองเมื่อไม่มีคำขอ) · เปิดมือ = หน้าต่างปกติ ไม่ปิดเอง
+let cameraAuto = false
+let cameraDismissed = false // ผู้ใช้ปิดหน้าต่างอัตโนมัติเองระหว่างคิวนี้ = ไม่เด้งซ้ำจนกว่าคิวจะว่าง
+function openCameraView({ auto = false } = {}) {
   if (cameraView && !cameraView.isDestroyed()) {
+    if (auto) return
+    cameraAuto = false // ผู้ใช้เปิดเอง: ไม่ปิดให้เอง
     if (cameraView.isMinimized()) cameraView.restore()
     cameraView.show()
     return cameraView.focus()
   }
+  cameraAuto = auto
+  const place = auto ? (() => {
+    const { workArea } = screen.getPrimaryDisplay()
+    const w = 460
+    return { x: Math.max(workArea.x, workArea.x + workArea.width - AVATAR.width - w - 24), y: workArea.y + Math.max(0, Math.round((workArea.height - 420) / 2)) }
+  })() : {}
   cameraView = new BrowserWindow({
     icon: ICON,
+    ...place,
+    ...(auto ? { show: false, alwaysOnTop: true } : {}),
     width: 460,
     height: 420,
     useContentSize: true,
@@ -248,9 +261,23 @@ function openCameraView() {
   })
   if (!MAC) cameraView.removeMenu()
   cameraView.loadURL(RENDERER + 'camera-view.html')
+  if (auto) cameraView.once('ready-to-show', () => cameraView && !cameraView.isDestroyed() && cameraView.showInactive())
   cameraView.on('closed', () => {
+    if (cameraAuto && queue.some((q) => !q.monitor)) cameraDismissed = true
     cameraView = null
+    cameraAuto = false
   })
+}
+
+/** มีคำขอรอไหว้จริง → กล้องขึ้นเอง · ไม่มีแล้ว → ปิดเฉพาะที่ขึ้นเอง (ที่ผู้ใช้เปิดเองไม่แตะ) */
+function syncCameraView() {
+  const need = enabled && queue.some((q) => !q.monitor)
+  if (need) {
+    if (!cameraDismissed && !(cameraView && !cameraView.isDestroyed())) openCameraView({ auto: true })
+    return
+  }
+  cameraDismissed = false
+  if (cameraAuto && cameraView && !cameraView.isDestroyed() && lingerMsLeft() === 0) cameraView.close()
 }
 ipcMain.handle('wai:open-camera-view', () => {
   openCameraView()
@@ -462,6 +489,7 @@ function syncWindow() {
   } else if (win && !win.isDestroyed() && win.isVisible()) {
     win.hide()
   }
+  syncCameraView()
   syncFlee()
 }
 
