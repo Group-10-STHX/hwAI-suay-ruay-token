@@ -63,6 +63,7 @@ export function AvatarWindow() {
           providerLabel={accent?.label}
           agentLabel={top?.agentLabel}
           chat={chat}
+          onSpeak={(t) => window.wai?.sayCopy?.(t)}
           eventText={queue.event && !queue.monitor ? queue.event.text : undefined}
           sixSeven={sixSeven}
           flee={fleeOn ? { fleeing: flee.fleeing, dodges: fleeCount } : undefined}
@@ -86,7 +87,14 @@ export function AvatarWindow() {
       )}
       {/* ง้อด้วยเงิน (mock ล้อเล่น): เฉพาะตอนงอน/รอขอขมา ที่ ANNOYED น้องวิ่งหนีเมาส์ จึงไม่โชว์ */}
       {top && !queue.monitor && (queue.state === 'SULKING' || queue.state === 'FORGIVE') && (
-        <BribePanel amount={BRIBE_AMOUNT_BAHT} onSubmit={submitBribe} />
+        <BribePanel
+          amount={BRIBE_AMOUNT_BAHT}
+          onSubmit={async (code) => {
+            const r = await submitBribe(code)
+            window.wai?.sayCopy?.(r.message) // ผลที่ขึ้นใต้ช่องกรอก พูดตามด้วย
+            return r
+          }}
+        />
       )}
       {top && (
         <button className="interactive mono" onClick={() => skipItem(top.id)} style={skipStyle}>

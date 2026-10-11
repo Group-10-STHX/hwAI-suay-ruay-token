@@ -24,6 +24,8 @@ declare global {
       /** ปิดหน้าต่าง tribute (IPC wai:tribute-close) คำขอยังรออยู่ */
       closeTribute?: () => void
       openPaliscript?: () => Promise<{ ok: boolean }>
+      /** ให้ main พูดข้อความที่ขึ้นในฟองตามตัวอักษร (เสียงตรงกับหน้าจอ) */
+      sayCopy?: (text: string) => void
       bribe?: (code: string) => Promise<{ ok: boolean; message: string }>
       /** หน้าหลัก: เปิด/โฟกัสหน้าต่างกล้อง (IPC wai:open-camera-view) */
       openCameraView?: () => Promise<{ ok: boolean }>

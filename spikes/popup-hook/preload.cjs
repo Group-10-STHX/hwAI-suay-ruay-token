@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('wai', {
   chantAnswer: (yes) => ipcRenderer.invoke('wai:chant-answer', yes === true),
   closeChant: () => ipcRenderer.send('wai:chant-close'),
   openPaliscript: () => ipcRenderer.invoke('wai:open-paliscript'),
+  // พูดข้อความที่ขึ้นในฟองของน้อง (main พูดตามตัวอักษร) · เฉพาะ popup
+  sayCopy: (text) => ipcRenderer.send('wai:say-copy', String(text ?? '').slice(0, 160)),
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),

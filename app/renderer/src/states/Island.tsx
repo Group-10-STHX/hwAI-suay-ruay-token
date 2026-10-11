@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import type { SessionState, WaiReason } from '../api/types'
 import { font, fontSize, radius, shadow, space, stateColor, v } from '../theme/tokens'
 import { byPhrase } from './byPhrase'
@@ -33,18 +33,29 @@ export type IslandProps = {
   eventText?: string
   /** อีเวนต์ 67: โชว์แถบนับท่า 6-7 ใต้ eventText (ฟองโทน blessed) · ไม่ส่ง = ไม่โชว์ */
   sixSeven?: { swings: number; need: number }
+  /**
+   * ข้อความที่ "กำลังขึ้นในฟอง" เปลี่ยนเมื่อไหร่ แจ้งตรงนี้ให้ app/ ส่งไปพูด (เสียงตรงกับที่เห็น)
+   * ไม่แจ้งตอนเป็นอีเวนต์ (eventText) เพราะ daemon พูดข้อความอีเวนต์เองอยู่แล้ว (67 ร้องเป็นอังกฤษ)
+   */
+  onSpeak?: (text: string) => void
 }
 
 const SHOW_SCORE: Partial<Record<SessionState, true>> = { RETRY: true, ANNOYED: true }
 
 /** island ลอย: ไม่มีกรอบรวม (§2) ฟองคำพูดซ้าย น้องขวาอยู่บนแผ่นพื้นหลังทึบมี padding การ์ดเรียงข้างล่าง */
-export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards, flee, chat, eventText, sixSeven }: IslandProps) {
+export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards, flee, chat, eventText, sixSeven, onSpeak }: IslandProps) {
   // อีเวนต์ใช้โทน RETRY (สีเดียวกับตอนไหว้พลาด)
   const tone = sixSeven && eventText && !flee ? 'blessed' : eventText && !flee ? stateColor.RETRY : stateColor[state]
   // ตอนหนี: ข้อความหลักเป็นคำแซว (เปลี่ยนทุกครั้งที่หนี) บรรทัดรองบอกวิธีให้หยุด
   const text = flee ? fleeTaunt(flee.dodges) : eventText ?? chat ?? SPEECH[state]
   const hint = flee ? FLEE_HINT : eventText || chat ? undefined : SPEECH_HINT[state]
   const reason = reasons[0]
+  // เสียงตามข้อความ: ข้อความหลัก + บรรทัดคำใบ้ (ถ้ามี) · เปลี่ยนเมื่อไหร่ค่อยแจ้ง (ไม่ยิงซ้ำตอน render)
+  const spoken = eventText ? '' : [text, hint].filter(Boolean).join(' ')
+  useEffect(() => {
+    if (spoken) onSpeak?.(spoken)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spoken])
   const mascotFx = state === 'ANNOYED' ? 'fx-shake fx-blink-danger' : state === 'PASSED' || state === 'FORGIVE' ? 'fx-bless' : undefined
 
   return (

@@ -90,6 +90,21 @@ export function createEvents({ rng = Math.random, now = Date.now, enabled = true
     current = { kind: 'sixseven', text: pick(SIXSEVEN_LINES), until: now() + SIXSEVEN_MS, requestId };
     return true;
   }
+  /**
+   * โหมด "ทุกครั้ง" หลายอันพร้อมกัน: event ชนิดอื่นที่ตั้ง always และยังไม่เกิดกับคำขอนี้ เหลืออยู่ไหม
+   * (ใช้ตัดสินว่าทำท่า 67 / จ่ายค่าไถ่เสร็จแล้ว "ปลดคำขอเลย" หรือ "ไปต่อ event ถัดไป")
+   */
+  function pendingAlways(requestId, exclude) {
+    if (!enabled || !requestId) return [];
+    return ['sixseven', 'tribute', 'redo'].filter((k) => k !== exclude && modes[k] === 'always' && !seen[k].has(requestId));
+  }
+  /** เริ่ม event ค่าไถ่ทันที (ใช้ต่อจากท่า 67 ในโหมดทุกครั้ง) */
+  function startTribute(requestId) {
+    if (!enabled || !requestId || seen.tribute.has(requestId)) return false;
+    seen.tribute.add(requestId);
+    current = { kind: 'tribute', text: pick(TRIBUTE_LINES), amount: TRIBUTE_AMOUNT, until: now() + o.tributeMs, requestId };
+    return true;
+  }
   /** ทำท่าครบแล้ว → เคลียร์ · คืน requestId หรือ null */
   function finishSixSeven() {
     expire();
@@ -118,5 +133,5 @@ export function createEvents({ rng = Math.random, now = Date.now, enabled = true
   }
   const getModes = () => ({ ...modes });
 
-  return { onAttempt, maybeSixSeven, finishSixSeven, active, blocking, pay, dismiss, forget, setMode, getModes, enabled };
+  return { onAttempt, maybeSixSeven, finishSixSeven, pendingAlways, startTribute, active, blocking, pay, dismiss, forget, setMode, getModes, enabled };
 }

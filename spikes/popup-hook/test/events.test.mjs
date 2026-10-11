@@ -82,3 +82,19 @@ test('sixseven: random fires only on score 67, always fires once per request, bl
   assert.equal(e.active(), null); // ปิดแล้ว event ที่ค้างอยู่หายด้วย
   assert.equal(e.maybeSixSeven('c', 67), false);
 });
+
+test('all events always: chain 67 -> tribute -> redo, pendingAlways tells what is left', () => {
+  const e = createEvents({ rng: () => 0.999, modes: { redo: 'always', tribute: 'always', sixseven: 'always' } });
+  assert.deepEqual(e.pendingAlways('r'), ['sixseven', 'tribute', 'redo']);
+  assert.equal(e.maybeSixSeven('r', 10), true);
+  assert.equal(e.finishSixSeven(), 'r');
+  assert.deepEqual(e.pendingAlways('r', 'sixseven'), ['tribute', 'redo']);
+  assert.equal(e.startTribute('r'), true);
+  assert.equal(e.blocking(), true);
+  assert.equal(e.pay(), 'r');
+  assert.deepEqual(e.pendingAlways('r', 'tribute'), ['redo']);
+  assert.equal(e.onAttempt('r', 'pass').type, 'redo'); // ไหว้สวยแต่โดนปัดตก
+  assert.deepEqual(e.pendingAlways('r'), []);
+  assert.equal(e.onAttempt('r', 'pass').type, 'none'); // รอบสองผ่านจริง
+  assert.deepEqual(e.pendingAlways('other', 'redo'), ['sixseven', 'tribute']);
+});

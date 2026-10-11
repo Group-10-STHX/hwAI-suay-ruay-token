@@ -158,7 +158,10 @@ const voiceAdmin = createVoiceAdmin({
 })
 // พูดเมื่อ state ของ session หัวคิวเปลี่ยน (ไม่พูดซ้ำ state เดิมของคำขอเดิม)
 let lastSpoken = ''
-const speak = (state) => enabled && voice.speak({ state })
+// เสียงตามข้อความบนจอ (ค่าเริ่มต้น): renderer ส่งข้อความที่ "กำลังขึ้นในฟอง" มาให้พูด (IPC wai:say-copy) → เสียงตรงกับที่เห็นเสมอ
+// ปิดด้วย "voice_follow_screen": false ใน config.json = กลับไปสุ่มบทของบุคลิกตาม state แบบเดิม
+const followScreen = readConfig().voice_follow_screen !== false
+const speak = (state) => enabled && !followScreen && voice.speak({ state })
 // โหมดสังเกต: จับคำขอจริงจาก AI ทุกช่องทางแต่ไม่บังคับไหว้ (โชว์การ์ดสั้นๆ แล้วปล่อยผ่านเอง) ไว้ทดสอบว่าจับได้จริงไหม
 // เปิดด้วย WAI_MONITOR=1 หรือ "monitor": true ใน ~/.waikusa/config.json หรือสวิตช์ในหน้าหลัก/tray
 const MONITOR_HOLD_MS = 2500
@@ -697,11 +700,20 @@ ipcMain.handle('wai:tribute', (e, code) => {
   const rid = events.pay()
   if (!rid) return { ok: true, message: 'หมดเวลาเรียกเก็บแล้ว ไหว้เองก็ได้' }
   const item = queue.find((q) => q.id === rid)
+  // ตั้ง "ไหว้ใหม่" เป็นทุกครั้งไว้ = จ่ายแล้วยังต้องไหว้จริง (แล้วโดนปัดตกรอบแรก) ไม่ปลดทันที
+  const next = events.pendingAlways(rid, 'tribute')
+  if (next.length) {
+    console.log(`[wai] ค่าไถ่ (mock) จ่ายแล้ว → ยังไม่ปลด ต่อด้วย ${next.join(', ')}`)
+    syncWindow()
+    voice.say('รับ 1,000 บาทแล้ว แต่ยังต้องไหว้อยู่นะ')
+    return { ok: true, message: 'รับ 1,000 บาทแล้ว (ล้อเล่น) แต่ยังต้องไหว้อยู่นะ' }
+  }
   if (item) {
     sessions.reset(item.session_id)
     for (const q of queue.filter((x) => x.session_id === item.session_id)) resolve(q.id, { passed: true, level: 0, score: 0, action: 'allow' })
     speak('PASSED')
   }
+  voice.say('รับ 1,000 บาทแล้ว ผ่านไปได้')
   console.log('[wai] ค่าไถ่ True Money (mock) จ่ายแล้ว → ปลดคำขอ')
   syncWindow()
   return { ok: true, message: 'รับ 1,000 บาทแล้ว (ล้อเล่น) ผ่านไปได้' }
@@ -729,13 +741,41 @@ ipcMain.on('vision:67', (_e, r) => {
   const rid = events.finishSixSeven()
   if (!rid) return
   const item = queue.find((q) => q.id === rid)
+  singSixSeven(SIXSEVEN_WIN)
+  // ตั้ง event อื่นเป็น "ทุกครั้ง" ไว้ด้วย = ยังไม่ปลด ไปต่อ event ถัดไป (ค่าไถ่ก่อน แล้วค่อยไหว้จริง → ไหว้ใหม่)
+  const next = events.pendingAlways(rid, 'sixseven')
+  if (next.length) {
+    console.log(`[wai] 67 สำเร็จ → ต่อด้วย ${next.join(', ')}`)
+    if (next.includes('tribute') && events.startTribute(rid)) {
+      voice.say(events.active().text)
+      setTimeout(syncWindow, events.active().msLeft + 50)
+    }
+    return syncWindow()
+  }
   console.log('[wai] 67 สำเร็จ → ปลดคำขอ')
   if (item) {
     sessions.reset(item.session_id)
     for (const q of queue.filter((x) => x.session_id === item.session_id)) resolve(q.id, { passed: true, level: 0, score: 67, action: 'allow' })
   }
-  singSixSeven(SIXSEVEN_WIN)
   syncWindow()
+})
+// ข้อความที่ขึ้นในฟองของน้อง → พูดตามตัวอักษร (ไฟล์อัด _app/copy-* ก่อน ไม่มีก็สังเคราะห์ข้อความจริง) · IPC จาก popup เท่านั้น
+let lastCopy = { text: '', t: 0 }
+const copyIds = (() => {
+  try {
+    const raw = JSON.parse(readFileSync(join(REPO_ROOT, 'voice', 'lines.all.json'), 'utf8'))
+    const list = Array.isArray(raw) ? raw : raw.entries || []
+    return new Map(list.filter((e) => typeof e?.id === 'string' && e.id.startsWith('copy-') && typeof e.plainText === 'string').map((e) => [e.plainText, e.id]))
+  } catch {
+    return new Map()
+  }
+})()
+ipcMain.on('wai:say-copy', (e, text) => {
+  if (!followScreen || !enabled || !win || win.isDestroyed() || e.sender !== win.webContents) return
+  const t = String(text ?? '').trim().slice(0, 160)
+  if (!t || (t === lastCopy.text && Date.now() - lastCopy.t < 1500)) return
+  lastCopy = { text: t, t: Date.now() }
+  voice.say(t, { copyId: copyIds.get(t) })
 })
 ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
 ipcMain.on('vision:fail', (_e, payload) => onVision('fail', payload))

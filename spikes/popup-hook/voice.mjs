@@ -473,7 +473,7 @@ export function createVoice({
     }
   }
 
-  function say(text, { persona } = {}) {
+  function say(text, { persona, copyId } = {}) {
     return run(async () => {
       if (narrating) return { ok: false, skipped: 'narrating' };
       const pid = persona ?? current;
@@ -483,6 +483,13 @@ export function createVoice({
       if (!clean || charLen(clean) > 200) return { ok: false, error: 'bad text' };
       const mySeq = ++seq;
       stopPlaying();
+      // ข้อความหน้าจอที่ทีมอัดไว้ (recordings/_app/<copyId>.wav|mp3 จากหลังบ้านอัดเสียง) ใช้ก่อน · ไม่มี = สังเคราะห์ข้อความจริงเป็นเสียงของบุคลิก
+      if (copyId && mode !== 'siri' && /^[A-Za-z0-9_-]{1,80}$/.test(copyId)) {
+        for (const ext of ['wav', 'mp3']) {
+          const f = join(recDir, '_app', `${copyId}.${ext}`);
+          if (existsSync(f)) { startPlay({ kind: 'file', path: f }); return { ok: true, source: 'recording', persona: pid, lineId: copyId, state: null, text: clean }; }
+        }
+      }
       return resolveAndPlay({ persona: pid, lineId: null, line: { text: clean, emotionText: clean }, state: null, useRecording: false }, mySeq);
     });
   }
