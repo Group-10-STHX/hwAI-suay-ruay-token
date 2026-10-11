@@ -64,6 +64,15 @@ export async function setEnabled(enabled: boolean): Promise<void> {
   })
 }
 
+/** แท็บกล้องของหน้าหลัก: ขอให้ daemon เปิดกล้องวิเคราะห์ไว้ (ยิงซ้ำทุก ~5 วิ หมดอายุเองที่ 12 วิ) */
+export async function setCameraPreview(on: boolean): Promise<void> {
+  await fetch(`${DAEMON_URL}/wai/camera-preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ on }),
+  })
+}
+
 /** ยิงคำขอปลอม 1 ใบ ให้ popup เด้งโดยไม่ต้องเปิด AI (ไม่รอผล) */
 export async function sendTestRequest(): Promise<void> {
   await fetch(`${DAEMON_URL}/wai/request`, {

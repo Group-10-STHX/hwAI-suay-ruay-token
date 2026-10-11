@@ -202,7 +202,8 @@ function openHome() {
     if (!home || home.isDestroyed()) return clearInterval(fit)
     try {
       const h = await home.webContents.executeJavaScript(
-        "(() => { const p = document.querySelector('#root > div'); return p ? p.scrollHeight : 0 })()",
+        // เนื้อหาในแท็บ (ลูกของ [data-wai-scroll]) + แถบแท็บ [data-wai-chrome] · ไม่มีแท็บ = หน้าเดียวแบบเดิม
+        "(() => { const p = document.querySelector('[data-wai-scroll] > div') ?? document.querySelector('#root > div'); const c = document.querySelector('[data-wai-chrome]'); return p ? p.scrollHeight + (c ? c.offsetHeight : 0) : 0 })()",
       )
       if (typeof h !== 'number' || h <= 0) return
       const want = Math.min(900, Math.max(360, Math.ceil(h)))
@@ -245,15 +246,29 @@ function clipFileName({ at, outcome, level, score }) {
 
 const devRecord = () => process.env.WAI_DEV_RECORD === '1' || readConfig().devRecord === true
 
+// พรีวิวกล้องจากแท็บ "กล้อง" ของหน้าหลัก: renderer ยิง POST /wai/camera-preview ซ้ำทุก ~5 วิ
+// หมดอายุเอง 12 วิ (หน้าหลักปิด/ค้าง = กล้องดับเอง ไม่ต้องรอใครสั่งปิด) · ไม่นับเป็นการไหว้ ไม่ลง wais.jsonl
+const PREVIEW_TTL_MS = 12_000
+let previewUntil = 0
+let previewTimer = null
+const previewOn = () => previewUntil > Date.now()
+function setPreview(on) {
+  previewUntil = on ? Date.now() + PREVIEW_TTL_MS : 0
+  clearTimeout(previewTimer)
+  if (on) previewTimer = setTimeout(syncVision, PREVIEW_TTL_MS + 50)
+  syncVision()
+}
+
 function syncVision() {
   if (!vision || vision.isDestroyed()) return
   const top = queue[0]
+  const realRun = enabled && queue.some((q) => !q.monitor)
   vision.webContents.send('vision:control', {
-    run: enabled && queue.some((q) => !q.monitor), // โหมดสังเกตไม่เปิดกล้อง
+    run: realRun || previewOn(), // โหมดสังเกตไม่เปิดกล้อง · แท็บกล้องในหน้าหลักเปิดกล้องดูได้แม้ไม่มีคำขอ
     requiredLevel: top ? sessions.requiredLevel(top.session_id) : 1,
     devRecord: devRecord(),
     stickerStyle: stickerStyle(),
-    stickers: enabled && !monitor, // โหมดสังเกต/bypass ไม่ใช่การไหว้จริง ไม่ทำสติ๊กเกอร์
+    stickers: realRun && !monitor, // โหมดสังเกต/bypass/พรีวิวไม่ใช่การไหว้จริง ไม่ทำสติ๊กเกอร์
   })
 }
 
@@ -671,6 +686,12 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { style: body.style })
   }
 
+  // POST /wai/camera-preview { on } ← แท็บกล้องของหน้าหลัก (เปิดกล้องวิเคราะห์ไว้โชว์ level/คะแนน ไม่ใช่การไหว้จริง)
+  if (req.method === 'POST' && route === 'camera-preview') {
+    const body = await readJson(req)
+    setPreview(Boolean(body.on))
+    return send(res, 200, { preview: previewOn() })
+  }
   // POST /wai/monitor { monitor } ← สวิตช์โหมดสังเกต (ไม่บังคับไหว้) ในหน้าหลัก/tray
   if (req.method === 'POST' && route === 'monitor') {
     const body = await readJson(req)

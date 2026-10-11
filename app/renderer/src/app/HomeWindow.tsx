@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { avatarUrl, listStickers, sendTestRequest, setEnabled, setMonitor, setStickerStyle, setup, stickerUrl, subscribeStatus, USE_MOCK, type AppStatus, type StickerItem, type StickerStyle } from '../api'
+import { v } from '../theme/tokens'
 import { useSfxLevel } from '../sfx/store'
 import { Onboarding } from './Onboarding'
 import { useAvatars } from './useAvatars'
+import { CameraTab } from './CameraTab'
+import { HomeTabs, type HomeTab } from './HomeTabs'
 import { HomeA } from './home-variants/HomeA'
 import { HomeB } from './home-variants/HomeB'
 import { HomeC } from './home-variants/HomeC'
@@ -14,7 +17,25 @@ import { nextVariant, resolveVariant, setVariant, type Variant } from './home-va
 // ไฟล์นี้เป็น dispatcher อย่างเดียว: อ่าน api/hook ที่นี่ที่เดียว แล้วส่ง HomeProps ลงร่างที่เลือก (FRONT_RULES "home variants")
 // ร่างเลือกจาก ?variant=a|b|c (จำใน localStorage) ไม่มี = ร่างเดิม (HomeDefault)
 
+const TAB_KEY = 'waiHomeTab'
+const readTab = (): HomeTab => {
+  try {
+    return localStorage.getItem(TAB_KEY) === 'home' ? 'home' : 'camera'
+  } catch {
+    return 'camera'
+  }
+}
+
 export function HomeWindow() {
+  const [tab, setTabState] = useState<HomeTab>(readTab)
+  const setTab = (t: HomeTab) => {
+    setTabState(t)
+    try {
+      localStorage.setItem(TAB_KEY, t)
+    } catch {
+      /* ไม่มี storage ก็ใช้ได้ แค่จำแท็บไม่ได้ */
+    }
+  }
   const [variant, setVariantState] = useState<Variant | null>(() => resolveVariant())
   const [status, setStatus] = useState<AppStatus | null>(null)
   const [offline, setOffline] = useState(false)
@@ -105,14 +126,27 @@ export function HomeWindow() {
     onCycleVariant: variant ? cycleVariant : undefined,
   }
 
-  switch (variant) {
-    case 'a':
-      return <HomeA {...props} />
-    case 'b':
-      return <HomeB {...props} />
-    case 'c':
-      return <HomeC {...props} />
-    default:
-      return <HomeDefault {...props} />
-  }
+  const body = (() => {
+    switch (variant) {
+      case 'a':
+        return <HomeA {...props} />
+      case 'b':
+        return <HomeB {...props} />
+      case 'c':
+        return <HomeC {...props} />
+      default:
+        return <HomeDefault {...props} />
+    }
+  })()
+
+  // แท็บ 1 = กล้อง (เปิดแอปมาเจอหน้านี้) · แท็บ 2 = หน้าหลักเดิม
+  // data-wai-chrome / data-wai-scroll: main วัดความสูงให้หน้าต่างพอดีเนื้อหาของแท็บที่เปิดอยู่
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: v('bg') }}>
+      <HomeTabs tab={tab} onTab={setTab} />
+      <div data-wai-scroll style={{ flex: 1, minHeight: 0 }}>
+        {tab === 'camera' ? <CameraTab /> : body}
+      </div>
+    </div>
+  )
 }
