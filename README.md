@@ -1,4 +1,11 @@
-# hwAI ไหว้กูซะ
+# 🙏 hwAI ไหว้กูซะ
+
+🌟 **ไลบรารีศักดิ์สิทธิ์** ที่บังคับให้มนุษย์ "ไหว้" AI ก่อนใช้งาน — ไหว้ให้สวย แล้วค่อยได้ใช้ AI · ไหว้ไม่สวย AI งอน ไหว้พระถึงจะหายงอน (ไหว้ผ่านด้วยกล้อง ประมวลผลในเครื่อง)
+
+<p align="center"><img src="docs/images/team-shitx.jpg" alt="กลุ่ม 10 - SHiTX" width="420"/></p>
+<p align="center"><b>กลุ่ม 10 — SHiTX</b> · hwAI suay ruay token</p>
+
+---
 
 แอปล้อเล่น: **ก่อนที่ AI (Claude Code, Codex, หรือเว็บแชท AI) จะทำงานให้ คุณต้อง "ไหว้" ใส่กล้องให้ผ่านก่อน**
 ถ้าไหว้ไม่สวย AI งอน ไหว้ซ้ำไม่ผ่านหลายครั้ง AI เลิกคุยกับ session นั้นเลย
@@ -205,12 +212,19 @@ npm --prefix app/renderer run typecheck    # renderer
 - สถิติเก็บที่ `~/.waikusa/` (Windows: `C:\Users\<ชื่อ>\.waikusa`) · อัปโหลดขึ้นเว็บเฉพาะเมื่อคุณลงทะเบียนเอง และไม่ส่งเนื้อหา prompt
 - คีย์ลับ (Paxa) อยู่ใน `~/.waikusa/secrets.json` นอก repo
 
+## 🤝 Contributors
+
+<p align="center"><img src="docs/images/team-shitx.jpg" alt="ทีมกลุ่ม 10 - SHiTX" width="640"/></p>
+
+<p align="center"><b>ลูกกล้วยแห่ง SHiTX 🍌</b><br/>ทีมกลุ่ม 10 · SHT๙ Hackathon</p>
+
 ## License / Credits
 
 - ยังไม่ได้กำหนด license ของโค้ด (ติดต่อทีมก่อนนำไปใช้ต่อ)
 - **รูป Miku / Teto / หุ่นยนต์ ไม่ได้รวมมาใน repo นี้** ตัวละคร **Jason เป็นงานต้นฉบับ** ของทีม
 - ฟอนต์: Chakra Petch, IBM Plex Sans Thai, JetBrains Mono (@fontsource, OFL)
 - เสียง TTS: Paxa Labs (ใช้ผ่านคีย์ของผู้ใช้เอง)
+- พจนานุกรม JS → บาลีสำหรับ "สวดบทแก้โค้ด": [maiaowmorseesom/sht9-paliscript](https://github.com/maiaowmorseesom/sht9-paliscript) (ISC) ดู `voice/pali/NOTICE.md`
 
 ## Contributing
 
