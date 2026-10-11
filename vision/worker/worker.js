@@ -3,6 +3,8 @@
 //   main  -> worker   vision:control {run: true | false, requiredLevel, stickerStyle, stickers: boolean, stickerPalette?}
 //                     stickerStyle: 'photo' | 'cartoon' | 'comic' | 'pixel' | 'neon' | 'kawaii' (STICKER_STYLES in sticker.js)
 //                     stickerPalette (optional): neon colours {dark, hot, gold} as '#RRGGBB' (default = app tokens)
+//                     sixSeven: boolean  easter egg 6-7 (scales pose). While true: no vision:pass/fail, VisionEvent gets sixSeven {swings, need}
+//   worker -> main    vision:67      {done: true}  once when the 6-7 pose is completed
 //   main  -> worker   vision:wai     {seq, id}  the wai id main recorded for a pass (kawaii sparkle seed)
 //   worker -> main    vision:event   VisionEvent (~15 fps, contract in app/renderer/src/api/types.ts)
 //   worker -> main    vision:pass    {level, score, holdMs, parts, attempts, style}  once per wai
@@ -18,6 +20,7 @@ import { DEFAULT_TH, WaiTracker, reasonsFor } from "../wai-heuristic.js";
 import { computeParts, createAttemptTracker, styleFor } from "./attempts.js";
 import { createClipPlanner } from "./clip-plan.js";
 import { encodeGif } from "./gif.js";
+import { createSixSevenTracker } from "../six-seven.js";
 import {
   STICKER_MAX_SIDE, buildSticker, faceBBox, fitSize, landmarksBBox, maskCoverage, normalizeStyle, orientMask, padFor,
   roundedRectMask,
@@ -37,6 +40,9 @@ const video = document.getElementById("video");
 const tracker = new WaiTracker({ ...DEFAULT_TH, holdMs: HOLD_MS });
 const attemptTracker = createAttemptTracker();
 const clipPlanner = createClipPlanner();
+const sixSevenTracker = createSixSevenTracker(); // easter egg: runs only while main sets sixSeven=true
+let sixSevenOn = false;
+let sixSevenDone = false; // fired once; ignored until the flag toggles off/on
 
 let landmarkers = null;
 let wantRun = false; // what main asked for
@@ -365,7 +371,21 @@ function loop() {
 
     lastPersonBox = landmarksBBox(det.pose.landmarks[0]);
     lastFaceBox = facePresent ? faceBBox(det.face.faceLandmarks[0]) : null;
-    if (passed) {
+    let six = null;
+    if (sixSevenOn) {
+      if (!sixSevenDone) {
+        const st = sixSevenTracker.update(det.hands.landmarks, ts);
+        six = { swings: st.swings, need: st.need };
+        if (st.done) {
+          sixSevenDone = true;
+          sixSevenTracker.reset();
+          bridge.sixSeven?.({ done: true });
+        }
+      } else {
+        six = { swings: sixSevenTracker.need, need: sixSevenTracker.need };
+      }
+    }
+    if (passed && !sixSevenOn) {
       attemptTracker.markPassed();
       const seq = ++stickerSeq;
       bridge.pass({
@@ -383,7 +403,7 @@ function loop() {
       }
     }
     sampleGif(ts);
-    const ended = attemptTracker.step({ ...result, reasons, parts }, dt);
+    const ended = sixSevenOn ? null : attemptTracker.step({ ...result, reasons, parts }, dt);
     if (ended) bridge.fail(ended.fail);
     if (devRecord) {
       if (clipRecorder) drawClipFrame(); // keep the canvas (the recorder's source) fresh
@@ -391,7 +411,7 @@ function loop() {
         clipPlanner.step({ stable: result.stable, passed, failed: Boolean(ended), level: result.stable, score: result.score }, dt),
       );
     }
-    if (passed || ts - lastEmit >= EMIT_MS) {
+    if ((passed && !sixSevenOn) || ts - lastEmit >= EMIT_MS) { // EMIT_MS 66 < 150, so sixSeven progress is always fresh
       lastEmit = ts;
       bridge.emit({
         isWai: result.stable > 0,
@@ -400,13 +420,14 @@ function loop() {
         holdMs: Math.round(result.holdMs),
         reasons,
         facePresent,
+        ...(six ? { sixSeven: six } : {}),
       });
     }
   }
   timer = setTimeout(loop, FRAME_MS);
 }
 
-bridge.onControl(({ run, requiredLevel: level, devRecord: rec, stickerStyle: st, stickers, stickerPalette: pal }) => {
+bridge.onControl(({ run, requiredLevel: level, devRecord: rec, stickerStyle: st, stickers, stickerPalette: pal, sixSeven }) => {
   stickerStyle = normalizeStyle(st);
   stickerPalette = pal && typeof pal === "object" ? pal : null; // sticker.js validates each colour, bad ones = default
   stickersOn = stickers !== false;
@@ -416,6 +437,11 @@ bridge.onControl(({ run, requiredLevel: level, devRecord: rec, stickerStyle: st,
   }
   if (typeof level === "number") requiredLevel = Math.max(1, Math.min(3, level));
   devRecord = Boolean(rec);
+  if (typeof sixSeven === "boolean" && sixSeven !== sixSevenOn) {
+    sixSevenOn = sixSeven;
+    sixSevenDone = false;
+    sixSevenTracker.reset();
+  }
   wantRun = Boolean(run);
   if (wantRun) start();
   else if (!starting) stop();

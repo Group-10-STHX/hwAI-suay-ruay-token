@@ -21,7 +21,7 @@ type RawQueue =
       monitor?: boolean
       avatar?: string
       linger_ms?: number
-      event?: { kind?: string; text?: string; amount?: number; ms_left?: number } | null
+      event?: { kind?: string; text?: string; amount?: number; ms_left?: number; swings?: number; need?: number } | null
     }
 
 const KNOWN_SOURCES: Source[] = ['claude-code', 'codex', 'chatgpt', 'claude-web', 'gemini-web', 'test', 'terminal']
@@ -41,13 +41,15 @@ function toItem(raw: RawQueueItem): QueueItem {
 }
 
 function toEvent(raw: unknown): WaiEvent | undefined {
-  const e = raw as { kind?: string; text?: string; amount?: number; ms_left?: number } | null | undefined
-  if (!e || (e.kind !== 'redo' && e.kind !== 'tribute') || typeof e.text !== 'string') return undefined
+  const e = raw as { kind?: string; text?: string; amount?: number; ms_left?: number; swings?: number; need?: number } | null | undefined
+  if (!e || (e.kind !== 'redo' && e.kind !== 'tribute' && e.kind !== 'sixseven') || typeof e.text !== 'string') return undefined
   return {
     kind: e.kind,
     text: e.text,
     amount: typeof e.amount === 'number' ? e.amount : undefined,
     msLeft: typeof e.ms_left === 'number' ? e.ms_left : 0,
+    swings: typeof e.swings === 'number' ? e.swings : undefined,
+    need: typeof e.need === 'number' ? e.need : undefined,
   }
 }
 

@@ -11,6 +11,11 @@ export const REDO_LINES = Object.freeze([
   'ยังไม่ถูกใจกู ไหว้อีกที',
 ])
 
+// อีสเตอร์เอ้ก 67: คะแนนไหว้ออกมา 67 พอดี → ต้องทำท่า 6-7 (สองมือสลับขึ้น-ลง) แทน · always = ทุกคำขอ
+export const SIXSEVEN_SCORE = 67;
+export const SIXSEVEN_LINES = Object.freeze(['67 มาแล้ว! ทำท่า 6-7 แทนเดี๋ยวนี้ สองมือสลับขึ้นลง']);
+export const SIXSEVEN_MS = 25_000;
+
 export const TRIBUTE_AMOUNT = 1000
 export const TRIBUTE_LINES = Object.freeze([
   'เชื่อกู รำคาญมึงว่ะ มึงต้องจ่าย True Money 1,000 บาทก่อนให้กู',
@@ -18,7 +23,7 @@ export const TRIBUTE_LINES = Object.freeze([
 
 /** โหมดต่อ event: off = ปิด · random = สุ่มตามโอกาส · always = เกิดทุกคำขอแน่นอน (ครั้งเดียวต่อคำขอ) */
 export const EVENT_MODES = Object.freeze(['off', 'random', 'always']);
-export const EVENT_KINDS = Object.freeze(['redo', 'tribute', 'chant']);
+export const EVENT_KINDS = Object.freeze(['redo', 'tribute', 'chant', 'sixseven']);
 export const normalizeMode = (m, d = 'random') => (EVENT_MODES.includes(m) ? m : d);
 
 export const DEFAULTS = Object.freeze({ redoP: 0.15, tributeP: 0.08, redoMs: 4000, tributeMs: 120_000 })
@@ -36,11 +41,11 @@ export function checkCardNumber(input) {
 export function createEvents({ rng = Math.random, now = Date.now, enabled = true, modes: initial = {}, ...opts } = {}) {
   const o = { ...DEFAULTS, ...opts };
   // chant = ถามว่าจะให้สวดบอกว่าแก้โค้ด JS อะไร (ตัดสินใจใน main ตอน AI แก้ไฟล์ ไม่ใช่ตอนไหว้) ค่าเริ่มต้น always
-  const modes = { redo: normalizeMode(initial.redo), tribute: normalizeMode(initial.tribute), chant: normalizeMode(initial.chant, 'always') };
+  const modes = { redo: normalizeMode(initial.redo), tribute: normalizeMode(initial.tribute), chant: normalizeMode(initial.chant, 'always'), sixseven: normalizeMode(initial.sixseven) };
   /** โอกาสเกิดของแต่ละชนิดตามโหมด */
   const chance = (kind) => (modes[kind] === 'off' ? 0 : modes[kind] === 'always' ? 1 : kind === 'redo' ? o.redoP : o.tributeP);
   // rng() < 1 เสมอ → always เกิดแน่ · rng() < 0 ไม่เคย → off ไม่เกิด
-  const seen = { redo: new Set(), tribute: new Set() }; // request id ที่เคยเกิดแล้ว
+  const seen = { redo: new Set(), tribute: new Set(), sixseven: new Set() }; // request id ที่เคยเกิดแล้ว
   let current = null; // { kind, text, amount?, until, requestId }
 
   const pick = (list) => list[Math.min(list.length - 1, Math.floor(rng() * list.length))];
@@ -51,7 +56,7 @@ export function createEvents({ rng = Math.random, now = Date.now, enabled = true
     return current ? { ...current, msLeft: Math.max(0, current.until - now()) } : null;
   }
   /** tribute ที่ยังไม่จ่าย = บล็อกการไหว้ทั้งหมด */
-  const blocking = () => active()?.kind === 'tribute';
+  const blocking = () => { const k = active()?.kind; return k === 'tribute' || k === 'sixseven'; };
 
   /**
    * มีความพยายามไหว้ 1 ครั้งของคำขอ requestId (type = 'pass' | 'fail')
@@ -73,6 +78,27 @@ export function createEvents({ rng = Math.random, now = Date.now, enabled = true
     return { type: 'none' };
   }
 
+  /**
+   * อีสเตอร์เอ้ก 67: เรียกตอนมีผลไหว้ (pass/fail) พร้อมคะแนน · true = เริ่มเกม 67 (event kind 'sixseven' + บล็อกการไหว้ปกติ)
+   * random = คะแนนปัดแล้วเป็น 67 พอดี · always = ทุกคำขอ (ครั้งเดียวต่อคำขอ) · off/ปิดทั้งระบบ = ไม่เกิด
+   */
+  function maybeSixSeven(requestId, score) {
+    if (!enabled || !requestId || modes.sixseven === 'off' || blocking() || seen.sixseven.has(requestId)) return false;
+    const hit = modes.sixseven === 'always' || Math.round(Number(score)) === SIXSEVEN_SCORE;
+    if (!hit) return false;
+    seen.sixseven.add(requestId);
+    current = { kind: 'sixseven', text: pick(SIXSEVEN_LINES), until: now() + SIXSEVEN_MS, requestId };
+    return true;
+  }
+  /** ทำท่าครบแล้ว → เคลียร์ · คืน requestId หรือ null */
+  function finishSixSeven() {
+    expire();
+    if (current?.kind !== 'sixseven') return null;
+    const id = current.requestId;
+    current = null;
+    return id;
+  }
+
   /** จ่ายแล้ว (mock) → เคลียร์ event · คืน requestId ที่ถูกปลด หรือ null ถ้าไม่มี tribute ค้าง */
   function pay() {
     expire();
@@ -92,5 +118,5 @@ export function createEvents({ rng = Math.random, now = Date.now, enabled = true
   }
   const getModes = () => ({ ...modes });
 
-  return { onAttempt, active, blocking, pay, dismiss, forget, setMode, getModes, enabled };
+  return { onAttempt, maybeSixSeven, finishSixSeven, active, blocking, pay, dismiss, forget, setMode, getModes, enabled };
 }

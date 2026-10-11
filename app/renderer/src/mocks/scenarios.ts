@@ -16,6 +16,7 @@ export type ScenarioName =
   | 'bypass'
   | 'eventRedo'
   | 'eventTribute'
+  | 'eventSixSeven'
 
 export type Scenario = {
   name: ScenarioName
@@ -133,6 +134,15 @@ export const SCENARIOS: Record<ScenarioName, Scenario> = {
     event: { kind: 'tribute', text: 'เชื่อกู รำคาญมึงว่ะ มึงต้องจ่าย True Money 1,000 บาทก่อนให้กู', amount: 1000, msLeft: 60000 },
     vision: () => base,
   },
+  // อีเวนต์ 67: swings ไต่ 0→need ทีละครั้งทุก 900 ms แล้ววนใหม่ (event.swings คือค่าตอน poll คิว ให้ vision.sixSeven เป็นตัวนำ)
+  eventSixSeven: {
+    name: 'eventSixSeven',
+    label: 'EVENT 67 (ทำท่า 6-7)',
+    state: 'WATCHING',
+    failCount: 0,
+    event: { kind: 'sixseven', text: '67 มาแล้ว! ทำท่า 6-7 แทนเดี๋ยวนี้', msLeft: 12000, swings: 0, need: 6 },
+    vision: (t) => ({ ...base, sixSeven: { swings: Math.floor(t / 900) % 8 > 6 ? 6 : Math.floor(t / 900) % 8, need: 6 } }),
+  },
   bypass: { name: 'bypass', label: 'WAI_BYPASS=1', state: 'IDLE', failCount: 0, bypass: true, vision: () => base },
 }
 
@@ -150,6 +160,7 @@ export const DEFAULT_QUEUE_SIZE: Record<ScenarioName, QueueSize> = {
   bypass: 0,
   eventRedo: 1,
   eventTribute: 1,
+  eventSixSeven: 1,
 }
 
 export function scenarioSnapshot(s: Scenario, queueSize: number): QueueSnapshot {

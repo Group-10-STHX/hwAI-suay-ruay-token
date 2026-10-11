@@ -234,7 +234,23 @@
   text-shadow: 0 0 8px color-mix(in srgb, currentColor 55%, transparent);
 }
 
+/* อีเวนต์ 67: เลข 6 กับ 7 ขึ้น-ลงสลับกันเหมือนตาชั่ง (วนได้เพราะมีเฉพาะตอนอีเวนต์ = มีคำขอ) */
+.fx-six,
+.fx-seven {
+  display: inline-block;
+  animation: fx-scale 700ms ease-in-out infinite alternate;
+}
+.fx-seven {
+  animation-direction: alternate-reverse;
+}
+@keyframes fx-scale {
+  from { transform: translateY(-8px); }
+  to { transform: translateY(8px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .fx-six,
+  .fx-seven,
   .fx-shake,
   .fx-blink-danger,
   .fx-shake.fx-blink-danger,

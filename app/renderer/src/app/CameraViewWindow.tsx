@@ -22,6 +22,7 @@ export function CameraViewWindow() {
         holdTargetMs={HOLD_TARGET_MS}
         isWai={ev.isWai}
         facePresent={ev.facePresent}
+        sixSeven={analysing ? ev.sixSeven : undefined}
       />
       <div style={{ color: v('textDim'), fontSize: fontSize.small }}>
         {analysing ? 'กำลังอ่านท่าไหว้จากกล้อง · ภาพไม่ออกจากเครื่อง' : 'ภาพจากกล้องแสดงในหน้านี้เท่านั้น ไม่อัด ไม่ส่งออก'}

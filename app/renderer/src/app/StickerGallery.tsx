@@ -75,7 +75,8 @@ export function StickerGallery({ items, urlFor, startIndex, onClose }: StickerGa
         <div onClick={(e) => e.stopPropagation()} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: space.sm, alignContent: 'start' }}>
           {items.map((s, i) => (
             <button key={s.file} onClick={() => setOpen(i)} title={`${s.score} คะแนน · ${when(s.at)}`} style={{ display: 'grid', gap: 2, padding: space.xs, background: v('surface'), border: `1px solid ${v('hudDim')}`, borderRadius: radius.sm, cursor: 'pointer', color: 'inherit', font: 'inherit' }}>
-              <img src={urlFor(s.file)} alt={`สติ๊กเกอร์ ${s.score}`} draggable={false} style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'contain' }} />
+              {/* มี GIF = โชว์เป็น GIF เคลื่อนไหวในตารางเลย (ไม่มี = สติ๊กเกอร์นิ่ง) */}
+              <img src={s.gifUrl ?? urlFor(s.file)} alt={`สติ๊กเกอร์ ${s.score}`} draggable={false} style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'contain' }} />
               <span className="mono" style={{ fontSize: fontSize.micro, color: v('textDim') }}>
                 {s.score} · L{s.level}{s.gifUrl ? ' · GIF' : ''}
               </span>

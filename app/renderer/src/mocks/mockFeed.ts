@@ -1,4 +1,4 @@
-import { QUEUE_POLL_MS, type AppStatus, type FleeState, type QueueSnapshot, type VisionEvent } from '../api/types'
+import { QUEUE_POLL_MS, type AppStatus, type EventKind, type EventMode, type FleeState, type QueueSnapshot, type VisionEvent } from '../api/types'
 import type { SetupBridge, SetupStatus } from '../api/setup'
 import { getMockAvatar, onMockAvatar } from './mockAvatars'
 import { DEFAULT_QUEUE_SIZE, SCENARIOS, scenarioSnapshot, type ScenarioName } from './scenarios'
@@ -140,6 +140,7 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void): () => void {
       lastSeen: { 'claude-code': Date.now() - 90_000 },
       avatar: getMockAvatar(),
       monitor: mockMonitor,
+      events: { ...mockEvents, locked: false },
     })
   emit()
   const timer = setInterval(emit, 1000)
@@ -151,6 +152,10 @@ export async function setEnabled(enabled: boolean) {
 }
 
 let mockMonitor = false
+const mockEvents: Record<EventKind, EventMode> = { redo: 'random', tribute: 'random', chant: 'always', sixseven: 'random' }
+export async function setEventMode(kind: EventKind, m: EventMode) {
+  mockEvents[kind] = m
+}
 export async function setMonitor(monitor: boolean) {
   mockMonitor = monitor
 }

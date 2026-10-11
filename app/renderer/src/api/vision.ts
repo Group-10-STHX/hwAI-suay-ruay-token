@@ -46,6 +46,10 @@ export function toVisionEvent(raw: Partial<VisionEvent>): VisionEvent {
     facePresent: raw.facePresent ?? true,
     snapshotId: raw.snapshotId,
     style: raw.style,
+    sixSeven:
+      raw.sixSeven && typeof raw.sixSeven.swings === 'number' && typeof raw.sixSeven.need === 'number'
+        ? { swings: raw.sixSeven.swings, need: raw.sixSeven.need }
+        : undefined,
   }
 }
 

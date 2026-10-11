@@ -4,6 +4,7 @@ import { font, fontSize, radius, shadow, space, stateColor, v } from '../theme/t
 import { byPhrase } from './byPhrase'
 import { failLabel, FLEE_HINT, FLEE_SFX, fleeTaunt, REASON_TEXT, SPEECH, SPEECH_HINT } from './copy'
 import { FleeFx } from './FleeFx'
+import { SixSevenMeter } from './SixSevenMeter'
 import { SpeechBubble } from './SpeechBubble'
 
 export type IslandProps = {
@@ -30,14 +31,16 @@ export type IslandProps = {
    * ลำดับความสำคัญ: flee > eventText > chat > SPEECH[state]
    */
   eventText?: string
+  /** อีเวนต์ 67: โชว์แถบนับท่า 6-7 ใต้ eventText (ฟองโทน blessed) · ไม่ส่ง = ไม่โชว์ */
+  sixSeven?: { swings: number; need: number }
 }
 
 const SHOW_SCORE: Partial<Record<SessionState, true>> = { RETRY: true, ANNOYED: true }
 
 /** island ลอย: ไม่มีกรอบรวม (§2) ฟองคำพูดซ้าย น้องขวาอยู่บนแผ่นพื้นหลังทึบมี padding การ์ดเรียงข้างล่าง */
-export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards, flee, chat, eventText }: IslandProps) {
+export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards, flee, chat, eventText, sixSeven }: IslandProps) {
   // อีเวนต์ใช้โทน RETRY (สีเดียวกับตอนไหว้พลาด)
-  const tone = eventText && !flee ? stateColor.RETRY : stateColor[state]
+  const tone = sixSeven && eventText && !flee ? 'blessed' : eventText && !flee ? stateColor.RETRY : stateColor[state]
   // ตอนหนี: ข้อความหลักเป็นคำแซว (เปลี่ยนทุกครั้งที่หนี) บรรทัดรองบอกวิธีให้หยุด
   const text = flee ? fleeTaunt(flee.dodges) : eventText ?? chat ?? SPEECH[state]
   const hint = flee ? FLEE_HINT : eventText || chat ? undefined : SPEECH_HINT[state]
@@ -55,6 +58,7 @@ export function Island({ state, failCount, score, reasons, providerColor, provid
               </div>
             )}
             {SHOW_SCORE[state] && !eventText && reason && <Detail>{REASON_TEXT[reason]}</Detail>}
+            {sixSeven && eventText && !flee && <SixSevenMeter swings={sixSeven.swings} need={sixSeven.need} />}
             {hint && <Detail tone={flee ? 'text' : undefined}>{flee ? byPhrase(hint) : hint}</Detail>}
           </SpeechBubble>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: space.sm - 2, maxWidth: 220, fontSize: fontSize.small, textShadow: shadow.text }}>

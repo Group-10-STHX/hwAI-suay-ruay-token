@@ -508,6 +508,7 @@ function syncVision() {
     devRecord: devRecord(),
     stickerStyle: stickerStyle(),
     stickers: realRun && !monitor, // โหมดสังเกต/bypass/พรีวิวไม่ใช่การไหว้จริง ไม่ทำสติ๊กเกอร์
+    sixSeven: events.active()?.kind === 'sixseven', // อีสเตอร์เอ้ก 67: worker จับท่า 6-7 แทนท่าไหว้
   })
 }
 
@@ -614,7 +615,9 @@ ipcMain.on('vision:ready', syncVision)
 // VisionEvent ส่งต่อให้หน้าจอของ Front (popup + หน้าหลัก)
 // WAI_DEBUG_VISION=1 พิมพ์ event ทุก ~2 วิ ไว้ดูว่ากล้องเห็นอะไร
 let lastVisionLog = 0
+let lastSixSeven = null // ความคืบหน้าท่า 6-7 ล่าสุดจาก worker (swings/need) ไว้ใส่ใน event ของ /wai/queue
 ipcMain.on('vision:event', (_e, event) => {
+  lastSixSeven = event && typeof event.sixSeven === 'object' ? event.sixSeven : null
   if (process.env.WAI_DEBUG_VISION === '1' && Date.now() - lastVisionLog > 2000) {
     lastVisionLog = Date.now()
     console.log('[vision] event', JSON.stringify(event))
@@ -630,6 +633,13 @@ function onVision(type, payload = {}) {
   const top = queue[0]
   if (!enabled || !top) return
   // random event: ผลไหว้ครั้งนี้ถูกปัดตก ไม่เข้า state machine (ไม่นับ fail ไม่เพิ่มความโกรธ)
+  if (!top.monitor && (type === 'pass' || type === 'fail') && events.maybeSixSeven(top.id, payload.score)) {
+    console.log(`[wai] 67! score ${payload.score} → ต้องทำท่า 6-7 (${top.id})`)
+    voice.say(events.active().text)
+    setTimeout(syncWindow, events.active().msLeft + 50) // หมดเวลา → คืนสู่การไหว้ปกติ
+    syncVision() // บอก worker ให้จับท่า 6-7 และหยุดส่ง pass/fail ปกติ
+    return syncWindow()
+  }
   if (!top.monitor) {
     const ev = events.onAttempt(top.id, type)
     if (ev.type !== 'none') {
@@ -698,6 +708,20 @@ ipcMain.handle('wai:bribe', (e, code) => {
   for (const q of queue.filter((x) => x.session_id === top.session_id)) resolve(q.id, { passed: true, level: 0, score: 0, action: 'allow' })
   speak('PASSED')
   return { ok: true, message: `รับ ${BRIBE_AMOUNT_BAHT} บาทแล้ว หายงอนก็ได้` }
+})
+// อีสเตอร์เอ้ก 67: worker จับท่า 6-7 ครบ → ปลดคำขอของ session นั้น (นับเป็น bypass level 0 ไม่ให้ token ไม่ลง wais.jsonl)
+ipcMain.on('vision:67', (_e, r) => {
+  if (!r || r.done !== true) return
+  const rid = events.finishSixSeven()
+  if (!rid) return
+  const item = queue.find((q) => q.id === rid)
+  console.log('[wai] 67 สำเร็จ → ปลดคำขอ')
+  if (item) {
+    sessions.reset(item.session_id)
+    for (const q of queue.filter((x) => x.session_id === item.session_id)) resolve(q.id, { passed: true, level: 0, score: 67, action: 'allow' })
+  }
+  voice.say('หกเจ็ด หกเจ็ด ผ่านได้')
+  syncWindow()
 })
 ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
 ipcMain.on('vision:fail', (_e, payload) => onVision('fail', payload))
@@ -955,7 +979,7 @@ const server = http.createServer(async (req, res) => {
       bypass: !enabled,
       monitor: queue.length > 0 && queue.every((q) => q.monitor),
       avatar: avatars.current(),
-      ...(ev ? { event: { kind: ev.kind, text: ev.text, ...(ev.amount ? { amount: ev.amount } : {}), ms_left: ev.msLeft } } : {}),
+      ...(ev ? { event: { kind: ev.kind, text: ev.text, ...(ev.amount ? { amount: ev.amount } : {}), ...(ev.kind === 'sixseven' && lastSixSeven ? { swings: lastSixSeven.swings, need: lastSixSeven.need } : {}), ms_left: ev.msLeft } } : {}),
     })
   }
 
@@ -1051,7 +1075,7 @@ const server = http.createServer(async (req, res) => {
   if (route === 'events') {
     if (req.method === 'POST') {
       const body = await readJson(req)
-      for (const k of ['redo', 'tribute', 'chant']) if (typeof body[k] === 'string') events.setMode(k, body[k])
+      for (const k of ['redo', 'tribute', 'chant', 'sixseven']) if (typeof body[k] === 'string') events.setMode(k, body[k])
       saveConfig({ events: events.getModes() })
       syncWindow()
     }
@@ -1277,6 +1301,7 @@ app.on('second-instance', () => openHome())
 
 app.whenReady().then(() => {
   app.dock?.hide() // เป็นแอป menu bar ไม่ขึ้น Dock
+  app.dock?.setIcon(nativeImage.createFromPath(ICON)) // ไอคอนแอป (assets/icon.png) แทนอะตอมของ Electron ตอนหน้าต่างเปิดแล้ว Dock โผล่
   if (WIN) app.setAppUserModelId('com.group10sthx.waikusa') // ชื่อ/ไอคอนบน taskbar + notification
   tray = new Tray(trayImage())
   if (!MAC) tray.on('click', openHome) // Windows: คลิกซ้าย = เปิดหน้าหลัก (คลิกขวา = เมนู)

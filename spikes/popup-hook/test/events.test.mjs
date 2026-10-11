@@ -63,5 +63,22 @@ test('modes: always fires on every request (once each), off never, setMode off c
   assert.equal(e.blocking(), false);
   assert.equal(e.setMode('nope', 'off'), false);
   assert.equal(e.setMode('redo', 'sometimes'), false);
-  assert.deepEqual(e.getModes(), { redo: 'always', tribute: 'off', chant: 'always' });
+  assert.deepEqual(e.getModes(), { redo: 'always', tribute: 'off', chant: 'always', sixseven: 'random' });
+});
+
+test('sixseven: random fires only on score 67, always fires once per request, blocks like tribute, finish clears', () => {
+  const e = createEvents({ rng: () => 0.999, tributeP: 0, redoP: 0 });
+  assert.equal(e.maybeSixSeven('a', 66), false);
+  assert.equal(e.maybeSixSeven('a', 67.4), true);
+  assert.equal(e.active().kind, 'sixseven');
+  assert.equal(e.blocking(), true);
+  assert.equal(e.onAttempt('a', 'pass').type, 'tribute'); // บล็อกการไหว้ปกติ (ผู้เรียกต้องไม่ส่งเข้า state machine)
+  assert.equal(e.finishSixSeven(), 'a');
+  assert.equal(e.blocking(), false);
+  assert.equal(e.maybeSixSeven('a', 67), false); // ใบเดิมไม่เกิดซ้ำ
+  e.setMode('sixseven', 'always');
+  assert.equal(e.maybeSixSeven('b', 10), true);
+  e.setMode('sixseven', 'off');
+  assert.equal(e.active(), null); // ปิดแล้ว event ที่ค้างอยู่หายด้วย
+  assert.equal(e.maybeSixSeven('c', 67), false);
 });

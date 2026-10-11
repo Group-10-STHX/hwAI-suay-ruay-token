@@ -18,7 +18,7 @@ export const setEnabled = USE_MOCK ? mock.setEnabled : realStatus.setEnabled
 export const setMonitor = USE_MOCK ? mock.setMonitor : realStatus.setMonitor
 export { BRIBE_AMOUNT_BAHT, submitBribe } from './bribe'
 export { submitTribute, TRIBUTE_AMOUNT_BAHT } from './tribute'
-export const setEventMode = USE_MOCK ? async () => {} : realStatus.setEventMode
+export const setEventMode = USE_MOCK ? mock.setEventMode : realStatus.setEventMode
 export const openWeb = realStatus.openWeb
 export const setCameraPreview = USE_MOCK ? async (_on: boolean) => {} : realStatus.setCameraPreview
 export const sendTestRequest = USE_MOCK ? mock.sendTestRequest : realStatus.sendTestRequest

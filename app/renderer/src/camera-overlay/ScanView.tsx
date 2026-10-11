@@ -15,6 +15,8 @@ export type ScanViewProps = {
   holdTargetMs: number
   isWai: boolean
   facePresent: boolean
+  /** อีเวนต์ 67: ไม่ส่ง = ปกติ · ส่ง = โชว์ "67" ใหญ่ทับภาพ + ความคืบหน้า และหรี่กล่อง level */
+  sixSeven?: { swings: number; need: number }
 }
 
 export const SCAN_LEVELS: { level: WaiLevel; label: string }[] = [
@@ -76,7 +78,58 @@ function Ring({ progress, value }: { progress: number; value: number }) {
   )
 }
 
-export function ScanView({ stream, error, analysing, level, score, holdMs, holdTargetMs, isWai, facePresent }: ScanViewProps) {
+function SixSevenOverlay({ swings, need }: { swings: number; need: number }) {
+  const total = Math.max(1, Math.min(12, Math.round(need)))
+  const done = Math.max(0, Math.min(total, Math.floor(swings)))
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'grid',
+        placeItems: 'center',
+        alignContent: 'center',
+        gap: space.xs,
+        padding: space.sm,
+        textAlign: 'center',
+        background: `color-mix(in srgb, ${v('bg')} 45%, transparent)`,
+        border: `3px solid ${v('blessed')}`,
+      }}
+    >
+      <div
+        className="display"
+        aria-label="67"
+        style={{ fontSize: 84, lineHeight: 0.95, fontWeight: 800, color: v('blessed'), letterSpacing: 4, textShadow: '0 2px 10px rgba(0, 0, 0, 0.7)' }}
+      >
+        <span className="fx-six">6</span>
+        <span className="fx-seven">7</span>
+      </div>
+      <div role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 4 }}>
+        {Array.from({ length: total }, (_, i) => (
+          <span
+            key={i}
+            aria-hidden
+            style={{
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              border: `2px solid ${v('blessed')}`,
+              background: i < done ? v('blessed') : 'transparent',
+            }}
+          />
+        ))}
+      </div>
+      <div className="mono" style={{ fontSize: fontSize.body, fontWeight: 700, color: v('blessed') }}>
+        {done}/{total}
+      </div>
+      <div style={{ fontSize: fontSize.small, color: v('text'), textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)', lineHeight: 1.25 }}>
+        มือสองข้าง หงายมือ ขยับสลับขึ้น-ลง
+      </div>
+    </div>
+  )
+}
+
+export function ScanView({ stream, error, analysing, level, score, holdMs, holdTargetMs, isWai, facePresent, sixSeven }: ScanViewProps) {
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     const el = ref.current
@@ -86,7 +139,7 @@ export function ScanView({ stream, error, analysing, level, score, holdMs, holdT
   }, [stream])
 
   const seen = analysing && facePresent
-  const title = error ? 'ไม่มีภาพกล้อง' : !stream ? 'กำลังเปิดกล้อง' : !analysing ? 'กล้องเปิดอยู่' : seen ? 'SCAN มนุษย์' : 'ไม่เห็นหน้ามนุษย์'
+  const title = sixSeven ? 'ทำท่า 6-7 เดี๋ยวนี้' : error ? 'ไม่มีภาพกล้อง' : !stream ? 'กำลังเปิดกล้อง' : !analysing ? 'กล้องเปิดอยู่' : seen ? 'SCAN มนุษย์' : 'ไม่เห็นหน้ามนุษย์'
 
   return (
     <div style={{ border: `2px solid ${v('hud')}`, borderRadius: radius.sm, background: v('bg'), padding: space.md, display: 'grid', gap: space.sm }}>
@@ -113,7 +166,8 @@ export function ScanView({ stream, error, analysing, level, score, holdMs, holdT
           <Corner at="tr" />
           <Corner at="bl" />
           <Corner at="br" />
-          <div
+          {sixSeven && <SixSevenOverlay swings={sixSeven.swings} need={sixSeven.need} />}
+          {!sixSeven && <div
             style={{
               position: 'absolute',
               left: space.sm,
@@ -123,10 +177,10 @@ export function ScanView({ stream, error, analysing, level, score, holdMs, holdT
             }}
           >
             <Ring progress={isWai ? holdMs / Math.max(1, holdTargetMs) : 0} value={analysing ? score : 0} />
-          </div>
+          </div>}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateRows: 'repeat(4, 1fr)', gap: space.xs }}>
+        <div style={{ display: 'grid', gridTemplateRows: 'repeat(4, 1fr)', gap: space.xs, opacity: sixSeven ? 0.35 : 1 }}>
           {SCAN_LEVELS.map((l) => {
             const on = analysing && seen && level === l.level
             return (

@@ -30,7 +30,15 @@ export type QueueItem = {
 }
 
 /** อีเวนต์สุ่ม (GET /wai/queue → event, ms_left → msLeft) */
-export type WaiEvent = { kind: 'redo' | 'tribute'; text: string; amount?: number; msLeft: number }
+export type WaiEvent = {
+  kind: 'redo' | 'tribute' | 'sixseven'
+  text: string
+  amount?: number
+  msLeft: number
+  /** sixseven: จำนวนครั้งที่สลับมือแล้ว / ที่ต้องทำ (ไม่ส่ง = ใช้จาก vision event) */
+  swings?: number
+  need?: number
+}
 
 /** สิ่งที่ UI ได้จากการ poll GET /wai/queue หนึ่งครั้ง */
 export type QueueSnapshot = {
@@ -77,6 +85,8 @@ export type VisionEvent = {
   facePresent: boolean
   snapshotId?: string // ส่งมาตอนไหว้ผ่าน
   style?: 'normal' | 'weird'
+  /** อีเวนต์ 67: มีเฉพาะตอนไข่อีสเตอร์ทำงาน (~ทุก 150 ms) swings = สลับมือแล้วกี่ครั้ง need = ต้องได้กี่ครั้ง */
+  sixSeven?: { swings: number; need: number }
 }
 
 /**
@@ -108,7 +118,7 @@ export const REQUIRED_LEVEL: Record<SessionState, WaiLevel> = {
 
 /** โหมดของ random event: off ปิด · random สุ่มตามโอกาส · always เกิดทุกคำขอแน่นอน */
 export type EventMode = 'off' | 'random' | 'always'
-export type EventKind = 'redo' | 'tribute' | 'chant'
+export type EventKind = 'redo' | 'tribute' | 'chant' | 'sixseven'
 export const EVENT_MODES: EventMode[] = ['off', 'random', 'always']
 
 export type DayStats = { wais: number; passed: number; beautiful: number; tokens: number }
@@ -131,7 +141,7 @@ export type AppStatus = {
   lastSeen: Partial<Record<string, number>> // source → epoch ms ที่เห็นคำขอล่าสุด
   avatar?: string // ชื่อน้องที่เลือกอยู่ (ไม่ส่ง = jason)
   monitor?: boolean // โหมดสังเกตเปิดอยู่ (ไม่ส่ง = false)
-  events?: { redo: EventMode; tribute: EventMode; chant: EventMode; locked: boolean } // สวิตช์ Quick Event (daemon เก่าไม่ส่ง = ไม่โชว์)
+  events?: { redo: EventMode; tribute: EventMode; chant: EventMode; sixseven: EventMode; locked: boolean } // สวิตช์ Quick Event (daemon เก่าไม่ส่ง = ไม่โชว์)
   web?: { rank: string; tv: string; me: string | null } | null // ลิงก์เว็บ WAI-NET (null = ยังไม่ได้เชื่อมเว็บ)
 }
 

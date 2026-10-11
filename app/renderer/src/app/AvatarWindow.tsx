@@ -28,6 +28,10 @@ export function AvatarWindow() {
   // main หนีเฉพาะ ANNOYED อยู่แล้ว เช็กซ้ำเพราะ IPC กับ poll คิวมาไม่พร้อมกัน (กันท่าหนีค้างตอน state เปลี่ยน)
   const fleeOn = flee.active && queue.state === 'ANNOYED'
 
+  // อีเวนต์ 67: ความคืบหน้าสดจาก vision (~150 ms) ถ้าไม่มีใช้ค่าจาก event ของคิว (poll 500 ms)
+  const six = queue.event?.kind === 'sixseven' && !queue.monitor ? queue.event : undefined
+  const sixSeven = six ? { swings: vision.sixSeven?.swings ?? six.swings ?? 0, need: vision.sixSeven?.need ?? six.need ?? 6 } : undefined
+
   // popup เป็นหน้าต่างโปร่งใหญ่ main ให้เมาส์ทะลุ · ถึงปุ่ม (.interactive) ค่อยขอรับคลิก ไม่งั้นปุ่มข้ามกดไม่ได้
   useEffect(() => {
     let on = false
@@ -60,6 +64,7 @@ export function AvatarWindow() {
           agentLabel={top?.agentLabel}
           chat={chat}
           eventText={queue.event && !queue.monitor ? queue.event.text : undefined}
+          sixSeven={sixSeven}
           flee={fleeOn ? { fleeing: flee.fleeing, dodges: fleeCount } : undefined}
           timeLeft={top && <TimeLeft createdAt={top.createdAt} now={now} timeoutMs={REQUEST_TIMEOUT_MS} />}
           mascot={<Mascot state={queue.state} providerColor={accent?.color ?? v('hudDim')} avatar={avatar} avatarSrc={avatarSrc} />}
