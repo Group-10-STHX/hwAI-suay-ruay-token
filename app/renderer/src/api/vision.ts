@@ -23,6 +23,7 @@ declare global {
       tribute?: (code: string) => Promise<{ ok: boolean; message: string }>
       /** ปิดหน้าต่าง tribute (IPC wai:tribute-close) คำขอยังรออยู่ */
       closeTribute?: () => void
+      openPaliscript?: () => Promise<{ ok: boolean }>
       bribe?: (code: string) => Promise<{ ok: boolean; message: string }>
       /** หน้าหลัก: เปิด/โฟกัสหน้าต่างกล้อง (IPC wai:open-camera-view) */
       openCameraView?: () => Promise<{ ok: boolean }>

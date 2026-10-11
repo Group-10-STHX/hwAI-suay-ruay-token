@@ -9,7 +9,19 @@ export type ChantLine = { src: string; words: ChantWord[] }
 export type ChantPhase = 'offer' | 'playing' | 'done'
 export type ChantState =
   | { active: false }
-  | { active: true; id: string; phase: ChantPhase; file: string; lines: ChantLine[]; startedAt?: number; durationMs?: number }
+  | {
+      active: true
+      id: string
+      phase: ChantPhase
+      file: string
+      lines: ChantLine[]
+      startedAt?: number
+      durationMs?: number
+      // เนื้อเพลงเดินตามเสียงจริง: บรรทัดที่กำลังสวด / เริ่มเมื่อไหร่ / เวลาโดยประมาณของบรรทัดนั้น
+      line?: number
+      lineStartedAt?: number
+      lineMs?: number
+    }
 
 // ตัวอย่างบทสวด ใช้ตอนไม่มี bridge/daemon (mock) ให้ดูหน้าตาได้ในเบราว์เซอร์: เปิด /chant.html?mock
 const MOCK_LINES: ChantLine[] = [
@@ -56,6 +68,9 @@ type RawChant = {
   lines?: { src?: string; words?: { src?: string; th?: string; rom?: string }[] }[]
   started_at?: number
   duration_ms?: number
+  line?: number
+  line_started_at?: number
+  line_ms?: number
 }
 
 export function toChantState(raw: RawChant | null | undefined): ChantState {
@@ -75,6 +90,9 @@ export function toChantState(raw: RawChant | null | undefined): ChantState {
     lines,
     startedAt: typeof raw.started_at === 'number' ? raw.started_at : undefined,
     durationMs: typeof raw.duration_ms === 'number' && raw.duration_ms > 0 ? raw.duration_ms : undefined,
+    line: typeof raw.line === 'number' && raw.line >= 0 ? raw.line : undefined,
+    lineStartedAt: typeof raw.line_started_at === 'number' ? raw.line_started_at : undefined,
+    lineMs: typeof raw.line_ms === 'number' && raw.line_ms > 0 ? raw.line_ms : undefined,
   }
 }
 
@@ -112,6 +130,16 @@ export async function answerChant(yes: boolean): Promise<{ ok: boolean }> {
 }
 
 /** ปิดหน้าต่าง (ไม่มี bridge = window.close()) */
+/** เปิดรีโป paliscript (เครดิต) ผ่าน main · ไม่มี bridge = เปิดแท็บใหม่ */
+export const PALISCRIPT_URL = 'https://github.com/maiaowmorseesom/sht9-paliscript'
+export async function openPaliscript(): Promise<void> {
+  if (window.wai?.openPaliscript) {
+    await window.wai.openPaliscript()
+    return
+  }
+  window.open(PALISCRIPT_URL, '_blank', 'noopener')
+}
+
 export function closeChant(): void {
   if (window.wai?.closeChant) window.wai.closeChant()
   else window.close()

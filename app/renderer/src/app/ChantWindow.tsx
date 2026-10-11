@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { answerChant, closeChant, subscribeChant, type ChantState } from '../api/chant'
+import { answerChant, closeChant, openPaliscript, subscribeChant, type ChantState } from '../api/chant'
 import { ChantKaraoke, ChantOffer } from '../states'
 import { fontSize, space, v } from '../theme/tokens'
 import { dragBar } from './homeStyles'
@@ -46,9 +46,17 @@ export function ChantWindow() {
   let activeIndex = -1
   if (finished) activeIndex = total
   else if (playing && total > 0) {
-    const dur = active.durationMs ?? total * 700
-    const elapsed = Math.max(0, now - (active.startedAt ?? now))
-    activeIndex = Math.min(total - 1, Math.floor((elapsed / dur) * total))
+    if (active.line !== undefined && active.lines[active.line]) {
+      // เดินตามเสียงจริงทีละบรรทัด: daemon บอกบรรทัดที่กำลังสวด ในบรรทัดไฮไลต์ทีละคำตามเวลาโดยประมาณ ไม่ล้ำไปบรรทัดถัดไปก่อนเสียงจบ
+      const before = active.lines.slice(0, active.line).reduce((n, l) => n + l.words.length, 0)
+      const words = active.lines[active.line].words.length
+      const el = Math.max(0, now - (active.lineStartedAt ?? now))
+      activeIndex = before + Math.min(words - 1, Math.floor((el / (active.lineMs ?? words * 700)) * words))
+    } else {
+      const dur = active.durationMs ?? total * 700
+      const elapsed = Math.max(0, now - (active.startedAt ?? now))
+      activeIndex = Math.min(total - 1, Math.floor((elapsed / dur) * total))
+    }
   }
 
   // จบแล้วปิดเอง · หรือเคยเห็นเซสชันแล้ว daemon เคลียร์ทิ้ง (active:false)
@@ -83,10 +91,18 @@ export function ChantWindow() {
   return (
     <div
       className="chant-bg"
-      style={{ height: '100%', boxSizing: 'border-box', padding: `${space.xl}px ${space.md}px ${space.sm}px`, color: v('text'), overflow: 'hidden', userSelect: 'none' }}
+      style={{ position: 'relative', height: '100%', boxSizing: 'border-box', padding: `${space.xl}px ${space.md}px ${space.xl}px`, color: v('text'), overflow: 'hidden', userSelect: 'none' }}
     >
       <div style={dragBar} />
       {body}
+      <button
+        className="interactive"
+        onClick={() => void openPaliscript()}
+        title="เปิดรีโป Paliscript"
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: `${space.xs}px ${space.sm}px`, background: 'transparent', border: 'none', color: v('textDim'), fontSize: fontSize.micro, cursor: 'pointer', textAlign: 'center' }}
+      >
+        บทสวดจากไอเดีย Paliscript · github.com/maiaowmorseesom/sht9-paliscript · SHT๙ Hackathon ปีที่ 9
+      </button>
     </div>
   )
 }

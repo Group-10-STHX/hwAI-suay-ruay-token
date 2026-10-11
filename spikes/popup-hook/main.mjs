@@ -322,6 +322,15 @@ function syncTribute() {
 const paliDict = loadDict(join(REPO_ROOT, 'voice', 'pali', 'js-pali-master.json'))
 const CHANT_COOLDOWN_MS = 20_000
 const CHANT_RANDOM_P = 0.35
+const CHANT_GAIN = 2.5 // เสียงสวดดังกว่าปกติ (afplay -v) · ปรับได้ที่นี่
+const PALISCRIPT_URL = 'https://github.com/maiaowmorseesom/sht9-paliscript'
+// บทเล่าตอนหน้าต่างขึ้น (อ่านทีละท่อน เสียงตรงกับที่เห็น) · เนื้อหา: ขอบคุณที่มาของไอเดียบทสวด + ถามฟัง/ไม่ฟัง
+const CHANT_INTRO = [
+  'เฮ้ย นายเพิ่งให้ AI แก้ไฟล์ จาวาสคริปต์ ใช่ไหม',
+  'มาฟังเพลงบทสวดของเราไหม ผลงานจากงานแฮกกาธอน เอสเอชทีเก้า ปีที่เก้า ที่เราได้ทำ ดีมากเลยนะ',
+  'แล้วทีนี้ นายอยากฟังหรือไม่ฟัง',
+]
+const CHANT_OUTRO = 'สาธุ จบบทสวดแล้ว'
 let chant = null // { id, file, lines, phase: 'offer'|'playing'|'done', startedAt?, durationMs? }
 let chantWin = null
 let chantCooldownUntil = 0
@@ -337,6 +346,11 @@ function offerChant(input) {
   chant = { id: randomUUID(), file: edit.file, lines, phase: 'offer' }
   console.log(`[wai] chant offer ${edit.file} (${lines.length} บรรทัด)`)
   openChantWindow()
+  // น้องเล่าให้ฟังตอนหน้าต่างขึ้น แล้วถามว่าฟังหรือไม่ฟัง (ถ้ากดฟังก่อนจบ ชุดนี้ถูกแทนที่ด้วยบทสวดทันที)
+  const id = chant.id
+  voice.narrate(CHANT_INTRO, { persona: 'p3', gain: CHANT_GAIN }).then(() => {
+    if (chant?.id === id) console.log('[wai] chant intro done')
+  })
   return true
 }
 
@@ -368,15 +382,36 @@ ipcMain.handle('wai:chant-answer', (e, yes) => {
   if (yes !== true) return { ok: false } // ไม่มีทางตอบ "ไม่" ผ่านปุ่ม (ปุ่มหนี) ปิดหน้าต่างเท่านั้น
   chant.phase = 'playing'
   chant.durationMs = estimateDurationMs(chant.lines)
-  chant.startedAt = Date.now() + 400 // เผื่อเวลาเริ่มเสียง
-  voice.say(chantText(chant.lines), { persona: 'p3' })
+  chant.startedAt = Date.now()
+  chant.line = -1
   const id = chant.id
-  setTimeout(() => {
-    if (chant?.id === id) chant.phase = 'done'
-  }, chant.durationMs + 600)
+  // สวดทีละบรรทัดจริงๆ: เนื้อเพลงเดินตามเสียง (line / line_started_at / line_ms ให้ GUI ไฮไลต์)
+  const parts = chant.lines.map((l) => chantText([l], 190))
+  voice
+    .narrate(parts, {
+      persona: 'p3',
+      gain: CHANT_GAIN,
+      onPart: (i, ev) => {
+        if (chant?.id !== id || ev !== 'start') return
+        chant.line = i
+        chant.lineStartedAt = Date.now()
+        chant.lineMs = estimateDurationMs([chant.lines[i]])
+      },
+    })
+    .then(async () => {
+      if (chant?.id !== id) return
+      chant.phase = 'done'
+      await voice.narrate([CHANT_OUTRO], { persona: 'p3', gain: CHANT_GAIN })
+    })
   setTimeout(() => {
     if (chant?.id === id && chantWin && !chantWin.isDestroyed()) chantWin.close() // GUI ปิดเองก่อนอยู่แล้ว นี่กันค้าง
-  }, chant.durationMs + 6000)
+  }, chant.durationMs + 60_000)
+  return { ok: true }
+})
+// เครดิตไอเดียบทสวด: เปิดรีโป paliscript ในเบราว์เซอร์ (URL ตายตัว ไม่รับจาก renderer)
+ipcMain.handle('wai:open-paliscript', (e) => {
+  if (!chantWin || chantWin.isDestroyed() || e.sender !== chantWin.webContents) return { ok: false }
+  shell.openExternal(PALISCRIPT_URL)
   return { ok: true }
 })
 ipcMain.on('wai:chant-close', (e) => {
@@ -1036,6 +1071,7 @@ const server = http.createServer(async (req, res) => {
       file: chant.file,
       lines: chant.lines,
       ...(chant.startedAt ? { started_at: chant.startedAt, duration_ms: chant.durationMs } : {}),
+      ...(chant.lineStartedAt ? { line: chant.line, line_started_at: chant.lineStartedAt, line_ms: chant.lineMs } : {}),
     })
   }
   // POST /wai/camera-preview { on } ← แท็บกล้องของหน้าหลัก (เปิดกล้องวิเคราะห์ไว้โชว์ level/คะแนน ไม่ใช่การไหว้จริง)

@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('wai', {
   // สวดบทแก้โค้ด (Paliscript): yes=true เท่านั้นที่ใช้ได้ (ปุ่ม ไม่ฟัง หนีเมาส์) · closeChant = ปิดหน้าต่าง
   chantAnswer: (yes) => ipcRenderer.invoke('wai:chant-answer', yes === true),
   closeChant: () => ipcRenderer.send('wai:chant-close'),
+  openPaliscript: () => ipcRenderer.invoke('wai:open-paliscript'),
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),

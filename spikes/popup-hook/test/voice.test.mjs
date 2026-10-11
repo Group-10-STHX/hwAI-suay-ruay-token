@@ -333,3 +333,28 @@ test("mode 'siri': recordings and Paxa are skipped, everything goes to system vo
   s.clock.t += 5000;
   assert.equal((await s.voice.speak({ state: 'DEMANDING', persona: 'p1' })).source, 'recording');
 });
+
+test('narrate: plays parts one after another, reports start/end, blocks other speech, gain passed on', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'voice-test-'));
+  const order = [];
+  const specs = [];
+  const v = createVoice({
+    home, apiKey: null, fetchImpl: async () => mkRes(500), now: () => 1, log: () => {}, random: () => 0,
+    playImpl: (spec) => {
+      specs.push(spec);
+      let resolve;
+      const done = new Promise((r) => { resolve = r; });
+      setTimeout(() => resolve({ ok: true }), 5);
+      return { cancel: () => resolve({ ok: false }), done };
+    },
+  });
+  const p = v.narrate(['หนึ่ง', 'สอง', 'สาม'], { persona: 'p4', gain: 2.5, onPart: (i, ev) => order.push(`${i}:${ev}`) });
+  await new Promise((r) => setTimeout(r, 1));
+  assert.equal((await v.say('แทรก', { persona: 'p4' })).skipped, 'narrating');
+  assert.equal((await v.speak({ state: 'DEMANDING' })).skipped, 'narrating');
+  const r = await p;
+  assert.deepEqual(order, ['0:start', '0:end', '1:start', '1:end', '2:start', '2:end']);
+  assert.equal(r.played, 3);
+  assert.ok(specs.every((s) => s.gain === 2.5));
+  assert.equal((await v.say('หลังจบ', { persona: 'p4' })).ok, true);
+});

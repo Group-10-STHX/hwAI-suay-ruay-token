@@ -5,7 +5,8 @@
 // The Paxa key is read lazily from <home>/secrets.json ("paxa_api_key") or opts.apiKey, never logged or exposed.
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -105,7 +106,11 @@ export function hasCommand(name, { platform = process.platform, env = process.en
 export function planPlayback(spec, { platform = process.platform, has = (n) => hasCommand(n, { platform }) } = {}) {
   if (!spec) return null;
   if (platform === 'darwin') {
-    if (spec.kind === 'file') return { cmd: 'afplay', args: [spec.path] };
+    if (spec.kind === 'file') {
+      // gain > 1 = ดังกว่าปกติ (afplay -v รับค่าเกิน 1 ได้ · ใช้ตอนสวด) ไม่ใส่ = ปกติ
+      const g = Number(spec.gain);
+      return { cmd: 'afplay', args: Number.isFinite(g) && g > 0 && g !== 1 ? ['-v', String(Math.min(g, 6)), spec.path] : [spec.path] };
+    }
     if (spec.kind === 'say') {
       const text = String(spec.text).replace(/^-+/, '');
       return { cmd: 'say', args: ['-v', spec.voice || 'Kanya', '-r', String(Math.round(spec.rate || 170)), text] };
@@ -132,6 +137,24 @@ export function planPlayback(spec, { platform = process.platform, has = (n) => h
 export function defaultPlayImpl(spec) {
   const plan = planPlayback(spec);
   if (!plan) return null;
+  // mac: say ไม่มีตัวเร่งเสียง → ถ้าขอ gain > 1 ให้เรนเดอร์เป็นไฟล์ก่อนแล้วเล่นด้วย afplay -v
+  if (plan.cmd === 'say' && Number(spec.gain) > 1) {
+    const tmp = join(tmpdir(), `wai-say-${process.pid}-${Date.now()}.aiff`);
+    let child;
+    let cancelled = false;
+    const done = new Promise((resolve) => {
+      child = execFile('say', ['-o', tmp, ...plan.args], (err) => {
+        if (err || cancelled) { try { unlinkSync(tmp); } catch { /* ไม่มีไฟล์ */ } return resolve({ ok: false }); }
+        child = execFile('afplay', ['-v', String(Math.min(Number(spec.gain), 6)), tmp], () => {
+          try { unlinkSync(tmp); } catch { /* ไม่มีไฟล์ */ }
+          resolve({ ok: true });
+        });
+        child.on('error', () => resolve({ ok: false }));
+      });
+      child.on('error', () => resolve({ ok: false }));
+    });
+    return { cancel: () => { cancelled = true; try { child.kill('SIGKILL'); } catch { /* gone */ } }, done };
+  }
   let child;
   const done = new Promise((resolve) => {
     const opts = { windowsHide: true };
@@ -173,6 +196,7 @@ export function createVoice({
   // โหมดเสียง: 'human' = เสียงคนจริงที่อัดไว้ (บทที่ยังไม่อัดใช้ Paxa/เสียงระบบแทน) · 'siri' = เสียงระบบทั้งหมด ไม่ใช้ไฟล์อัด/Paxa
   let mode = initialMode === 'siri' ? 'siri' : 'human';
   let current = personas[0]?.id || null;
+  let narrating = 0; // seq ของชุดที่กำลังเล่า (0 = ไม่มี) · ระหว่างนั้น speak/say อื่นๆ ไม่แทรก
   let muted = false;
   let seq = 0;
   let playing = null; // {cancel, done}
@@ -377,6 +401,7 @@ export function createVoice({
 
   function speak({ state, persona, lineId } = {}) {
     return run(async () => {
+      if (narrating) return { ok: false, skipped: 'narrating' };
       const pid = persona ?? current;
       if (!SAFE_ID.test(pid || '') || !personaById.has(pid)) return { ok: false, error: 'bad persona' };
       if (muted) return { ok: false, skipped: 'muted' };
@@ -396,8 +421,55 @@ export function createVoice({
     });
   }
 
+  /**
+   * เล่าเป็นชุดทีละท่อน (ใช้ตอนสวดบทแก้โค้ด): เล่นจริงทีละท่อนจนจบแล้วค่อยไปท่อนถัดไป เพื่อให้เนื้อเพลงตรงกับเสียง
+   * onPart(i, 'start' | 'end') · gain > 1 = ดังกว่าปกติ · ระหว่างเล่า speak()/say() อื่นไม่แทรก
+   * จบเมื่อเล่นครบ หรือถูกแทนที่ (narrate ใหม่ / setMuted / setMode) · ไม่ throw
+   */
+  async function narrate(parts, { persona, gain = 1, onPart = () => {} } = {}) {
+    let mine = 0;
+    try {
+      const pid = persona ?? current;
+      if (!SAFE_ID.test(pid || '') || !personaById.has(pid)) return { ok: false, error: 'bad persona' };
+      if (muted) return { ok: false, skipped: 'muted' };
+      const p = personaById.get(pid);
+      const mySeq = ++seq;
+      mine = mySeq;
+      stopPlaying();
+      narrating = mySeq;
+      const systemOnly = p.engine === 'system' || mode === 'siri';
+      const sysVoice = SAFE_SYSTEM_VOICE.test(p.systemVoice || '') ? p.systemVoice : 'Kanya';
+      let played = 0;
+      for (let i = 0; i < parts.length; i++) {
+        if (mySeq !== seq) break;
+        const text = String(parts[i] ?? '').trim();
+        if (!text || charLen(text) > 200) { onPart(i, 'start'); onPart(i, 'end'); continue; }
+        let spec = null;
+        if (!systemOnly) {
+          const file = cachePath(p.voice, text, undefined);
+          if (existsSync(file) || await synthesize(text, p.voice, file, undefined)) spec = { kind: 'file', path: file, gain };
+        }
+        if (mySeq !== seq) break;
+        if (!spec) spec = { kind: 'say', text, voice: sysVoice, rate: Math.max(110, (p.rate || 170) - 20), gain };
+        onPart(i, 'start');
+        const h = startPlay(spec);
+        if (h) { await Promise.resolve(h.done).catch(() => {}); played++; }
+        else await new Promise((r) => setTimeout(r, 400 + charLen(text) * 70)); // เงียบ: รอเวลาประมาณให้เนื้อเพลงเดินต่อ
+        onPart(i, 'end');
+      }
+      return { ok: played > 0, played, superseded: mySeq !== seq };
+    } catch (e) {
+      note(`narrate error: ${e?.name || 'error'}`);
+      return { ok: false, error: 'narrate failed' };
+    } finally {
+      // ชุดใหม่อาจเริ่มแล้ว (แทนที่ชุดนี้) ห้ามปลดล็อกของมัน
+      if (mine && narrating === mine) narrating = 0;
+    }
+  }
+
   function say(text, { persona } = {}) {
     return run(async () => {
+      if (narrating) return { ok: false, skipped: 'narrating' };
       const pid = persona ?? current;
       if (!SAFE_ID.test(pid || '') || !personaById.has(pid)) return { ok: false, error: 'bad persona' };
       if (muted) return { ok: false, skipped: 'muted' };
@@ -471,5 +543,5 @@ export function createVoice({
     };
   }
 
-  return { speak, say, prewarm, list, setPersona, getPersona, setMode, getMode, setMuted, status };
+  return { speak, say, narrate, prewarm, list, setPersona, getPersona, setMode, getMode, setMuted, status };
 }
