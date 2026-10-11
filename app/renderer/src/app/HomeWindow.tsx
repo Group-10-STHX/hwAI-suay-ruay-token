@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { avatarUrl, listStickers, openCameraView, sendTestRequest, setEnabled, setMonitor, setStickerStyle, setup, stickerUrl, subscribeStatus, USE_MOCK, type AppStatus, type StickerItem, type StickerStyle } from '../api'
-import { fontSize } from '../theme/tokens'
+import { avatarUrl, listStickers, openCameraView, openWeb, sendTestRequest, setEnabled, setMonitor, setStickerStyle, setup, stickerUrl, subscribeStatus, USE_MOCK, type AppStatus, type StickerItem, type StickerStyle } from '../api'
+import { fontSize, space, v } from '../theme/tokens'
 import { useSfxLevel } from '../sfx/store'
 import { Onboarding } from './Onboarding'
 import { useAvatars } from './useAvatars'
@@ -105,9 +105,28 @@ export function HomeWindow() {
     },
     onSettings: () => setOnboarding(true),
     cameraLink: (
-      <button className="fx-render" onClick={() => openCameraView().catch(() => {})} style={{ ...ghostButton, fontSize: fontSize.small }}>
-        📷 เปิดหน้าต่างกล้อง
-      </button>
+      <div className="fx-render" style={{ display: 'grid', gap: space.xs }}>
+        <button onClick={() => openCameraView().catch(() => {})} style={{ ...ghostButton, fontSize: fontSize.small }}>
+          📷 เปิดหน้าต่างกล้อง
+        </button>
+        {status?.web ? (
+          <div style={{ display: 'grid', gridTemplateColumns: status.web.me ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: space.xs }}>
+            <button onClick={() => openWeb('rank', status.web?.rank)} style={{ ...ghostButton, fontSize: fontSize.small }}>
+              🏆 อันดับ
+            </button>
+            <button onClick={() => openWeb('tv', status.web?.tv)} style={{ ...ghostButton, fontSize: fontSize.small }}>
+              📺 จอ TV
+            </button>
+            {status.web.me && (
+              <button onClick={() => openWeb('me', status.web?.me ?? undefined)} style={{ ...ghostButton, fontSize: fontSize.small }}>
+                👤 โปรไฟล์ฉัน
+              </button>
+            )}
+          </div>
+        ) : (
+          <span style={{ color: v('textDim'), fontSize: fontSize.micro }}>🏆 เว็บอันดับยังไม่ได้เชื่อม (ตั้ง web.enabled ใน ~/.waikusa/config.json)</span>
+        )}
+      </div>
     ),
     graphSlot: status?.stats.days?.length ? <DayChart days={status.stats.days} /> : undefined,
     variant: variant ?? undefined,

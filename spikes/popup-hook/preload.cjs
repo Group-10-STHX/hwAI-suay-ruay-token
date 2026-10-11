@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('wai', {
   openCameraView: () => ipcRenderer.invoke('wai:open-camera-view'),
   // ง้อด้วยรหัสซอง True Money 500 บาท (mock ล้อเล่น) → {ok, message}
   bribe: (code) => ipcRenderer.invoke('wai:bribe', String(code ?? '').slice(0, 200)),
+  // เปิดเว็บอันดับ WAI-NET ในเบราว์เซอร์ kind = rank | tv | me
+  openWeb: (kind) => ipcRenderer.invoke('wai:open-web', String(kind)),
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),

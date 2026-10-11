@@ -1,6 +1,6 @@
 // SPIKE: daemon :7777 + popup + กล้องตรวจไหว้ (vision/worker) ปุ่ม skip ยังอยู่ไว้ dev
 // ของจริงเป็นงานของ #1 (/app/main) อันนี้แค่พิสูจน์ว่า hook → popup → ปลด ทำงานได้
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, systemPreferences, Tray } from 'electron'
 import { execFile } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -283,6 +283,32 @@ ipcMain.handle('wai:open-camera-view', () => {
   openCameraView()
   return { ok: true }
 })
+
+// ---------- ลิงก์ไปเว็บอันดับ WAI-NET ----------
+// ที่อยู่เว็บมาจาก ~/.waikusa/config.json → web.base_url (เช่น http://localhost:3100/api/v1 → เว็บอยู่ที่ origin เดียวกัน)
+// เปิดเฉพาะ 3 หน้าที่รู้จัก (อันดับ / จอ TV / โปรไฟล์ตัวเอง) ผ่าน IPC ไม่รับ URL จาก renderer
+function webLinks() {
+  const w = readConfig().web
+  if (!w || w.enabled !== true || typeof w.base_url !== 'string') return null
+  let origin
+  try {
+    const u = new URL(w.base_url)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+    origin = u.origin
+  } catch {
+    return null
+  }
+  const handle = typeof w.handle === 'string' && /^[A-Za-z0-9_.-]{1,40}$/.test(w.handle) ? w.handle : null
+  return { rank: `${origin}/`, tv: `${origin}/tv`, me: handle ? `${origin}/players/${encodeURIComponent(handle)}` : null }
+}
+function openWeb(kind) {
+  const l = webLinks()
+  const url = l && ['rank', 'tv', 'me'].includes(kind) ? l[kind] : null
+  if (!url) return { ok: false, error: 'ยังไม่ได้เชื่อมเว็บ (ตั้ง web.enabled/base_url ใน ~/.waikusa/config.json หรือรัน wai-sync register)' }
+  shell.openExternal(url)
+  return { ok: true, url }
+}
+ipcMain.handle('wai:open-web', (_e, kind) => openWeb(kind))
 
 // ---------- กล้อง: เปิดเฉพาะตอนมีคนรอไหว้ ----------
 function createVision() {
@@ -740,7 +766,7 @@ const server = http.createServer(async (req, res) => {
 
   // GET /wai/status ← หน้าหลัก (contract §5): requests/passed/bypassed ของรอบนี้ + today/total/best_score จาก wais.jsonl
   if (req.method === 'GET' && route === 'status') {
-    return send(res, 200, { enabled, pending: queue.length, stats: { ...stats, ...waiLog.stats() }, last_seen: lastSeen, avatar: avatars.current(), monitor })
+    return send(res, 200, { enabled, pending: queue.length, stats: { ...stats, ...waiLog.stats() }, last_seen: lastSeen, avatar: avatars.current(), monitor, web: webLinks() })
   }
 
   // GET /wai/voice → บุคลิก + สถานะเสียง · POST /wai/voice { persona?, muted? } (ไม่มี key ในคำตอบ)
@@ -975,6 +1001,12 @@ function updateTray() {
       { label: 'โหมดสังเกต (จับได้ไหม ไม่บังคับไหว้)', type: 'checkbox', checked: monitor, click: (i) => setMonitor(i.checked) },
       { label: 'หนีเมาส์', type: 'checkbox', checked: fleeOn, click: (i) => setFlee(i.checked) },
       { label: 'เปิดหน้าหลัก', click: openHome },
+      ...(webLinks()
+        ? [
+            { label: '🏆 ดูอันดับ (เว็บ WAI-NET)', click: () => openWeb('rank') },
+            { label: '📺 จอ TV', click: () => openWeb('tv') },
+          ]
+        : []),
       { label: 'เปิดหน้ากล้อง', click: openCameraView },
       { label: 'โชว์ popup', click: () => livePopup().showInactive() },
       { type: 'separator' },

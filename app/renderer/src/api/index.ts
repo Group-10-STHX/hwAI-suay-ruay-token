@@ -17,6 +17,7 @@ export const subscribeStatus = USE_MOCK ? mock.subscribeStatus : realStatus.subs
 export const setEnabled = USE_MOCK ? mock.setEnabled : realStatus.setEnabled
 export const setMonitor = USE_MOCK ? mock.setMonitor : realStatus.setMonitor
 export { BRIBE_AMOUNT_BAHT, submitBribe } from './bribe'
+export const openWeb = realStatus.openWeb
 export const setCameraPreview = USE_MOCK ? async (_on: boolean) => {} : realStatus.setCameraPreview
 export const sendTestRequest = USE_MOCK ? mock.sendTestRequest : realStatus.sendTestRequest
 export const openCodexHooks: typeof realStatus.openCodexHooks = USE_MOCK ? async () => ({ ok: true }) : realStatus.openCodexHooks

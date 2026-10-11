@@ -17,6 +17,8 @@ declare global {
       onFlee?: (cb: (raw: Partial<FleeState>) => void) => () => void
       setInteractive?: (on: boolean) => void
       /** ง้อด้วยรหัสซอง True Money (mock ล้อเล่น) ผ่าน IPC ไม่ผ่าน HTTP */
+      /** เปิดเว็บอันดับ WAI-NET ในเบราว์เซอร์ (main เป็นคนเปิด renderer ส่งแค่ชนิดลิงก์) */
+      openWeb?: (kind: 'rank' | 'tv' | 'me') => Promise<{ ok: boolean; error?: string }>
       bribe?: (code: string) => Promise<{ ok: boolean; message: string }>
       /** หน้าหลัก: เปิด/โฟกัสหน้าต่างกล้อง (IPC wai:open-camera-view) */
       openCameraView?: () => Promise<{ ok: boolean }>

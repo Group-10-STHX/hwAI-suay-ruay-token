@@ -122,6 +122,7 @@ export type AppStatus = {
   lastSeen: Partial<Record<string, number>> // source → epoch ms ที่เห็นคำขอล่าสุด
   avatar?: string // ชื่อน้องที่เลือกอยู่ (ไม่ส่ง = jason)
   monitor?: boolean // โหมดสังเกตเปิดอยู่ (ไม่ส่ง = false)
+  web?: { rank: string; tv: string; me: string | null } | null // ลิงก์เว็บ WAI-NET (null = ยังไม่ได้เชื่อมเว็บ)
 }
 
 /** สติ๊กเกอร์ตอนไหว้ผ่าน: GET /wai/stickers (ใหม่สุดก่อน) */
