@@ -1,4 +1,4 @@
-import type { AppStatus, DayStats } from './types'
+import type { AppStatus, DayPoint, DayStats } from './types'
 
 const DAEMON_URL = import.meta.env.VITE_DAEMON_URL ?? 'http://localhost:7777'
 const STATUS_POLL_MS = 1000
@@ -7,7 +7,7 @@ type RawDay = Partial<DayStats>
 type RawStatus = {
   enabled: boolean
   pending: number
-  stats?: { requests?: number; passed?: number; bypassed?: number; today?: RawDay; total?: RawDay; best_score?: number }
+  stats?: { requests?: number; passed?: number; bypassed?: number; today?: RawDay; total?: RawDay; best_score?: number; days?: (RawDay & { day?: string })[] }
   last_seen?: AppStatus['lastSeen']
   avatar?: string
   monitor?: boolean
@@ -23,6 +23,9 @@ function mapStats(st: RawStatus['stats']): AppStatus['stats'] {
     today: day(st?.today),
     total: day(st?.total),
     bestScore: st?.best_score ?? undefined,
+    days: Array.isArray(st?.days)
+      ? st.days.filter((d): d is RawDay & { day: string } => typeof d?.day === 'string').map((d): DayPoint => ({ day: d.day, ...day(d) }))
+      : undefined,
   }
 }
 

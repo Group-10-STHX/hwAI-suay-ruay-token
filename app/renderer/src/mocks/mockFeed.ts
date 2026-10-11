@@ -129,6 +129,13 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void): () => void {
         today: { wais: 37, passed: 30, beautiful: 9, tokens: 630 },
         total: { wais: 312, passed: 270, beautiful: 71, tokens: 5470 },
         bestScore: 96,
+        days: [4, 11, 7, 15, 9, 22, 37].map((w, i) => ({
+          day: `2026-10-${String(5 + i).padStart(2, '0')}`,
+          wais: w,
+          passed: Math.round(w * 0.8),
+          beautiful: Math.round(w * 0.3),
+          tokens: w * 17,
+        })),
       },
       lastSeen: { 'claude-code': Date.now() - 90_000 },
       avatar: getMockAvatar(),

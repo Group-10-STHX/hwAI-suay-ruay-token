@@ -119,3 +119,18 @@ test('uploadSticker is off by default and never throws', () => {
   writeFileSync(join(home, 'config.json'), JSON.stringify({ web: { upload_stickers: true } }));
   assert.equal(log.uploadSticker('a', '/tmp/a.png'), false); // no sync instance / no recordSticker yet
 });
+
+test('stats().days: last 7 Bangkok days oldest->newest, zero-filled', async () => {
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { createWaiLog } = await import('../wai-log.mjs');
+  const home = mkdtempSync(join(tmpdir(), 'wl-days-'));
+  const t = new Date('2026-10-11T05:00:00Z');
+  const log = createWaiLog({ home, sync: false, now: () => t, logger: { warn() {}, log() {} } });
+  const s = log.stats();
+  assert.equal(s.days.length, 7);
+  assert.equal(s.days.at(-1).day, '2026-10-11');
+  assert.equal(s.days[0].day, '2026-10-05');
+  assert.ok(s.days.every((d) => d.wais === 0));
+});

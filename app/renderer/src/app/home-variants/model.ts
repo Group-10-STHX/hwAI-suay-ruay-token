@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { AppStatus, AvatarItem, AvatarMood, StickerItem, StickerStyle } from '../../api/types'
 import type { SfxLevel } from '../../sfx/policy'
 import type { Variant } from './variant'
@@ -28,6 +28,9 @@ export type HomeProps = {
   onMonitor: () => void
   onTest: () => void
   onSettings: () => void
+  // ส่วนที่ HomeWindow ประกอบให้ (กล้องสด + กราฟ) ร่างวางตรงไหนก็ได้ ไม่วาง = HomeWindow ต่อท้ายให้
+  cameraSlot?: ReactNode
+  graphSlot?: ReactNode
   // ร่างที่ใช้อยู่ (ไม่ส่ง = default ไม่มีชิปสลับ)
   variant?: Variant
   onCycleVariant?: () => void

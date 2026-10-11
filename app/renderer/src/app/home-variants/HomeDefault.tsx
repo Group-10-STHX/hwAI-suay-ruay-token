@@ -9,7 +9,7 @@ import { at, compact, type HomeProps } from './model'
 // ร่างเดิมของหน้าหลัก (ย้ายมาจาก HomeWindow ตอนทำ home variants) หน้าตาและพฤติกรรมเท่าเดิม
 // (SPIKE: หน้านี้ยังไม่ได้ทำตาม wireframe)
 
-export function HomeDefault({ status, offline, mock, sfx, onSfx, stickers, stickerStyle, onStickerStyle, stickerUrl, onToggle, onMonitor, onTest, onSettings }: HomeProps) {
+export function HomeDefault({ status, offline, mock, sfx, onSfx, stickers, stickerStyle, onStickerStyle, stickerUrl, onToggle, onMonitor, onTest, onSettings, cameraSlot, graphSlot }: HomeProps) {
   const on = status?.enabled ?? false
   const tone = on ? 'hud' : 'sulk'
 
@@ -57,6 +57,8 @@ export function HomeDefault({ status, offline, mock, sfx, onSfx, stickers, stick
         {status?.monitor ? '◐ โหมดสังเกตเปิดอยู่ · ไม่ต้องไหว้ (กดเพื่อกลับไปบังคับไหว้)' : '○ เปิดโหมดสังเกต: ใช้ AI จริงโดยไม่ต้องไหว้ ดูว่าจับได้ไหม'}
       </button>
 
+      {cameraSlot}
+
       <StickerStrip className="fx-render" css={at(4)} items={stickers} style={stickerStyle} urlFor={stickerUrl} onStyle={onStickerStyle} />
 
       <Section title="วันนี้" i={3}>
@@ -81,6 +83,8 @@ export function HomeDefault({ status, offline, mock, sfx, onSfx, stickers, stick
           ⚙ ตั้งค่า
         </button>
       </footer>
+
+      {graphSlot}
     </div>
   )
 }

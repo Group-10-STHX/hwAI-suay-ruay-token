@@ -102,6 +102,8 @@ export const REQUIRED_LEVEL: Record<SessionState, WaiLevel> = {
 }
 
 export type DayStats = { wais: number; passed: number; beautiful: number; tokens: number }
+/** 1 วันในกราฟ: day = YYYY-MM-DD (เวลาไทย) */
+export type DayPoint = DayStats & { day: string }
 
 /** สถานะของแอปสำหรับหน้าหลัก (GET /wai/status ยังไม่อยู่ใน contract รอ #1) */
 export type AppStatus = {
@@ -113,6 +115,7 @@ export type AppStatus = {
     bypassed: number
     today: DayStats
     total: DayStats
+    days?: DayPoint[] // 7 วันล่าสุด เก่า→ใหม่ (daemon เก่าไม่ส่ง = ไม่มีกราฟ)
     bestScore?: number
   }
   lastSeen: Partial<Record<string, number>> // source → epoch ms ที่เห็นคำขอล่าสุด

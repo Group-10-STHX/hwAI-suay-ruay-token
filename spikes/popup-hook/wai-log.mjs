@@ -143,7 +143,17 @@ export function createWaiLog({ home, sync = true, now = () => new Date(), logger
   /** ข้อมูลย่อของบันทึก (สำหรับ list สติ๊กเกอร์) หรือ null */
   const lookup = (id) => (meta.has(id) ? { ...meta.get(id) } : null);
 
+  /** 7 วันล่าสุด (เก่า→ใหม่) ตามวันเวลาไทย วันที่ไม่มีบันทึกเป็นศูนย์ ไว้วาดกราฟหน้าหลัก */
+  const lastDays = (n = 7) => {
+    const t = new Date(now()).getTime();
+    return Array.from({ length: n }, (_, i) => {
+      const day = bangkokDay(t - (n - 1 - i) * 86_400_000);
+      return { day, ...(byDay.get(day) || zero()) };
+    });
+  };
+
   const stats = () => ({
+    days: lastDays(),
     today: { ...(byDay.get(bangkokDay(now())) || zero()) },
     total: { ...total },
     best_score: best,
