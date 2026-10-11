@@ -8,6 +8,7 @@ import { createRequire } from 'node:module'
 import net from 'node:net'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { brandElectron } from './brand-electron.mjs' // Dock: ชื่อ "ไหว้กูซะ" + ไอคอนโลโก้ แทน Electron อะตอม (macOS)
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const RENDERER_DIR = join(ROOT, 'app', 'renderer')
@@ -20,6 +21,12 @@ function fail(msg) {
 }
 if (!existsSync(VITE_BIN) || !existsSync(join(DAEMON_DIR, 'node_modules', 'electron'))) {
   fail('ยังไม่ได้ติดตั้ง dependency · รัน: npm run setup')
+}
+
+try {
+  brandElectron({ log: console.log })
+} catch {
+  /* ตกแต่งอย่างเดียว ไม่ขวางการรัน */
 }
 
 const freePort = (preferred) =>

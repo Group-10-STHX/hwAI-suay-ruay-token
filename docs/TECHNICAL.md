@@ -23,6 +23,10 @@ daemon อ่านหน้าจอจาก `WAI_RENDERER_URL` (ค่าเ�
 | `docs` | [wai-data-contract.md](wai-data-contract.md), [PLATFORMS.md](PLATFORMS.md), mockups | |
 | `scripts` | `dev.mjs` ตัวรันรวมข้ามแพลตฟอร์ม | |
 
+## ไอคอน/ชื่อบน Dock (macOS dev)
+
+`npm run dev` เรียก `scripts/brand-electron.mjs` ให้อัตโนมัติ: แก้ `Electron.app` ใน node_modules ให้ชื่อ "ไหว้กูซะ" และใช้ไอคอนโลโก้ (`spikes/popup-hook/assets/icon.png`) แทนอะตอมของ Electron · `npm install` ใหม่แล้วถูกรีเซ็ต รัน dev ใหม่ก็ใส่ให้เอง · ถ้า Dock ยังแสดงของเดิม ลอง `killall Dock` หรือเปิดแอปใหม่
+
 ## ติด hook อย่างปลอดภัย (Claude Code / Codex)
 
 hook ทำ 2 อย่าง: UserPromptSubmit (prompt) และ PreToolUse ของ subagent (`Task|Agent` / `spawn_agent|Agent`)
