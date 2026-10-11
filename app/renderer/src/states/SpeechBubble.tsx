@@ -1,16 +1,19 @@
 import type { ReactNode } from 'react'
 import { font, fontSize, radius, shadow, space, v, type ColorToken } from '../theme/tokens'
+import { byPhrase } from './byPhrase'
 
 export type SpeechBubbleProps = {
   text: string // ข้อความหลักของน้อง (จาก copy.ts)
   tone: ColorToken // สีขอบตาม state (§4)
   children?: ReactNode // รายละเอียดใต้ข้อความ เช่น score, เหตุผล
+  textFx?: string // class effect ของข้อความหลัก เล่นใหม่ทุกครั้งที่ text เปลี่ยน (เช่น fx-pop ตอนคำแซวเปลี่ยน)
+  phraseWrap?: boolean // ตัดบรรทัดเฉพาะที่ช่องว่าง (ใช้กับข้อความที่เช็กแล้วว่าทุกวลีพอดีฟอง)
 }
 
 const MAX_W = 208
 
 /** ฟองคำพูดหางชี้ไปทางขวา (น้องยืนอยู่ขวามือ) */
-export function SpeechBubble({ text, tone, children }: SpeechBubbleProps) {
+export function SpeechBubble({ text, tone, children, textFx, phraseWrap = false }: SpeechBubbleProps) {
   const fill = v('surface')
   const edge = `1.5px solid ${v(tone)}`
   return (
@@ -26,7 +29,9 @@ export function SpeechBubble({ text, tone, children }: SpeechBubbleProps) {
         color: v('text'),
       }}
     >
-      <div style={{ fontFamily: font.display, fontWeight: 700, fontSize: fontSize.speech, lineHeight: 1.15 }}>{text}</div>
+      <div key={text} className={textFx} style={{ fontFamily: font.display, fontWeight: 700, fontSize: fontSize.speech, lineHeight: 1.15, transformOrigin: 'left center' }}>
+        {phraseWrap ? byPhrase(text) : text}
+      </div>
       {children}
       <span
         aria-hidden

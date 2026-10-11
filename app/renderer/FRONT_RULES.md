@@ -84,6 +84,7 @@
 | คิวที่รอไหว้ | `GET /wai/queue` | poll ทุก 500ms |
 | ผลของคำขอ | `GET /wai/wait/:id` | ใช้ฝั่ง hook ไม่ใช่ UI |
 | Vision event | IPC `vision:event` | ประมาณ 15 fps |
+| หนีเมาส์ (ANNOYED) | IPC `wai:flee` `{ active, fleeing }` (preload: `window.wai.onFlee`) | ส่งเมื่อค่าเปลี่ยนเท่านั้น |
 | State ของ session | `GET /wai/queue` (ขอให้ #1 ใส่ `state` และ `failCount` เพิ่ม) | poll พร้อมกับคิว |
 
 ### ฟิลด์ Vision event ที่จะขอเพิ่ม (รอ Vision ยืนยัน)
@@ -128,6 +129,10 @@ type WaiReason =
 
 - ขนาด Avatar window ห้ามเปลี่ยน ให้แสดงความต่างด้วยท่าของน้อง สี และ motion เท่านั้น
 - ช่วง ANNOYED: ตัว window หนีเมาส์ได้ แต่ห้ามออกนอกจอ และห้ามบัง webcam
+  - การขยับ window อยู่ใน **Electron main** (renderer มองไม่เห็นเมาส์นอก window ตัวเอง) main ส่ง IPC `wai:flee` `{ active, fleeing }` มาเมื่อค่าเปลี่ยน: `active` = โหมดหนีเปิด (ANNOYED และไม่ได้ปิดไว้), `fleeing` = window ขยับใน ~300ms ล่าสุด · ขอให้ main ส่งค่าปัจจุบันตอน avatar โหลดเสร็จ (`did-finish-load`) ด้วย ไม่งั้นหน้าที่ reload กลาง ANNOYED จะไม่รู้ว่ากำลังหนีจนกว่าค่าจะเปลี่ยน
+  - renderer แค่โชว์ท่า (`states/FleeFx.tsx`) และเช็กซ้ำว่า state ยังเป็น ANNOYED: `active` = น้องเอนหลบ ย่อตัว, ข้อความหลักเป็นคำแซว (`FLEE_TAUNTS` เปลี่ยนทุกครั้งที่หนี), บรรทัดรองบอกวิธีให้หยุด "ไหว้ level 2 ขึ้นไป กูถึงจะหยุด" · `fleeing` = กระโดดวิ่ง squash/stretch + ขีดสั่นสองข้าง + "ฟิ้ววว" เหนือหัว (ไม่บอกทิศ เพราะ main หนีไปทางไหนก็ได้)
+  - ห้ามเปลี่ยนขนาดหรือ layout ของ island ตอนหนี: effect ทั้งหมดเป็น absolute/transform และคำแซวทุกอันต้องยาว 2 บรรทัดเท่ากัน
+  - ดูด้วย mock: debug.html → ANNOYED → "จำลองหนีเมาส์" (ปิด / วิ่ง-หยุดสลับทุก 1.5 วิ / วิ่งค้าง)
 
 ## 5. CI (Brand)
 
@@ -179,6 +184,7 @@ type WaiReason =
 - ทุกอย่างของ HUD: เส้น scanline วิ่ง, กรอบสแกนกะพริบเบาๆ
 - ไหว้ผ่าน: flash สีทอง 300ms แล้ว fade
 - ANNOYED: สั่น (shake) 4px, กระพริบแดง
+- ANNOYED หนีเมาส์: เอนตัวนิ่งๆ ตอน `active` (`.fx-flee`), กระโดดวิ่ง + ขีดสั่น ตอน `fleeing` (`.fx-flee-run`, `.fx-flee-zip`), คำแซวใหม่เด้งครั้งเดียว (`.fx-pop`) · มีเฉพาะตอนมีคำขอ · prefers-reduced-motion เหลือแค่ท่าเอนกับขีดนิ่งๆ
 - ห้ามมี animation ที่วนไม่จบตอนไม่มีคำขอ เพราะเปลือง CPU และน่ารำคาญ
 - หน้าหลัก (ฟีลโลกล่มสลาย ใช้สีทีม แดง/ทอง): เนื้อหา render ลงจากบนลงล่างเป็นคลื่นช้าๆ ตอนเปิดหน้า (`.fx-render`, one-shot, ลำดับด้วย `--i`) · ตัวอักษรกะพริบ (`.fx-flicker`, one-shot ตอนเปิดและทุกครั้งที่ค่าเปลี่ยน) · แถบ render หนา 280px กวาดลง 4 รอบตอนเปิดหน้า (`.fx-boot`) พร้อมทั้งหน้าจอกะพริบแบบ CRT · ตอนมีคำขอรอไหว้ ตัวอักษร หน้าจอ และแถบกวาดกะพริบวนต่อ **ทุก 4 วินาที** (กะพริบ ~1.5 วิ แล้วพัก) · ตอนมีคำขอรอไหว้ (`.has-pending`) แถบกวาดลงถี่ๆ วนต่อได้ เพราะมีคำขอ จึงไม่ขัดกฎด้านบน · ปิดทั้งหมดเมื่อผู้ใช้ปิด motion
 
@@ -211,18 +217,19 @@ app/renderer/
     │   ├── AvatarWindow.tsx        ประกอบ Island + CardStack
     │   ├── CameraOverlayWindow.tsx ประกอบ ScanFrame + LevelMeter + HoldRing + ReasonChip
     │   ├── DebugPanel.tsx          ปุ่มสลับ scenario
-    │   └── store.tsx               React context + useReducer เก็บ queue, sessionState, vision
+    │   └── store.tsx               React context + useReducer เก็บ queue, sessionState, vision, flee (+ นับจำนวนครั้งที่หนี)
     ├── api/
-    │   ├── types.ts                QueueItem, SessionState, VisionEvent, WaiReason
+    │   ├── types.ts                QueueItem, SessionState, VisionEvent, WaiReason, FleeState
     │   ├── queue.ts                poll GET /wai/queue ทุก 500ms
     │   ├── avatars.ts              listAvatars, setAvatar, avatarUrl (ตัวละครของผู้ใช้)
     │   ├── stickers.ts             listStickers, stickerUrl, setStickerStyle (สติ๊กเกอร์ตอนไหว้ผ่าน)
 │   ├── status.ts               หน้าหลัก: GET /wai/status, เปิด/ปิด, ยิงคำขอทดสอบ (รอ #1 ใส่ใน contract)
-    │   ├── vision.ts               subscribe IPC vision:event
+    │   ├── vision.ts               subscribe IPC vision:event (+ type ของ window.wai)
+    │   ├── flee.ts                 subscribe IPC wai:flee (หนีเมาส์) ไม่มี window.wai.onFlee = ไม่หนี
     │   └── index.ts                เลือก real หรือ mock จาก env VITE_USE_MOCK
     ├── mocks/
     │   ├── scenarios.ts            demand, retry, annoyed, sulk, rageQuit, forgive, pass
-    │   └── mockFeed.ts             ยิง scenario เป็น queue + vision event ปลอม 15 fps
+    │   └── mockFeed.ts             ยิง scenario เป็น queue + vision event ปลอม 15 fps + flee ปลอม (annoyed วิ่ง/หยุดสลับทุก 1.5 วิ)
     ├── theme/
     │   ├── tokens.ts               สี ฟอนต์ ระยะ จากข้อ 5
     │   ├── global.css              reset, ฟอนต์, พื้นโปร่งใส
@@ -235,7 +242,8 @@ app/renderer/
     ├── states/
     │   ├── Island.tsx              กล่องลอยไม่มีกรอบ จัด Mascot + SpeechBubble + slot การ์ด
     │   ├── SpeechBubble.tsx
-    │   ├── useFlee.ts              logic หนีเมาส์ (ห้ามออกนอกจอ ห้ามบัง webcam)
+    │   ├── FleeFx.tsx              ท่าตอนหนีเมาส์ (เอน, กระโดดวิ่ง, ขีดสั่น, "ฟิ้ววว") รับ active/fleeing ทาง props · logic ขยับ window อยู่ใน Electron main
+    │   ├── byPhrase.tsx            ตัดบรรทัดภาษาไทยเฉพาะที่ช่องว่าง (ใช้กับคำแซว/คำใบ้ตอนหนี)
     │   ├── copy.ts                 ข้อความทุกอันของน้อง + map WaiReason → ข้อความ (ทีม Voice ใช้ร่วม)
     │   └── index.ts
     ├── queue/
@@ -278,6 +286,8 @@ app ──► mascot, states, queue, meter, camera-overlay ──► theme
 ```ts
 type SessionState = 'IDLE' | 'DEMANDING' | 'WATCHING' | 'PASSED' | 'RETRY'
                   | 'ANNOYED' | 'SULKING' | 'RAGE_QUIT' | 'FORGIVE'
+
+type FleeState = { active: boolean; fleeing: boolean }  // IPC wai:flee (ANNOYED หนีเมาส์)
 
 type QueueItem = {
   id: string

@@ -53,6 +53,46 @@
   50% { filter: drop-shadow(0 0 12px var(--danger)); }
 }
 
+/* ANNOYED หนีเมาส์ (states/FleeFx.tsx) main เป็นคนขยับ window ที่นี่แค่ท่าของน้อง
+   .fx-flee = โหมดหนีเปิด: เอนหลบ ย่อตัวพร้อมวิ่ง (ท่านิ่ง ไม่ใช่ animation)
+   .is-fleeing = window เพิ่งขยับ: เอนมากขึ้น + .fx-flee-run กระโดดวิ่ง + .fx-flee-zip ขีดสั่นสองข้าง
+   วนได้เพราะมีเฉพาะตอน ANNOYED (มีคำขอ) ห้ามใส่ class พวกนี้ตอน IDLE
+   transform ทั้งหมดยึดเท้าน้อง (ไม่ดัน layout) เอนแค่ไม่กี่องศา หัวน้องไม่หลุดขอบขวาของ window */
+.fx-flee {
+  transform-origin: 50% 100%;
+  transform: rotate(5deg) scale(1.03, 0.96);
+  transition: transform 160ms ease-out;
+}
+.fx-flee.is-fleeing {
+  transform: rotate(8deg) scale(1, 1);
+}
+.fx-flee-run {
+  transform-origin: 50% 100%;
+  animation: fx-flee-run 280ms ease-in-out infinite;
+}
+@keyframes fx-flee-run {
+  0%, 100% { transform: translateY(0) scale(1.08, 0.9); }
+  45% { transform: translateY(-12px) scale(0.93, 1.08) rotate(-4deg); }
+}
+.fx-flee-zip {
+  pointer-events: none;
+  animation: fx-flee-zip 300ms ease-out infinite;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes fx-flee-zip {
+  from { transform: translateX(0) scaleX(0.5); opacity: 1; }
+  to { transform: translateX(calc(var(--dir, 1) * 10px)) scaleX(1); opacity: 0; }
+}
+
+/* ข้อความเด้งเข้า (one-shot) เช่นคำแซวใหม่ทุกครั้งที่หนี ใช้ scale แยกจาก transform จะได้ไม่ทับการหมุน */
+.fx-pop {
+  animation: fx-pop 260ms cubic-bezier(0.2, 1.6, 0.4, 1) 1;
+}
+@keyframes fx-pop {
+  from { scale: 0.7; opacity: 0.2; }
+  to { scale: 1; opacity: 1; }
+}
+
 /* ไหว้ผ่าน: flash ทอง 300ms แล้ว fade (เล่นครั้งเดียว) */
 .fx-bless {
   animation: fx-bless var(--bless-ms) ease-out 1;
@@ -201,7 +241,16 @@
   .has-pending,
   .has-pending .fx-flicker,
   .fx-boot::after,
-  .has-pending::before {
+  .has-pending::before,
+  .fx-boot::before,
+  .fx-tick,
+  .fx-flee-run,
+  .fx-flee-zip,
+  .fx-pop {
     animation: none;
+  }
+  /* หนีเมาส์: เหลือท่าเอนนิ่งๆ กับขีดข้างตัวแบบไม่ขยับ */
+  .fx-flee {
+    transition: none;
   }
 }

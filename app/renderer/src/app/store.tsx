@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useReducer, type ReactNode } from 'react'
-import { subscribeQueue, subscribeVision, type QueueSnapshot, type VisionEvent } from '../api'
+import { subscribeFlee, subscribeQueue, subscribeVision, type FleeState, type QueueSnapshot, type VisionEvent } from '../api'
 
 // ที่เดียวที่อ่านข้อมูลจาก api component ข้างล่างรับทาง props เท่านั้น
 
@@ -7,17 +7,22 @@ type Store = {
   queue: QueueSnapshot
   vision: VisionEvent
   daemonOnline: boolean
+  flee: FleeState // หนีเมาส์ (IPC wai:flee จาก main)
+  fleeCount: number // หนีไปแล้วกี่ครั้ง (นับตอน fleeing false → true) ใช้หมุนคำแซว
 }
 
 type Action =
   | { type: 'queue'; snapshot: QueueSnapshot }
   | { type: 'vision'; event: VisionEvent }
   | { type: 'daemonOffline' }
+  | { type: 'flee'; flee: FleeState }
 
 const initial: Store = {
   queue: { items: [], state: 'IDLE', failCount: 0, bypass: false },
   vision: { isWai: false, level: 0, score: 0, holdMs: 0, reasons: [], facePresent: true },
   daemonOnline: true,
+  flee: { active: false, fleeing: false },
+  fleeCount: 0,
 }
 
 function reducer(s: Store, a: Action): Store {
@@ -28,6 +33,8 @@ function reducer(s: Store, a: Action): Store {
       return { ...s, vision: a.event }
     case 'daemonOffline':
       return s.daemonOnline ? { ...s, daemonOnline: false } : s
+    case 'flee':
+      return { ...s, flee: a.flee, fleeCount: a.flee.fleeing && !s.flee.fleeing ? s.fleeCount + 1 : s.fleeCount }
   }
 }
 
@@ -44,6 +51,8 @@ export function StoreProvider({ children, vision = true }: { children: ReactNode
       ),
     [],
   )
+
+  useEffect(() => subscribeFlee((flee) => dispatch({ type: 'flee', flee })), [])
 
   useEffect(() => {
     if (!vision) return

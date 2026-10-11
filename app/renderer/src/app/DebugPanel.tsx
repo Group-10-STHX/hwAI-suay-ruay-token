@@ -7,6 +7,7 @@ import {
   SCENARIOS,
   setMockControl,
   USE_MOCK,
+  type MockFlee,
   type ScenarioName,
 } from '../api'
 import { v } from '../theme/tokens'
@@ -14,11 +15,11 @@ import { useStore } from './store'
 
 // dev เท่านั้น: สลับ scenario ให้ avatar + camera-overlay ที่เปิดอยู่
 export function DebugPanel() {
-  const { queue, vision } = useStore()
+  const { queue, vision, flee } = useStore()
   const [ctl, setCtl] = useState(getMockControl)
   useEffect(() => onMockControl(setCtl), [])
 
-  const pick = (scenario: ScenarioName) => setMockControl({ scenario, queueSize: DEFAULT_QUEUE_SIZE[scenario] })
+  const pick = (scenario: ScenarioName) => setMockControl({ ...ctl, scenario, queueSize: DEFAULT_QUEUE_SIZE[scenario] })
 
   return (
     <div style={{ background: v('bg'), color: v('text'), height: '100%', overflow: 'auto', padding: 16 }}>
@@ -43,9 +44,17 @@ export function DebugPanel() {
         ))}
       </Section>
 
+      <Section title="จำลองหนีเมาส์ (มีผลเฉพาะ ANNOYED)">
+        {FLEE_MODES.map(([mode, label]) => (
+          <Btn key={mode} on={ctl.flee === mode} onClick={() => setMockControl({ ...ctl, flee: mode })}>
+            {label}
+          </Btn>
+        ))}
+      </Section>
+
       <Section title="สด">
         <pre className="mono" style={{ margin: 0, color: v('textDim'), fontSize: 13 }}>
-          {JSON.stringify({ state: queue.state, failCount: queue.failCount, cards: queue.items.length, vision }, null, 2)}
+          {JSON.stringify({ state: queue.state, failCount: queue.failCount, cards: queue.items.length, flee, vision }, null, 2)}
         </pre>
       </Section>
 
@@ -56,6 +65,12 @@ export function DebugPanel() {
     </div>
   )
 }
+
+const FLEE_MODES: Array<[MockFlee, string]> = [
+  ['off', 'ปิด (ไม่หนี)'],
+  ['auto', 'วิ่ง/หยุด สลับทุก 1.5 วิ'],
+  ['hold', 'วิ่งค้าง'],
+]
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (

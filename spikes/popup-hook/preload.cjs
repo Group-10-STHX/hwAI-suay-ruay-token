@@ -8,6 +8,13 @@ contextBridge.exposeInMainWorld('wai', {
     ipcRenderer.on('vision:event', h)
     return () => ipcRenderer.off('vision:event', h)
   },
+  // หนีเมาส์ (main ส่งให้ Avatar window เท่านั้น): { active, fleeing } ส่งเฉพาะตอนเปลี่ยน คืนฟังก์ชันเลิกฟัง
+  //   active = โหมดหนีเปิด (หัวคิว ANNOYED) · fleeing = window เพิ่งขยับภายใน ~300ms
+  onFlee: (cb) => {
+    const h = (_e, d) => cb(d)
+    ipcRenderer.on('wai:flee', h)
+    return () => ipcRenderer.off('wai:flee', h)
+  },
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),
