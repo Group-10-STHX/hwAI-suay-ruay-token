@@ -244,6 +244,8 @@ function openHome() {
 
 /** หน้าต่างกล้อง (viewfinder SCAN มนุษย์): window ปกติ ไม่โปร่ง ไม่ alwaysOnTop · ปิด = กล้องดับ + heartbeat preview หยุด · ไม่เปิดเองตอนเริ่มแอป */
 // auto = ขึ้นเองตอนมีคำขอรอไหว้ (ไม่แย่ง focus, อยู่บนสุดซ้ายของน้อง, ปิดเองเมื่อไม่มีคำขอ) · เปิดมือ = หน้าต่างปกติ ไม่ปิดเอง
+// หน้าต่างกล้องใหญ่ (ภาพ 16:9 กว้างๆ) ขยายได้ · ถ้าจอเล็กกว่านี้ Electron ย่อให้เอง
+const CAMERA_VIEW = Object.freeze({ width: 880, height: 560 })
 let cameraAuto = false
 let cameraDismissed = false // ผู้ใช้ปิดหน้าต่างอัตโนมัติเองระหว่างคิวนี้ = ไม่เด้งซ้ำจนกว่าคิวจะว่าง
 function openCameraView({ auto = false } = {}) {
@@ -257,20 +259,22 @@ function openCameraView({ auto = false } = {}) {
   cameraAuto = auto
   const place = auto ? (() => {
     const { workArea } = screen.getPrimaryDisplay()
-    const w = 460
-    return { x: Math.max(workArea.x, workArea.x + workArea.width - AVATAR.width - w - 24), y: workArea.y + Math.max(0, Math.round((workArea.height - 420) / 2)) }
+    const w = CAMERA_VIEW.width
+    return { x: Math.max(workArea.x, workArea.x + workArea.width - AVATAR.width - w - 24), y: workArea.y + Math.max(0, Math.round((workArea.height - CAMERA_VIEW.height) / 2)) }
   })() : {}
   cameraView = new BrowserWindow({
     icon: ICON,
     ...place,
     ...(auto ? { show: false, alwaysOnTop: true } : {}),
-    width: 460,
-    height: 420,
+    width: CAMERA_VIEW.width,
+    height: CAMERA_VIEW.height,
     useContentSize: true,
+    minWidth: 560,
+    minHeight: 380,
     title: 'ไหว้กูซะ · กล้อง',
     backgroundColor: '#0A0A0C',
     ...(MAC ? { titleBarStyle: 'hiddenInset' } : { autoHideMenuBar: true, icon: join(HERE, 'assets', 'icon.ico') }),
-    resizable: false,
+    resizable: true,
     webPreferences: { preload: join(HERE, 'preload.cjs'), backgroundThrottling: true },
   })
   if (!MAC) cameraView.removeMenu()
@@ -331,6 +335,16 @@ const CHANT_INTRO = [
   'แล้วทีนี้ นายอยากฟังหรือไม่ฟัง',
 ]
 const CHANT_OUTRO = 'สาธุ จบบทสวดแล้ว'
+
+// อีสเตอร์เอ้ก 67: พูดเป็นภาษาอังกฤษ "Six Seven" แบบมีจังหวะ/ทำนอง ด้วยบุคลิก p8 (เสียงที่อ่านแท็กอารมณ์ได้ของ Paxa) · ไม่มี Paxa ใช้ Samantha
+// ท่อนละอารมณ์/ความเร็วต่างกัน: ตื่นเต้น → ตะโกน → หัวเราะ (แท็กตามเอกสาร Paxa Labs ดู voice/README.md)
+const SIXSEVEN_CALL = [
+  { text: '[excited:0.9] Siiix... Seven!', speed: 0.95 },
+  { text: '[shouting] Six! Seven! Six! Seven!', speed: 1.15 },
+  { text: '[laughing] Six Seven! Do it now!', speed: 1.0 },
+]
+const SIXSEVEN_WIN = [{ text: '[excited:1] Six Seven! Six Seven! Yeah!', speed: 1.1 }]
+const singSixSeven = (parts) => voice.narrate(parts, { persona: 'p8', gain: 2.2, sysVoice: 'Samantha' })
 let chant = null // { id, file, lines, phase: 'offer'|'playing'|'done', startedAt?, durationMs? }
 let chantWin = null
 let chantCooldownUntil = 0
@@ -635,7 +649,7 @@ function onVision(type, payload = {}) {
   // random event: ผลไหว้ครั้งนี้ถูกปัดตก ไม่เข้า state machine (ไม่นับ fail ไม่เพิ่มความโกรธ)
   if (!top.monitor && (type === 'pass' || type === 'fail') && events.maybeSixSeven(top.id, payload.score)) {
     console.log(`[wai] 67! score ${payload.score} → ต้องทำท่า 6-7 (${top.id})`)
-    voice.say(events.active().text)
+    singSixSeven(SIXSEVEN_CALL)
     setTimeout(syncWindow, events.active().msLeft + 50) // หมดเวลา → คืนสู่การไหว้ปกติ
     syncVision() // บอก worker ให้จับท่า 6-7 และหยุดส่ง pass/fail ปกติ
     return syncWindow()
@@ -720,7 +734,7 @@ ipcMain.on('vision:67', (_e, r) => {
     sessions.reset(item.session_id)
     for (const q of queue.filter((x) => x.session_id === item.session_id)) resolve(q.id, { passed: true, level: 0, score: 67, action: 'allow' })
   }
-  voice.say('หกเจ็ด หกเจ็ด ผ่านได้')
+  singSixSeven(SIXSEVEN_WIN)
   syncWindow()
 })
 ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
@@ -741,7 +755,7 @@ function syncWindow() {
   // อีสเตอร์เอ้ก 67 โหมด "ทุกครั้ง": เริ่มทันทีที่คำขอขึ้นหัวคิว ไม่ต้องรอผลไหว้ก่อน
   if (queue[0] && !queue[0].monitor && enabled && events.getModes().sixseven === 'always' && events.maybeSixSeven(queue[0].id, -1)) {
     console.log(`[wai] 67! (always) → ต้องทำท่า 6-7 (${queue[0].id})`)
-    voice.say(events.active().text)
+    singSixSeven(SIXSEVEN_CALL)
     setTimeout(syncWindow, events.active().msLeft + 50)
   }
   if (queue.length > 0) {
@@ -1111,7 +1125,7 @@ const server = http.createServer(async (req, res) => {
     const started = events.maybeSixSeven(top.id, -1, { force: true })
     if (started) {
       console.log(`[wai] 67! (manual) → ต้องทำท่า 6-7 (${top.id})`)
-      voice.say(events.active().text)
+      singSixSeven(SIXSEVEN_CALL)
       setTimeout(syncWindow, events.active().msLeft + 50)
       syncWindow()
     }

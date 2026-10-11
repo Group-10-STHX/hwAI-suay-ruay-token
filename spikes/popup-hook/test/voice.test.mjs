@@ -358,3 +358,27 @@ test('narrate: plays parts one after another, reports start/end, blocks other sp
   assert.ok(specs.every((s) => s.gain === 2.5));
   assert.equal((await v.say('หลังจบ', { persona: 'p4' })).ok, true);
 });
+
+function narrateSetup() {
+  const home = mkdtempSync(join(tmpdir(), 'voice-test-'));
+  const calls = [];
+  const voice = createVoice({
+    home, apiKey: FAKE_KEY, now: () => 1, log: () => {}, random: () => 0,
+    fetchImpl: async (u, i) => { calls.push({ url: u, init: i }); return mkRes(200); },
+    playImpl: () => ({ cancel() {}, done: Promise.resolve({ ok: true }) }),
+  });
+  return { voice, calls };
+}
+
+test('narrate: tag voice gets emotion tags + speed in the Paxa request, plain voices get tags stripped', async () => {
+  const s = narrateSetup();
+  await s.voice.narrate([{ text: '[shouting] Six! Seven!', speed: 1.15 }, '[bogus] Six Seven'], { persona: 'p8', gain: 2 });
+  const bodies = s.calls.map((c) => JSON.parse(c.init.body));
+  assert.equal(bodies[0].voice, 'khanomchan');
+  assert.equal(bodies[0].text, '[shouting] Six! Seven!');
+  assert.equal(bodies[0].speed, 1.15);
+  assert.equal(bodies[1].text, 'Six Seven'); // แท็กที่ไม่รู้จักถูกตัดทิ้ง
+  const s2 = narrateSetup();
+  await s2.voice.narrate(['[shouting] Six Seven'], { persona: 'p2' }); // ไม่ใช่เสียงอ่านแท็ก
+  assert.equal(JSON.parse(s2.calls[0].init.body).text, 'Six Seven');
+});

@@ -116,3 +116,7 @@ API (โมดูล `spikes/popup-hook/voice-admin.mjs`):
 และตรวจ id ตรงกับรายการแบบ exact match + `^[A-Za-z0-9_-]{1,80}$`, WAV ไม่เกิน 4 MB / 20 วินาที, เขียนไฟล์แบบ temp แล้ว rename
 
 ทดสอบ: `node --test spikes/popup-hook/test/voice-admin.test.mjs`
+
+## อีสเตอร์เอ้ก 67 ("Six Seven")
+
+ตอนเกมท่า 6-7 เริ่ม น้องร้องเป็นภาษาอังกฤษ "Six Seven" เป็นท่อนๆ ด้วยบุคลิก p8 (เสียง `khanomchan` ที่อ่านแท็กอารมณ์ได้): `[excited] Siiix... Seven!` → `[shouting] Six! Seven! Six! Seven!` (เร็ว 1.15) → `[laughing] Six Seven! Do it now!` ทำท่าสำเร็จได้ `[excited:1] Six Seven! Six Seven! Yeah!` · ท่อนละอารมณ์/ความเร็ว (ค่าอยู่ใน `main.mjs` `SIXSEVEN_CALL` / `SIXSEVEN_WIN`) · ไม่มี Paxa ใช้เสียงระบบ Samantha · เสียงดังกว่าปกติ 2.2 เท่า

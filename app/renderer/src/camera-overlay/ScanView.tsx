@@ -148,8 +148,8 @@ export function ScanView({ stream, error, analysing, level, score, holdMs, holdT
         <span className="display">{title}</span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 104px', gap: space.sm }}>
-        <div style={{ position: 'relative', aspectRatio: '4 / 3', background: v('surface'), overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 132px', gap: space.sm }}>
+        <div style={{ position: 'relative', aspectRatio: '16 / 9', background: v('surface'), overflow: 'hidden' }}>
           <video
             ref={ref}
             muted

@@ -13,7 +13,7 @@ export const REDO_LINES = Object.freeze([
 
 // อีสเตอร์เอ้ก 67: คะแนนไหว้ออกมา 67 พอดี → ต้องทำท่า 6-7 (สองมือสลับขึ้น-ลง) แทน · always = ทุกคำขอ
 export const SIXSEVEN_SCORE = 67;
-export const SIXSEVEN_LINES = Object.freeze(['67 มาแล้ว! ทำท่า 6-7 แทนเดี๋ยวนี้ สองมือสลับขึ้นลง']);
+export const SIXSEVEN_LINES = Object.freeze(['SIX SEVEN! ทำท่า 6-7 แทนเดี๋ยวนี้ สองมือสลับขึ้นลง']);
 export const SIXSEVEN_MS = 25_000;
 
 export const TRIBUTE_AMOUNT = 1000

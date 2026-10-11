@@ -426,7 +426,7 @@ export function createVoice({
    * onPart(i, 'start' | 'end') · gain > 1 = ดังกว่าปกติ · ระหว่างเล่า speak()/say() อื่นไม่แทรก
    * จบเมื่อเล่นครบ หรือถูกแทนที่ (narrate ใหม่ / setMuted / setMode) · ไม่ throw
    */
-  async function narrate(parts, { persona, gain = 1, onPart = () => {} } = {}) {
+  async function narrate(parts, { persona, gain = 1, onPart = () => {}, sysVoice: sysVoiceOpt } = {}) {
     let mine = 0;
     try {
       const pid = persona ?? current;
@@ -438,23 +438,29 @@ export function createVoice({
       stopPlaying();
       narrating = mySeq;
       const systemOnly = p.engine === 'system' || mode === 'siri';
-      const sysVoice = SAFE_SYSTEM_VOICE.test(p.systemVoice || '') ? p.systemVoice : 'Kanya';
+      const sysVoice = SAFE_SYSTEM_VOICE.test(sysVoiceOpt || '') ? sysVoiceOpt : SAFE_SYSTEM_VOICE.test(p.systemVoice || '') ? p.systemVoice : 'Kanya';
+      const tagVoice = TAG_VOICES.has(p.voice);
       let played = 0;
       for (let i = 0; i < parts.length; i++) {
         if (mySeq !== seq) break;
-        const text = String(parts[i] ?? '').trim();
-        if (!text || charLen(text) > 200) { onPart(i, 'start'); onPart(i, 'end'); continue; }
+        // ท่อนเป็นข้อความล้วน หรือ { text, speed } · เสียงที่อ่านแท็กอารมณ์ได้ ([excited] ฯลฯ) จะส่งแท็กไปด้วย ที่เหลือตัดทิ้ง
+        const part = typeof parts[i] === 'object' && parts[i] ? parts[i] : { text: parts[i] };
+        const raw = String(part.text ?? '').trim();
+        const plain = stripTags(raw);
+        if (!plain || charLen(plain) > 200) { onPart(i, 'start'); onPart(i, 'end'); continue; }
+        const synthText = tagVoice ? sanitizeTags(raw, () => {}) || plain : plain;
+        const speed = tagVoice ? clampSpeed(part.speed) : undefined;
         let spec = null;
         if (!systemOnly) {
-          const file = cachePath(p.voice, text, undefined);
-          if (existsSync(file) || await synthesize(text, p.voice, file, undefined)) spec = { kind: 'file', path: file, gain };
+          const file = cachePath(p.voice, synthText, speed);
+          if (existsSync(file) || await synthesize(synthText, p.voice, file, speed)) spec = { kind: 'file', path: file, gain };
         }
         if (mySeq !== seq) break;
-        if (!spec) spec = { kind: 'say', text, voice: sysVoice, rate: Math.max(110, (p.rate || 170) - 20), gain };
+        if (!spec) spec = { kind: 'say', text: plain, voice: sysVoice, rate: Math.max(110, Math.round((p.rate || 170) * (clampSpeed(part.speed) ?? 1)) - 20), gain };
         onPart(i, 'start');
         const h = startPlay(spec);
         if (h) { await Promise.resolve(h.done).catch(() => {}); played++; }
-        else await new Promise((r) => setTimeout(r, 400 + charLen(text) * 70)); // เงียบ: รอเวลาประมาณให้เนื้อเพลงเดินต่อ
+        else await new Promise((r) => setTimeout(r, 400 + charLen(plain) * 70)); // เงียบ: รอเวลาประมาณให้เนื้อเพลงเดินต่อ
         onPart(i, 'end');
       }
       return { ok: played > 0, played, superseded: mySeq !== seq };
