@@ -153,6 +153,7 @@ export function createVoice({
   dataDir = DEFAULT_DATA_DIR,
   baseUrl = PAXA_BASE,
   random = Math.random,
+  mode: initialMode = 'human',
 } = {}) {
   if (!home) throw new Error('createVoice: home is required');
   const root = join(home, 'voice');
@@ -169,6 +170,8 @@ export function createVoice({
   ].filter((l) => l && typeof l.text === 'string' && l.text && personaById.has(l.persona));
   const defaults = readJson(join(dataDir, 'lines.extra.json'), {}).defaults || {};
 
+  // โหมดเสียง: 'human' = เสียงคนจริงที่อัดไว้ (บทที่ยังไม่อัดใช้ Paxa/เสียงระบบแทน) · 'siri' = เสียงระบบทั้งหมด ไม่ใช้ไฟล์อัด/Paxa
+  let mode = initialMode === 'siri' ? 'siri' : 'human';
   let current = personas[0]?.id || null;
   let muted = false;
   let seq = 0;
@@ -335,7 +338,7 @@ export function createVoice({
   async function resolveAndPlay({ persona, lineId, line, state, useRecording }, mySeq) {
     const p = personaById.get(persona);
     const { plain: text, synth, speed } = buildSpeech(p, line);
-    if (useRecording && lineId) {
+    if (useRecording && lineId && mode !== 'siri') {
       const rec = recordingPath(persona, lineId);
       if (rec) {
         if (mySeq !== seq) return { ok: false, skipped: 'superseded' };
@@ -344,7 +347,7 @@ export function createVoice({
       }
     }
     // engine:'system' = บุคลิกที่ตั้งใจใช้เสียงของระบบ (เช่น หุ่นเย็นชา แบบ Siri) ไม่ผ่าน Paxa เลย
-    const systemOnly = p.engine === 'system';
+    const systemOnly = p.engine === 'system' || mode === 'siri';
     const file = cachePath(p.voice, synth, speed);
     let source = null;
     if (!systemOnly) {
@@ -440,6 +443,12 @@ export function createVoice({
     return true;
   }
   const getPersona = () => current;
+  function setMode(m) {
+    if (m !== 'siri' && m !== 'human') return mode;
+    if (m !== mode) { mode = m; seq++; stopPlaying(); }
+    return mode;
+  }
+  const getMode = () => mode;
   function setMuted(m) {
     muted = !!m;
     if (muted) { seq++; stopPlaying(); }
@@ -448,6 +457,7 @@ export function createVoice({
   function status() {
     return {
       persona: current,
+      mode,
       muted,
       speaking: !!playing,
       paxa: {
@@ -461,5 +471,5 @@ export function createVoice({
     };
   }
 
-  return { speak, say, prewarm, list, setPersona, getPersona, setMuted, status };
+  return { speak, say, prewarm, list, setPersona, getPersona, setMode, getMode, setMuted, status };
 }

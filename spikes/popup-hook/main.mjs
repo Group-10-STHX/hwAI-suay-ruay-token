@@ -125,13 +125,19 @@ const sessions = createSessions()
 const waiLog = createWaiLog({ home: WAI_HOME, sync: !DEV_INSTANCE })
 const avatars = createAvatars({ home: WAI_HOME })
 const stickers = createStickers({ home: WAI_HOME })
-const voice = createVoice({ home: WAI_HOME, log: console.log }) // key อ่านจาก ~/.waikusa/secrets.json
+const voice = createVoice({ home: WAI_HOME, log: console.log, mode: readConfig().voice_mode }) // key อ่านจาก ~/.waikusa/secrets.json
 const REPO_ROOT = join(HERE, '..', '..')
 const voiceAdmin = createVoiceAdmin({
   home: WAI_HOME,
   linesFile: join(REPO_ROOT, 'voice', 'lines.all.json'),
   adminDir: join(REPO_ROOT, 'voice', 'admin'),
   play: (file) => defaultPlayImpl({ kind: 'file', path: file })?.done,
+  getMode: () => voice.getMode(),
+  setMode: (m) => {
+    const r = voice.setMode(m)
+    saveConfig({ voice_mode: r })
+    return r
+  },
   now: Date.now,
   log: console.log,
 })
@@ -698,6 +704,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJson(req)
       if (typeof body.persona === 'string') voice.setPersona(body.persona)
       if (typeof body.muted === 'boolean') voice.setMuted(body.muted)
+      if (body.mode === 'siri' || body.mode === 'human') saveConfig({ voice_mode: voice.setMode(body.mode) })
       // ลองฟังเสียงตาม state โดยไม่ต้องมีคำขอ: { demo: 'RETRY', persona?: 'p7' } (ใช้ทดสอบอารมณ์ของเสียง)
       if (typeof body.demo === 'string') voice.speak({ state: body.demo, persona: typeof body.persona === 'string' ? body.persona : undefined })
     }
