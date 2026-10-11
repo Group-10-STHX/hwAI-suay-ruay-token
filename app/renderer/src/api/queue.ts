@@ -1,4 +1,4 @@
-import { QUEUE_POLL_MS, type QueueItem, type QueueSnapshot, type SessionState, type Source } from './types'
+import { QUEUE_POLL_MS, type QueueItem, type QueueSnapshot, type SessionState, type Source, type WaiEvent } from './types'
 
 const DAEMON_URL = import.meta.env.VITE_DAEMON_URL ?? 'http://localhost:7777'
 
@@ -13,7 +13,16 @@ type RawQueueItem = {
 }
 type RawQueue =
   | RawQueueItem[]
-  | { items: RawQueueItem[]; state?: SessionState; fail_count?: number; bypass?: boolean; monitor?: boolean; avatar?: string; linger_ms?: number }
+  | {
+      items: RawQueueItem[]
+      state?: SessionState
+      fail_count?: number
+      bypass?: boolean
+      monitor?: boolean
+      avatar?: string
+      linger_ms?: number
+      event?: { kind?: string; text?: string; amount?: number; ms_left?: number } | null
+    }
 
 const KNOWN_SOURCES: Source[] = ['claude-code', 'codex', 'chatgpt', 'claude-web', 'gemini-web', 'test', 'terminal']
 
@@ -31,6 +40,17 @@ function toItem(raw: RawQueueItem): QueueItem {
   }
 }
 
+function toEvent(raw: unknown): WaiEvent | undefined {
+  const e = raw as { kind?: string; text?: string; amount?: number; ms_left?: number } | null | undefined
+  if (!e || (e.kind !== 'redo' && e.kind !== 'tribute') || typeof e.text !== 'string') return undefined
+  return {
+    kind: e.kind,
+    text: e.text,
+    amount: typeof e.amount === 'number' ? e.amount : undefined,
+    msLeft: typeof e.ms_left === 'number' ? e.ms_left : 0,
+  }
+}
+
 export function toSnapshot(raw: RawQueue): QueueSnapshot {
   const obj = Array.isArray(raw) ? { items: raw } : raw
   const now = Date.now()
@@ -45,6 +65,7 @@ export function toSnapshot(raw: RawQueue): QueueSnapshot {
     bypass: ('bypass' in obj && obj.bypass) || false,
     monitor: 'monitor' in obj && obj.monitor === true,
     avatar: 'avatar' in obj && typeof obj.avatar === 'string' ? obj.avatar : undefined,
+    event: 'event' in obj ? toEvent(obj.event) : undefined,
     lingerMs: 'linger_ms' in obj && typeof obj.linger_ms === 'number' && obj.linger_ms > 0 ? obj.linger_ms : undefined,
   }
 }

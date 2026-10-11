@@ -1,4 +1,4 @@
-import type { QueueItem, QueueSnapshot, SessionState, Source, VisionEvent, WaiLevel, WaiReason } from '../api/types'
+import type { QueueItem, WaiEvent, QueueSnapshot, SessionState, Source, VisionEvent, WaiLevel, WaiReason } from '../api/types'
 
 // Scenario ปลอมสำหรับดู UI โดยไม่ต้องมีกล้องหรือ hook
 // ทุก scenario = snapshot ของคิว + ฟังก์ชันสร้าง vision event ตามเวลา (t = ms ตั้งแต่เริ่ม scenario)
@@ -14,6 +14,8 @@ export type ScenarioName =
   | 'rageQuit'
   | 'forgive'
   | 'bypass'
+  | 'eventRedo'
+  | 'eventTribute'
 
 export type Scenario = {
   name: ScenarioName
@@ -21,6 +23,7 @@ export type Scenario = {
   state: SessionState
   failCount: number
   bypass?: boolean
+  event?: WaiEvent
   vision: (t: number) => VisionEvent
 }
 
@@ -113,6 +116,23 @@ export const SCENARIOS: Record<ScenarioName, Scenario> = {
     failCount: 6,
     vision: (t) => (t % 6000 < 3000 ? sloppy(2, 66, ['NOT_BOWING'])(t) : rampTo(3, 98, 6000)(t)),
   },
+  // อีเวนต์สุ่มล้อเล่น (ข้อความตรงกับที่ daemon ส่ง)
+  eventRedo: {
+    name: 'eventRedo',
+    label: 'EVENT redo (ไหว้สวยก็ไม่ผ่าน)',
+    state: 'WATCHING',
+    failCount: 0,
+    event: { kind: 'redo', text: 'ทำไมมึงไหว้ไม่สวยอีสัตว์ มึงไปไหว้ใหม่ซะอีกรอบ', msLeft: 8000 },
+    vision: rampTo(3, 96),
+  },
+  eventTribute: {
+    name: 'eventTribute',
+    label: 'EVENT tribute (ขอ True Money 1,000)',
+    state: 'DEMANDING',
+    failCount: 0,
+    event: { kind: 'tribute', text: 'เชื่อกู รำคาญมึงว่ะ มึงต้องจ่าย True Money 1,000 บาทก่อนให้กู', amount: 1000, msLeft: 60000 },
+    vision: () => base,
+  },
   bypass: { name: 'bypass', label: 'WAI_BYPASS=1', state: 'IDLE', failCount: 0, bypass: true, vision: () => base },
 }
 
@@ -128,8 +148,10 @@ export const DEFAULT_QUEUE_SIZE: Record<ScenarioName, QueueSize> = {
   rageQuit: 0,
   forgive: 1,
   bypass: 0,
+  eventRedo: 1,
+  eventTribute: 1,
 }
 
 export function scenarioSnapshot(s: Scenario, queueSize: number): QueueSnapshot {
-  return { items: makeQueue(queueSize), state: s.state, failCount: s.failCount, bypass: s.bypass ?? false }
+  return { items: makeQueue(queueSize), state: s.state, failCount: s.failCount, bypass: s.bypass ?? false, event: s.event }
 }

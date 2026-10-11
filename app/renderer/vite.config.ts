@@ -17,6 +17,7 @@ export default defineConfig({
         cameraView: page('./camera-view.html'),
         debug: page('./debug.html'),
         home: page('./home.html'),
+        tribute: page('./tribute.html'),
       },
     },
   },

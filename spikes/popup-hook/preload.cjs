@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('wai', {
   bribe: (code) => ipcRenderer.invoke('wai:bribe', String(code ?? '').slice(0, 200)),
   // เปิดเว็บอันดับ WAI-NET ในเบราว์เซอร์ kind = rank | tv | me
   openWeb: (kind) => ipcRenderer.invoke('wai:open-web', String(kind)),
+  // ค่าไถ่ True Money 1,000 บาท (mock ล้อเล่น) จากหน้าต่าง tribute → {ok, message} · closeTribute = ปิดหน้าต่าง (คำขอยังรอต่อ)
+  tribute: (code) => ipcRenderer.invoke('wai:tribute', String(code ?? '').slice(0, 40)),
+  closeTribute: () => ipcRenderer.send('wai:tribute-close'),
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),

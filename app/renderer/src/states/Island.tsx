@@ -25,16 +25,22 @@ export type IslandProps = {
   flee?: { fleeing: boolean; dodges: number }
   /** ไหว้ผ่านแล้วน้องคุยต่อ: ข้อความนี้แทนข้อความของ state และพิมพ์ทีละตัวอักษร (app/ เป็นคนเลื่อนบรรทัด) */
   chat?: string
+  /**
+   * อีเวนต์สุ่ม (ล้อเล่น) ข้อความนี้แทนข้อความของ state ตลอดที่อีเวนต์ยังอยู่ (พิมพ์ทีละตัวอักษร, tone RETRY) · ไม่ส่ง = ปกติ
+   * ลำดับความสำคัญ: flee > eventText > chat > SPEECH[state]
+   */
+  eventText?: string
 }
 
 const SHOW_SCORE: Partial<Record<SessionState, true>> = { RETRY: true, ANNOYED: true }
 
 /** island ลอย: ไม่มีกรอบรวม (§2) ฟองคำพูดซ้าย น้องขวาอยู่บนแผ่นพื้นหลังทึบมี padding การ์ดเรียงข้างล่าง */
-export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards, flee, chat }: IslandProps) {
-  const tone = stateColor[state]
+export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards, flee, chat, eventText }: IslandProps) {
+  // อีเวนต์ใช้โทน RETRY (สีเดียวกับตอนไหว้พลาด)
+  const tone = eventText && !flee ? stateColor.RETRY : stateColor[state]
   // ตอนหนี: ข้อความหลักเป็นคำแซว (เปลี่ยนทุกครั้งที่หนี) บรรทัดรองบอกวิธีให้หยุด
-  const text = flee ? fleeTaunt(flee.dodges) : chat ?? SPEECH[state]
-  const hint = flee ? FLEE_HINT : chat ? undefined : SPEECH_HINT[state]
+  const text = flee ? fleeTaunt(flee.dodges) : eventText ?? chat ?? SPEECH[state]
+  const hint = flee ? FLEE_HINT : eventText || chat ? undefined : SPEECH_HINT[state]
   const reason = reasons[0]
   const mascotFx = state === 'ANNOYED' ? 'fx-shake fx-blink-danger' : state === 'PASSED' || state === 'FORGIVE' ? 'fx-bless' : undefined
 
@@ -42,13 +48,13 @@ export function Island({ state, failCount, score, reasons, providerColor, provid
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: space.sm + 2, width: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', gap: space.sm }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: space.xs + 2, paddingBottom: space.md }}>
-          <SpeechBubble text={text} tone={tone} textFx={flee ? 'fx-pop' : undefined} phraseWrap={!!flee} typing={!!chat}>
-            {SHOW_SCORE[state] && (
+          <SpeechBubble text={text} tone={tone} textFx={flee ? 'fx-pop' : undefined} phraseWrap={!!flee} typing={!flee && !!(eventText ?? chat)}>
+            {SHOW_SCORE[state] && !eventText && (
               <div className="mono" style={{ fontSize: fontSize.score, lineHeight: 1, color: v(tone), marginTop: space.xs }}>
                 {score}
               </div>
             )}
-            {SHOW_SCORE[state] && reason && <Detail>{REASON_TEXT[reason]}</Detail>}
+            {SHOW_SCORE[state] && !eventText && reason && <Detail>{REASON_TEXT[reason]}</Detail>}
             {hint && <Detail tone={flee ? 'text' : undefined}>{flee ? byPhrase(hint) : hint}</Detail>}
           </SpeechBubble>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: space.sm - 2, maxWidth: 220, fontSize: fontSize.small, textShadow: shadow.text }}>

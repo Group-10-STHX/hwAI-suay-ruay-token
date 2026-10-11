@@ -19,6 +19,10 @@ declare global {
       /** ง้อด้วยรหัสซอง True Money (mock ล้อเล่น) ผ่าน IPC ไม่ผ่าน HTTP */
       /** เปิดเว็บอันดับ WAI-NET ในเบราว์เซอร์ (main เป็นคนเปิด renderer ส่งแค่ชนิดลิงก์) */
       openWeb?: (kind: 'rank' | 'tv' | 'me') => Promise<{ ok: boolean; error?: string }>
+      /** จ่าย True Money 1,000 บาท (mock ล้อเล่น) จากหน้าต่าง tribute · IPC ไม่ผ่าน HTTP */
+      tribute?: (code: string) => Promise<{ ok: boolean; message: string }>
+      /** ปิดหน้าต่าง tribute (IPC wai:tribute-close) คำขอยังรออยู่ */
+      closeTribute?: () => void
       bribe?: (code: string) => Promise<{ ok: boolean; message: string }>
       /** หน้าหลัก: เปิด/โฟกัสหน้าต่างกล้อง (IPC wai:open-camera-view) */
       openCameraView?: () => Promise<{ ok: boolean }>

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { createSessions, planVision } from './session-state.mjs' // state machine ต่อ session (contract §4)
 import { createAvatars, handleAvatarRoute } from './avatars.mjs' // เลือก/เสิร์ฟตัวละคร (~/.waikusa/avatars)
+import { checkCardNumber, createEvents } from './events.mjs' // random event: ไหว้ใหม่ / เรียกค่าไถ่ True Money 1,000 (mock ล้อเล่น)
 import { BRIBE_AMOUNT_BAHT, canBribe, checkVoucher } from './bribe.mjs' // ง้อด้วยซอง True Money (mock ล้อเล่น)
 import { createVoice, defaultPlayImpl } from './voice.mjs'
 import { createVoiceAdmin } from './voice-admin.mjs' // หลังบ้านอัดเสียง /admin/voice // เสียงพูด: เสียงที่เพื่อนอัด → Paxa TTS (แคช) → say กันยา
@@ -126,6 +127,14 @@ const sessions = createSessions()
 const waiLog = createWaiLog({ home: WAI_HOME, sync: !DEV_INSTANCE })
 const avatars = createAvatars({ home: WAI_HOME })
 const stickers = createStickers({ home: WAI_HOME })
+// random event ตอนไหว้ (ปิดได้: WAI_NO_EVENTS=1 หรือ "random_events": false ใน config.json · ปรับโอกาส: "random_events": {"redo":0.15,"tribute":0.08})
+const eventCfg = readConfig().random_events
+const events = createEvents({
+  enabled: process.env.WAI_NO_EVENTS !== '1' && eventCfg !== false,
+  ...(eventCfg && typeof eventCfg === 'object'
+    ? { redoP: Number.isFinite(eventCfg.redo) ? eventCfg.redo : undefined, tributeP: Number.isFinite(eventCfg.tribute) ? eventCfg.tribute : undefined }
+    : {}),
+})
 const voice = createVoice({ home: WAI_HOME, log: console.log, mode: readConfig().voice_mode }) // key อ่านจาก ~/.waikusa/secrets.json
 const REPO_ROOT = join(HERE, '..', '..')
 const voiceAdmin = createVoiceAdmin({
@@ -266,6 +275,38 @@ function openCameraView({ auto = false } = {}) {
     if (cameraAuto && queue.some((q) => !q.monitor)) cameraDismissed = true
     cameraView = null
     cameraAuto = false
+  })
+}
+
+// หน้าต่างเรียกค่าไถ่ (event tribute): ขึ้นเองตอน event เกิด ปิดเองเมื่อจ่าย/หมดเวลา · ผู้ใช้ปิดเอง = ไม่เด้งซ้ำใน event เดิม
+let tributeWin = null
+let tributeDismissed = false
+function syncTribute() {
+  const ev = events.active()
+  const want = ev?.kind === 'tribute'
+  if (!want) {
+    tributeDismissed = false
+    if (tributeWin && !tributeWin.isDestroyed()) tributeWin.close()
+    return
+  }
+  if (tributeDismissed || (tributeWin && !tributeWin.isDestroyed())) return
+  tributeWin = new BrowserWindow({
+    icon: ICON,
+    width: 460,
+    height: 640,
+    useContentSize: true,
+    title: 'ไหว้กูซะ · ค่าไถ่',
+    backgroundColor: '#0A0A0C',
+    alwaysOnTop: true,
+    resizable: false,
+    ...(MAC ? { titleBarStyle: 'hiddenInset' } : { autoHideMenuBar: true, icon: join(HERE, 'assets', 'icon.ico') }),
+    webPreferences: { preload: join(HERE, 'preload.cjs'), backgroundThrottling: false },
+  })
+  if (!MAC) tributeWin.removeMenu()
+  tributeWin.loadURL(RENDERER + 'tribute.html')
+  tributeWin.on('closed', () => {
+    if (events.blocking()) tributeDismissed = true
+    tributeWin = null
   })
 }
 
@@ -455,6 +496,18 @@ ipcMain.on('vision:event', (_e, event) => {
 function onVision(type, payload = {}) {
   const top = queue[0]
   if (!enabled || !top) return
+  // random event: ผลไหว้ครั้งนี้ถูกปัดตก ไม่เข้า state machine (ไม่นับ fail ไม่เพิ่มความโกรธ)
+  if (!top.monitor) {
+    const ev = events.onAttempt(top.id, type)
+    if (ev.type !== 'none') {
+      console.log(`[wai] event ${ev.type}${ev.fresh ? '' : ' (ยังบล็อกอยู่)'} ← ${type} ${top.id}`)
+      if (ev.fresh) {
+        voice.say(ev.event.text)
+        setTimeout(syncWindow, ev.event.msLeft + 50) // event หมดอายุเอง → ปิดหน้าต่าง/คืน state
+      }
+      return syncWindow()
+    }
+  }
   const plan = planVision(sessions, top, type, payload)
   console.log(`[wai] ${type} ${top.id} level ${payload.level} score ${payload.score} → ${plan.action} (${plan.state} anger ${plan.anger}${plan.forgave ? ' forgave' : ''})`)
   const rec = waiLog.record(plan.record)
@@ -477,6 +530,26 @@ ipcMain.on('wai:interactive', (e, on) => {
 })
 // ง้อ AI ด้วยรหัสซอง True Money 500 บาท (MOCK ล้อเล่น ไม่ตรวจจริง) · IPC จาก popup เท่านั้น ไม่เปิด HTTP กันเว็บอื่นยิงข้าม
 // รหัสไม่ถูกเก็บ ไม่ log ไม่ส่งต่อ: ใช้แค่ตัดสินว่ากรอกมาหรือยัง แล้วทิ้ง
+// จ่ายค่าไถ่ True Money 1,000 บาท (MOCK ล้อเล่น ไม่ตรวจกับของจริง) · IPC จากหน้าต่าง tribute เท่านั้น · เลขบัตรไม่ถูกเก็บ/log/ส่ง
+ipcMain.handle('wai:tribute', (e, code) => {
+  if (!tributeWin || tributeWin.isDestroyed() || e.sender !== tributeWin.webContents) return { ok: false, message: 'ไม่รับจากที่นี่' }
+  const v = checkCardNumber(code)
+  if (!v.ok) return v
+  const rid = events.pay()
+  if (!rid) return { ok: true, message: 'หมดเวลาเรียกเก็บแล้ว ไหว้เองก็ได้' }
+  const item = queue.find((q) => q.id === rid)
+  if (item) {
+    sessions.reset(item.session_id)
+    for (const q of queue.filter((x) => x.session_id === item.session_id)) resolve(q.id, { passed: true, level: 0, score: 0, action: 'allow' })
+    speak('PASSED')
+  }
+  console.log('[wai] ค่าไถ่ True Money (mock) จ่ายแล้ว → ปลดคำขอ')
+  syncWindow()
+  return { ok: true, message: 'รับ 1,000 บาทแล้ว (ล้อเล่น) ผ่านไปได้' }
+})
+ipcMain.on('wai:tribute-close', (e) => {
+  if (tributeWin && !tributeWin.isDestroyed() && e.sender === tributeWin.webContents) tributeWin.close()
+})
 ipcMain.handle('wai:bribe', (e, code) => {
   if (!win || win.isDestroyed() || e.sender !== win.webContents) return { ok: false, message: 'ไม่รับจากที่นี่' }
   const top = queue[0]
@@ -516,6 +589,7 @@ function syncWindow() {
     win.hide()
   }
   syncCameraView()
+  syncTribute()
   syncFlee()
 }
 
@@ -737,6 +811,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && route === 'queue') {
     const top = queue[0] ? sessions.get(queue[0].session_id) : null
     const lingering = lingerMsLeft() > 0
+    const ev = events.active()
     return send(res, 200, {
       items: queue,
       state: lingering ? 'PASSED' : top ? top.state : 'IDLE',
@@ -745,6 +820,7 @@ const server = http.createServer(async (req, res) => {
       bypass: !enabled,
       monitor: queue.length > 0 && queue.every((q) => q.monitor),
       avatar: avatars.current(),
+      ...(ev ? { event: { kind: ev.kind, text: ev.text, ...(ev.amount ? { amount: ev.amount } : {}), ms_left: ev.msLeft } } : {}),
     })
   }
 

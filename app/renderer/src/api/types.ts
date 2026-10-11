@@ -29,6 +29,9 @@ export type QueueItem = {
   createdAt: number // epoch ms ใช้คำนวณเวลาที่เหลือจาก REQUEST_TIMEOUT_MS
 }
 
+/** อีเวนต์สุ่ม (GET /wai/queue → event, ms_left → msLeft) */
+export type WaiEvent = { kind: 'redo' | 'tribute'; text: string; amount?: number; msLeft: number }
+
 /** สิ่งที่ UI ได้จากการ poll GET /wai/queue หนึ่งครั้ง */
 export type QueueSnapshot = {
   items: QueueItem[]
@@ -37,6 +40,7 @@ export type QueueSnapshot = {
   bypass: boolean // WAI_BYPASS=1 ต้องมีป้ายบอก (§7) รอยืนยันกับ #1
   monitor?: boolean // โหมดสังเกต: การ์ดนี้แค่จับได้ ไม่ต้องไหว้ (ไม่ส่ง = false)
   avatar?: string // ชื่อน้องที่เลือกอยู่ (ไม่ส่ง = jason) ดู FRONT_RULES "ตัวละคร"
+  event?: WaiEvent // อีเวนต์สุ่ม (ล้อเล่น): redo = ไหว้สวยก็ไม่ผ่าน · tribute = ขอ True Money ไม่ส่ง = ไม่มีอีเวนต์
   lingerMs?: number // ไหว้ผ่านแล้ว: น้องรีแอค/คุยต่ออีกกี่ ms (state = PASSED แม้ items ยังมี) ไม่ส่ง = ไม่คุยต่อ
 }
 

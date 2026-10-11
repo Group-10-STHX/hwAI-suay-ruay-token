@@ -59,6 +59,7 @@ export function AvatarWindow() {
           providerLabel={accent?.label}
           agentLabel={top?.agentLabel}
           chat={chat}
+          eventText={queue.event && !queue.monitor ? queue.event.text : undefined}
           flee={fleeOn ? { fleeing: flee.fleeing, dodges: fleeCount } : undefined}
           timeLeft={top && <TimeLeft createdAt={top.createdAt} now={now} timeoutMs={REQUEST_TIMEOUT_MS} />}
           mascot={<Mascot state={queue.state} providerColor={accent?.color ?? v('hudDim')} avatar={avatar} avatarSrc={avatarSrc} />}
