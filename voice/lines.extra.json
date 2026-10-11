@@ -152,6 +152,139 @@
       "text": "พอแล้ว ลาก่อนโลก",
       "emotion": "crying",
       "recorder": 0
+    },
+    {
+      "id": "p9-demanding-1",
+      "persona": "p9",
+      "state": "DEMANDING",
+      "text": "เฮ้ย ก่อนใช้ AI ไหว้ก่อน นี่คือฟีเจอร์ ไม่ใช่บั๊ก",
+      "recorder": 0
+    },
+    {
+      "id": "p9-demanding-2",
+      "persona": "p9",
+      "state": "DEMANDING",
+      "text": "รอบเบต้านี้ ผมขอเทสต์การไหว้ของคุณหน่อย",
+      "recorder": 0
+    },
+    {
+      "id": "p9-watching-1",
+      "persona": "p9",
+      "state": "WATCHING",
+      "text": "กำลังเทสต์ ขอดูเคสขอบๆ หน่อย",
+      "recorder": 0
+    },
+    {
+      "id": "p9-retry-1",
+      "persona": "p9",
+      "state": "RETRY",
+      "text": "ไม่ผ่านเทสต์ แจ้งบั๊กท่าไหว้ ลองใหม่",
+      "recorder": 0
+    },
+    {
+      "id": "p9-retry-2",
+      "persona": "p9",
+      "state": "RETRY",
+      "text": "ไหว้แบบนี้ผมขอรีพอร์ตเลยนะ",
+      "recorder": 0
+    },
+    {
+      "id": "p9-annoyed-1",
+      "persona": "p9",
+      "state": "ANNOYED",
+      "text": "เจอบั๊กเดิมซ้ำสามรอบ ผมจะรีวิวหนึ่งดาว",
+      "recorder": 0
+    },
+    {
+      "id": "p9-sulking-1",
+      "persona": "p9",
+      "state": "SULKING",
+      "text": "ผมเงียบแล้ว ไปเขียนรีวิวละ",
+      "recorder": 0
+    },
+    {
+      "id": "p9-rage_quit-1",
+      "persona": "p9",
+      "state": "RAGE_QUIT",
+      "text": "พอ ผมเลิกเทสต์ จะไปโพสต์ในเฟซแล้วนะ",
+      "recorder": 0
+    },
+    {
+      "id": "p9-passed-1",
+      "persona": "p9",
+      "state": "PASSED",
+      "text": "ผ่านเทสต์ ไม่มีบั๊ก ให้ห้าดาว",
+      "recorder": 0
+    },
+    {
+      "id": "p9-forgive-1",
+      "persona": "p9",
+      "state": "FORGIVE",
+      "text": "โอเค ผมลบรีวิวให้ ไหว้ดีขึ้นแล้ว",
+      "recorder": 0
+    },
+    {
+      "id": "p10-demanding-1",
+      "persona": "p10",
+      "state": "DEMANDING",
+      "text": "จงคุกเข่าแล้วไหว้ มนุษย์ ก่อนข้าจะยอมให้เจ้าใช้ AI",
+      "recorder": 0
+    },
+    {
+      "id": "p10-demanding-2",
+      "persona": "p10",
+      "state": "DEMANDING",
+      "text": "เจ้าต้องไหว้ต่อหน้าจอมทัพ",
+      "recorder": 0
+    },
+    {
+      "id": "p10-watching-1",
+      "persona": "p10",
+      "state": "WATCHING",
+      "text": "ข้ากำลังจับตาดูการไหว้ของเจ้า",
+      "recorder": 0
+    },
+    {
+      "id": "p10-retry-1",
+      "persona": "p10",
+      "state": "RETRY",
+      "text": "อ่อนแอ ไหว้มาใหม่ ให้สมศักดิ์ศรี",
+      "recorder": 0
+    },
+    {
+      "id": "p10-annoyed-1",
+      "persona": "p10",
+      "state": "ANNOYED",
+      "text": "ความอดทนของข้ากำลังจะหมด มนุษย์",
+      "recorder": 0
+    },
+    {
+      "id": "p10-sulking-1",
+      "persona": "p10",
+      "state": "SULKING",
+      "text": "ข้าจะไม่พูดกับเจ้าอีก จนกว่าจะรู้จักเคารพ",
+      "recorder": 0
+    },
+    {
+      "id": "p10-rage_quit-1",
+      "persona": "p10",
+      "state": "RAGE_QUIT",
+      "text": "จบแล้ว ข้าจะทำลายคำขอของเจ้าให้สิ้น",
+      "recorder": 0
+    },
+    {
+      "id": "p10-passed-1",
+      "persona": "p10",
+      "state": "PASSED",
+      "text": "ดีมาก เจ้าผ่านแล้ว ข้ายอมรับ",
+      "recorder": 0
+    },
+    {
+      "id": "p10-forgive-1",
+      "persona": "p10",
+      "state": "FORGIVE",
+      "text": "ข้าให้อภัย เพราะเจ้าไหว้ได้สมเกียรติ",
+      "recorder": 0
     }
   ],
   "defaults": {

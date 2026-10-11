@@ -552,12 +552,183 @@
    "emotion": "crying"
   },
   {
+   "id": "p9-demanding-1",
+   "text": "เฮ้ย ก่อนใช้ AI ไหว้ก่อน นี่คือฟีเจอร์ ไม่ใช่บั๊ก",
+   "plainText": "เฮ้ย ก่อนใช้ AI ไหว้ก่อน นี่คือฟีเจอร์ ไม่ใช่บั๊ก",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "persona": "p9",
+   "recorder": 3
+  },
+  {
+   "id": "p9-demanding-2",
+   "text": "รอบเบต้านี้ ผมขอเทสต์การไหว้ของคุณหน่อย",
+   "plainText": "รอบเบต้านี้ ผมขอเทสต์การไหว้ของคุณหน่อย",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "persona": "p9",
+   "recorder": 4
+  },
+  {
+   "id": "p9-watching-1",
+   "text": "กำลังเทสต์ ขอดูเคสขอบๆ หน่อย",
+   "plainText": "กำลังเทสต์ ขอดูเคสขอบๆ หน่อย",
+   "kind": "extra",
+   "state": "WATCHING",
+   "persona": "p9",
+   "recorder": 1
+  },
+  {
+   "id": "p9-retry-1",
+   "text": "ไม่ผ่านเทสต์ แจ้งบั๊กท่าไหว้ ลองใหม่",
+   "plainText": "ไม่ผ่านเทสต์ แจ้งบั๊กท่าไหว้ ลองใหม่",
+   "kind": "extra",
+   "state": "RETRY",
+   "persona": "p9",
+   "recorder": 2
+  },
+  {
+   "id": "p9-retry-2",
+   "text": "ไหว้แบบนี้ผมขอรีพอร์ตเลยนะ",
+   "plainText": "ไหว้แบบนี้ผมขอรีพอร์ตเลยนะ",
+   "kind": "extra",
+   "state": "RETRY",
+   "persona": "p9",
+   "recorder": 3
+  },
+  {
+   "id": "p9-annoyed-1",
+   "text": "เจอบั๊กเดิมซ้ำสามรอบ ผมจะรีวิวหนึ่งดาว",
+   "plainText": "เจอบั๊กเดิมซ้ำสามรอบ ผมจะรีวิวหนึ่งดาว",
+   "kind": "extra",
+   "state": "ANNOYED",
+   "persona": "p9",
+   "recorder": 4
+  },
+  {
+   "id": "p9-sulking-1",
+   "text": "ผมเงียบแล้ว ไปเขียนรีวิวละ",
+   "plainText": "ผมเงียบแล้ว ไปเขียนรีวิวละ",
+   "kind": "extra",
+   "state": "SULKING",
+   "persona": "p9",
+   "recorder": 1
+  },
+  {
+   "id": "p9-rage_quit-1",
+   "text": "พอ ผมเลิกเทสต์ จะไปโพสต์ในเฟซแล้วนะ",
+   "plainText": "พอ ผมเลิกเทสต์ จะไปโพสต์ในเฟซแล้วนะ",
+   "kind": "extra",
+   "state": "RAGE_QUIT",
+   "persona": "p9",
+   "recorder": 2
+  },
+  {
+   "id": "p9-passed-1",
+   "text": "ผ่านเทสต์ ไม่มีบั๊ก ให้ห้าดาว",
+   "plainText": "ผ่านเทสต์ ไม่มีบั๊ก ให้ห้าดาว",
+   "kind": "extra",
+   "state": "PASSED",
+   "persona": "p9",
+   "recorder": 3
+  },
+  {
+   "id": "p9-forgive-1",
+   "text": "โอเค ผมลบรีวิวให้ ไหว้ดีขึ้นแล้ว",
+   "plainText": "โอเค ผมลบรีวิวให้ ไหว้ดีขึ้นแล้ว",
+   "kind": "extra",
+   "state": "FORGIVE",
+   "persona": "p9",
+   "recorder": 4
+  },
+  {
+   "id": "p10-demanding-1",
+   "text": "จงคุกเข่าแล้วไหว้ มนุษย์ ก่อนข้าจะยอมให้เจ้าใช้ AI",
+   "plainText": "จงคุกเข่าแล้วไหว้ มนุษย์ ก่อนข้าจะยอมให้เจ้าใช้ AI",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "persona": "p10",
+   "recorder": 1
+  },
+  {
+   "id": "p10-demanding-2",
+   "text": "เจ้าต้องไหว้ต่อหน้าจอมทัพ",
+   "plainText": "เจ้าต้องไหว้ต่อหน้าจอมทัพ",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "persona": "p10",
+   "recorder": 2
+  },
+  {
+   "id": "p10-watching-1",
+   "text": "ข้ากำลังจับตาดูการไหว้ของเจ้า",
+   "plainText": "ข้ากำลังจับตาดูการไหว้ของเจ้า",
+   "kind": "extra",
+   "state": "WATCHING",
+   "persona": "p10",
+   "recorder": 3
+  },
+  {
+   "id": "p10-retry-1",
+   "text": "อ่อนแอ ไหว้มาใหม่ ให้สมศักดิ์ศรี",
+   "plainText": "อ่อนแอ ไหว้มาใหม่ ให้สมศักดิ์ศรี",
+   "kind": "extra",
+   "state": "RETRY",
+   "persona": "p10",
+   "recorder": 4
+  },
+  {
+   "id": "p10-annoyed-1",
+   "text": "ความอดทนของข้ากำลังจะหมด มนุษย์",
+   "plainText": "ความอดทนของข้ากำลังจะหมด มนุษย์",
+   "kind": "extra",
+   "state": "ANNOYED",
+   "persona": "p10",
+   "recorder": 1
+  },
+  {
+   "id": "p10-sulking-1",
+   "text": "ข้าจะไม่พูดกับเจ้าอีก จนกว่าจะรู้จักเคารพ",
+   "plainText": "ข้าจะไม่พูดกับเจ้าอีก จนกว่าจะรู้จักเคารพ",
+   "kind": "extra",
+   "state": "SULKING",
+   "persona": "p10",
+   "recorder": 2
+  },
+  {
+   "id": "p10-rage_quit-1",
+   "text": "จบแล้ว ข้าจะทำลายคำขอของเจ้าให้สิ้น",
+   "plainText": "จบแล้ว ข้าจะทำลายคำขอของเจ้าให้สิ้น",
+   "kind": "extra",
+   "state": "RAGE_QUIT",
+   "persona": "p10",
+   "recorder": 3
+  },
+  {
+   "id": "p10-passed-1",
+   "text": "ดีมาก เจ้าผ่านแล้ว ข้ายอมรับ",
+   "plainText": "ดีมาก เจ้าผ่านแล้ว ข้ายอมรับ",
+   "kind": "extra",
+   "state": "PASSED",
+   "persona": "p10",
+   "recorder": 4
+  },
+  {
+   "id": "p10-forgive-1",
+   "text": "ข้าให้อภัย เพราะเจ้าไหว้ได้สมเกียรติ",
+   "plainText": "ข้าให้อภัย เพราะเจ้าไหว้ได้สมเกียรติ",
+   "kind": "extra",
+   "state": "FORGIVE",
+   "persona": "p10",
+   "recorder": 1
+  },
+  {
    "id": "default-DEMANDING",
    "text": "ไหว้ก่อน มนุษย์",
    "plainText": "ไหว้ก่อน มนุษย์",
    "kind": "extra",
    "state": "DEMANDING",
-   "recorder": 3
+   "recorder": 2
   },
   {
    "id": "default-WATCHING",
@@ -565,7 +736,7 @@
    "plainText": "กำลังดูอยู่",
    "kind": "extra",
    "state": "WATCHING",
-   "recorder": 4
+   "recorder": 3
   },
   {
    "id": "default-PASSED",
@@ -573,7 +744,7 @@
    "plainText": "ผ่านแล้ว",
    "kind": "extra",
    "state": "PASSED",
-   "recorder": 1
+   "recorder": 4
   },
   {
    "id": "default-RETRY",
@@ -581,7 +752,7 @@
    "plainText": "ไหว้ใหม่",
    "kind": "extra",
    "state": "RETRY",
-   "recorder": 2
+   "recorder": 1
   },
   {
    "id": "default-ANNOYED",
@@ -589,7 +760,7 @@
    "plainText": "ไหว้ให้ดีกว่านี้",
    "kind": "extra",
    "state": "ANNOYED",
-   "recorder": 3
+   "recorder": 2
   },
   {
    "id": "default-SULKING",
@@ -597,7 +768,7 @@
    "plainText": "งอนแล้วนะ",
    "kind": "extra",
    "state": "SULKING",
-   "recorder": 4
+   "recorder": 3
   },
   {
    "id": "default-RAGE_QUIT",
@@ -605,7 +776,7 @@
    "plainText": "ไม่เล่นด้วยแล้ว",
    "kind": "extra",
    "state": "RAGE_QUIT",
-   "recorder": 1
+   "recorder": 4
   },
   {
    "id": "default-FORGIVE",
@@ -613,7 +784,7 @@
    "plainText": "ก็ได้ ให้อภัย",
    "kind": "extra",
    "state": "FORGIVE",
-   "recorder": 2
+   "recorder": 1
   },
   {
    "id": "default-IDLE",
@@ -621,7 +792,7 @@
    "plainText": "พร้อมแล้ว",
    "kind": "extra",
    "state": "IDLE",
-   "recorder": 3
+   "recorder": 2
   }
  ]
 }

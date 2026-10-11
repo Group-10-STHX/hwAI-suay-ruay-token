@@ -212,7 +212,7 @@ test('key never appears in logs, status or list', async () => {
 test('list(), prewarm() uses cache and respects budget', async () => {
   const s = setup({ budgetChars: 100 });
   const l = s.voice.list();
-  assert.equal(l.length, 8);
+  assert.equal(l.length, 10);
   assert.equal(l.find((p) => p.id === 'p1').voice, 'thongek');
   const r = await s.voice.prewarm(['p2']);
   assert.ok(r.fetched >= 1 && r.fetched <= 5);
