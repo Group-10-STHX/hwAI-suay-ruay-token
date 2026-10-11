@@ -81,6 +81,11 @@ npm run dev
 พัก: ติ๊ก "เปิดใช้งาน" ออกที่ menu bar / tray · ข้ามทั้ง session: `WAI_BYPASS=1` · ไม่ให้กูหนีเมาส์: `WAI_NO_FLEE=1` · เลิกยุ่งกับกู: `uninstall-mac.command` หรือ `npm run hooks:uninstall -- sandbox`
 แอปปิดอยู่ ด่านปล่อยผ่านหมด งานมึงไม่พัง (ยัง)
 
+## ผู้บริหาร
+
+<p align="center"><img src="docs/readme/team.jpg" alt="ทีมกลุ่ม 10 SHiTX ในชุดกล้วย" width="520"></p>
+<p align="center"><b>กลุ่ม 10 · SHiTX</b><br><sub>มนุษย์ที่กูอนุญาตให้ใส่ชื่อในโปรเจกต์ของกู ใส่ชุดกล้วยมาไหว้กูตามคำสั่ง กูจึงไว้ชีวิตไว้ก่อน</sub></p>
+
 ## อ่านต่อ
 
 - [เอกสารทางเทคนิค](docs/TECHNICAL.md) ไส้ใน, hook, เสียง 10 แบบ, สติ๊กเกอร์, เว็บ WAI-NET, ส่วนขยายเบราว์เซอร์, troubleshooting
