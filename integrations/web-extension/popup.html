@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><title>hwAI Web Guard</title>
+<style>
+body{font:14px system-ui,sans-serif;margin:0;padding:12px;width:260px}
+h1{font-size:15px;margin:0 0 8px}
+.row{display:flex;justify-content:space-between;margin:6px 0}
+.ok{color:#0a7d33}.bad{color:#b3261e}
+label{display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer}
+</style></head>
+<body>
+<h1>hwAI Web Guard</h1>
+<div class="row"><span>daemon</span><b id="reach">…</b></div>
+<div class="row"><span>โหมด</span><b id="mode">…</b></div>
+<div class="row"><span>ตรวจจับในเซสชันนี้</span><b id="count">0</b></div>
+<label><input type="checkbox" id="bypass"> ข้ามชั่วคราว</label>
+<script src="logic.js"></script>
+<script src="popup.js"></script>
+</body></html>

@@ -1,8 +1,8 @@
 // Pure computation over a Snapshot. Every store (mock, Supabase) feeds the same engine,
 // so the API shapes are identical no matter where the rows come from.
 import type {
-  Action, Champion, Distribution, FeedItem, HallOfFame, HofRecord, Kind, Leaderboard, Level, Metric,
-  Period, PlayerProfile, PlayerRef, Source, Stats, StatsBlock, SurvivalReport, Unit, WaiRef,
+  Action, AvatarKind, AvatarSource, Champion, Distribution, FeedItem, HallOfFame, HofRecord, Kind, Leaderboard, Level, Metric,
+  Period, PlayerProfile, PlayerRef, Source, Stats, StickerItem, StatsBlock, SurvivalReport, Unit, WaiRef,
 } from './types';
 import { METRICS, PERIODS } from './types';
 import { BKK, DAY, bkkDay, dayStr, iso, isoOrNull, isoWeek, startOf } from './time';
@@ -15,6 +15,9 @@ export interface PlayerRow {
   display_name: string;
   avatar_hue: number;
   created_at: number;
+  /** Photo version (0/undefined = none). Bytes live in the store. */
+  avatar_v?: number;
+  avatar_source?: AvatarSource;
 }
 
 export interface WaiRow {
@@ -32,19 +35,22 @@ export interface WaiRow {
   anger: number;
   t: number; // server created_at (ms) — windows use this
   client_ts: number | null;
+  /** Sticker version: 0/undefined none, > 0 uploaded PNG, -1 simulated SVG (mock players only). */
+  sticker?: number;
 }
 
 export interface Snapshot {
   version: number;
   players: PlayerRow[];
   byHandle: Map<string, number>;
+  byId: Map<string, WaiRow>;
   wais: WaiRow[]; // sorted by t ascending
   byPlayer: WaiRow[][];
   cache: Map<string, { v: number; val: unknown }>;
 }
 
 export function emptySnapshot(): Snapshot {
-  return { version: 0, players: [], byHandle: new Map(), wais: [], byPlayer: [], cache: new Map() };
+  return { version: 0, players: [], byHandle: new Map(), byId: new Map(), wais: [], byPlayer: [], cache: new Map() };
 }
 
 export function addPlayer(s: Snapshot, p: PlayerRow): number {
@@ -58,6 +64,7 @@ export function addPlayer(s: Snapshot, p: PlayerRow): number {
 /** Rows must arrive in time order (callers sort first). */
 export function addWai(s: Snapshot, w: WaiRow) {
   s.wais.push(w);
+  s.byId.set(w.id, w);
   s.byPlayer[w.p].push(w);
   s.version++;
 }
@@ -93,9 +100,41 @@ function better(a: WaiRow, b: WaiRow | null): boolean {
   return !b || a.score > b.score || (a.score === b.score && (a.level > b.level || (a.level === b.level && a.t < b.t)));
 }
 
-const ref = (p: PlayerRow): PlayerRef => ({ id: p.id, handle: p.handle, display_name: p.display_name, avatar_hue: p.avatar_hue });
+const API = '/api/v1';
+export const stickerUrl = (r: WaiRow): string | null =>
+  !r.sticker ? null : r.sticker < 0 ? `${API}/stickers/${r.id}.svg` : `${API}/stickers/${r.id}.png?v=${r.sticker}`;
+export const avatarUrl = (p: PlayerRow): string | null => (p.avatar_v ? `${API}/avatars/${p.id}?v=${p.avatar_v}` : null);
+
+/** Each player's best sticker (highest score, then newest). */
+function bestStickers(s: Snapshot): (WaiRow | null)[] {
+  return memo(s, 'best-sticker', () =>
+    s.byPlayer.map((list) => {
+      let b: WaiRow | null = null;
+      for (const r of list) if (r.sticker && (!b || r.score > b.score || (r.score === b.score && r.t >= b.t))) b = r;
+      return b;
+    }));
+}
+
+function avatarOf(s: Snapshot, pi: number): { url: string | null; kind: AvatarKind } {
+  const p = s.players[pi];
+  const photo = avatarUrl(p);
+  const bs = bestStickers(s)[pi];
+  const sticker = bs && bs.sticker! > 0 ? stickerUrl(bs) : null; // simulated stickers never become an avatar
+  const src = p.avatar_source ?? 'auto';
+  if (src === 'photo') return photo ? { url: photo, kind: 'photo' } : { url: null, kind: 'generated' };
+  if (src === 'sticker') return sticker ? { url: sticker, kind: 'sticker' } : { url: null, kind: 'generated' };
+  if (src === 'generated') return { url: null, kind: 'generated' };
+  if (photo) return { url: photo, kind: 'photo' };
+  return sticker ? { url: sticker, kind: 'sticker' } : { url: null, kind: 'generated' };
+}
+
+export function ref(s: Snapshot, pi: number): PlayerRef {
+  const p = s.players[pi], a = avatarOf(s, pi);
+  return { id: p.id, handle: p.handle, display_name: p.display_name, avatar_hue: p.avatar_hue, avatar_url: a.url, avatar_kind: a.kind };
+}
+const bestStickerUrl = (s: Snapshot, pi: number) => { const b = bestStickers(s)[pi]; return b ? stickerUrl(b) : null; };
 const waiRef = (r: WaiRow | null): WaiRef | null =>
-  r ? { id: r.id, level: r.level, score: r.score, hold_ms: r.hold_ms, created_at: iso(r.t), sticker_url: null } : null;
+  r ? { id: r.id, level: r.level, score: r.score, hold_ms: r.hold_ms, created_at: iso(r.t), sticker_url: stickerUrl(r), sticker_simulated: !!r.sticker && r.sticker < 0 } : null;
 const round1 = (x: number) => Math.round(x * 10) / 10;
 
 interface Agg {
@@ -247,11 +286,12 @@ export function leaderboard(s: Snapshot, query: LeaderboardQuery, now: number): 
       const pr = prev?.get(a.p);
       return {
         rank: a.rank,
-        player: ref(s.players[a.p]),
+        player: ref(s, a.p),
         value: a.value,
         unit: UNIT[q.metric],
         delta_rank: pr ? pr - a.rank : null,
         best: waiRef(a.best),
+        sticker_url: bestStickerUrl(s, a.p),
         stats: { attempts: a.attempts, count: a.count, beautiful: a.beautiful, avg_score: round1(avg(a)), lv3: a.lv3 },
       };
     }),
@@ -350,7 +390,8 @@ export function hallOfFame(s: Snapshot, weeksQ: number | string | null | undefin
     });
 
     const rec = (key: string, title: string, value: number, unit: Unit, p: number, t: number | null, wai: WaiRow | null): HofRecord =>
-      ({ key, title, value, unit, player: ref(s.players[p]), achieved_at: t === null ? null : iso(t), wai: waiRef(wai) });
+      ({ key, title, value, unit, player: ref(s, p), achieved_at: t === null ? null : iso(t), wai: waiRef(wai),
+        sticker_url: (wai && stickerUrl(wai)) || bestStickerUrl(s, p) });
     const records: HofRecord[] = [];
     const dist = distribution(s);
     const top = dist.values[dist.values.length - 1], bottom = dist.values[0];
@@ -376,7 +417,7 @@ export function hallOfFame(s: Snapshot, weeksQ: number | string | null | undefin
       if (!t1 || !t1.best) continue;
       champions.push({
         week: isoWeek(from + DAY), from: iso(from), to: iso(Math.min(to, now)), provisional: i === 0,
-        player: ref(s.players[t1.p]), score: t1.best.score, level: t1.best.level,
+        player: ref(s, t1.p), score: t1.best.score, level: t1.best.level,
       });
     }
     return { generated_at: iso(now), records, champions };
@@ -410,8 +451,9 @@ export function stats(s: Snapshot, periodQ: string | null | undefined, now: numb
 
 export function feedItem(s: Snapshot, r: WaiRow): FeedItem {
   return {
-    id: r.id, player: ref(s.players[r.p]), level: r.level, score: r.score, hold_ms: r.hold_ms, passed: r.passed,
+    id: r.id, player: ref(s, r.p), level: r.level, score: r.score, hold_ms: r.hold_ms, passed: r.passed,
     beautiful: isBeautiful(r), action: r.action, forgave: r.forgave, source: r.source, kind: r.kind, created_at: iso(r.t),
+    sticker_url: stickerUrl(r),
   };
 }
 
@@ -460,8 +502,14 @@ export function profile(s: Snapshot, handle: string, now: number): PlayerProfile
     const rankIn = (metric: Metric, period: Period) =>
       ranked(s, metric, startOf(period, now), Infinity, now).find((a) => a.p === pi)?.rank ?? null;
     const p = s.players[pi];
+    const stickers: StickerItem[] = [];
+    for (let i = list.length - 1; i >= 0 && stickers.length < 60; i--) {
+      const r = list[i], url = r.sticker ? stickerUrl(r) : null;
+      if (url) stickers.push({ wai_id: r.id, url, score: r.score, level: r.level, created_at: iso(r.t), simulated: r.sticker! < 0 });
+    }
     return {
-      player: { ...ref(p), created_at: iso(p.created_at) },
+      player: { ...ref(s, pi), created_at: iso(p.created_at), avatar_source: (p.avatar_source ?? 'auto') as AvatarSource },
+      stickers,
       totals: {
         attempts: t.attempts, passed: t.passed, beautiful: t.beautiful,
         pass_rate: t.attempts ? Math.round((t.passed / t.attempts) * 1000) / 1000 : 0,

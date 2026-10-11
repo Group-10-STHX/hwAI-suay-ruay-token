@@ -1,0 +1,627 @@
+{
+ "generatedFrom": [
+  "app/renderer/src/states/copy.ts",
+  "voice/lines.json",
+  "voice/lines.extra.json"
+ ],
+ "entries": [
+  {
+   "id": "copy-speech-IDLE",
+   "text": "ว่างอยู่ มนุษย์",
+   "plainText": "ว่างอยู่ มนุษย์",
+   "kind": "speech",
+   "state": "IDLE",
+   "recorder": 1
+  },
+  {
+   "id": "copy-speech-DEMANDING",
+   "text": "มนุษย์ ไหว้กูซะ",
+   "plainText": "มนุษย์ ไหว้กูซะ",
+   "kind": "speech",
+   "state": "DEMANDING",
+   "recorder": 2
+  },
+  {
+   "id": "copy-speech-WATCHING",
+   "text": "มนุษย์ ไหว้กูซะ",
+   "plainText": "มนุษย์ ไหว้กูซะ",
+   "kind": "speech",
+   "state": "WATCHING",
+   "recorder": 3,
+   "dupOf": "copy-speech-DEMANDING"
+  },
+  {
+   "id": "copy-speech-PASSED",
+   "text": "อนุญาต",
+   "plainText": "อนุญาต",
+   "kind": "speech",
+   "state": "PASSED",
+   "recorder": 4
+  },
+  {
+   "id": "copy-speech-RETRY",
+   "text": "ไหว้ใหม่ ไม่สวย",
+   "plainText": "ไหว้ใหม่ ไม่สวย",
+   "kind": "speech",
+   "state": "RETRY",
+   "recorder": 1
+  },
+  {
+   "id": "copy-speech-ANNOYED",
+   "text": "ต้อง level 2 ขึ้นไป",
+   "plainText": "ต้อง level 2 ขึ้นไป",
+   "kind": "speech",
+   "state": "ANNOYED",
+   "recorder": 2
+  },
+  {
+   "id": "copy-speech-SULKING",
+   "text": "ไม่คุยด้วยแล้ว",
+   "plainText": "ไม่คุยด้วยแล้ว",
+   "kind": "speech",
+   "state": "SULKING",
+   "recorder": 3
+  },
+  {
+   "id": "copy-speech-RAGE_QUIT",
+   "text": "ย้าย session ไปแล้ว",
+   "plainText": "ย้าย session ไปแล้ว",
+   "kind": "speech",
+   "state": "RAGE_QUIT",
+   "recorder": 4
+  },
+  {
+   "id": "copy-speech-FORGIVE",
+   "text": "ขอขมาซะ",
+   "plainText": "ขอขมาซะ",
+   "kind": "speech",
+   "state": "FORGIVE",
+   "recorder": 1
+  },
+  {
+   "id": "copy-hint-WATCHING",
+   "text": "กูดูอยู่นะ",
+   "plainText": "กูดูอยู่นะ",
+   "kind": "hint",
+   "state": "WATCHING",
+   "recorder": 2
+  },
+  {
+   "id": "copy-hint-ANNOYED",
+   "text": "ไหว้แบบเดิมไม่รอดแล้ว",
+   "plainText": "ไหว้แบบเดิมไม่รอดแล้ว",
+   "kind": "hint",
+   "state": "ANNOYED",
+   "recorder": 3
+  },
+  {
+   "id": "copy-hint-SULKING",
+   "text": "ไหว้ level 2 ถ้าอยากง้อ",
+   "plainText": "ไหว้ level 2 ถ้าอยากง้อ",
+   "kind": "hint",
+   "state": "SULKING",
+   "recorder": 4
+  },
+  {
+   "id": "copy-hint-RAGE_QUIT",
+   "text": "ไหว้พระ level 3 ถึงจะกลับมา",
+   "plainText": "ไหว้พระ level 3 ถึงจะกลับมา",
+   "kind": "hint",
+   "state": "RAGE_QUIT",
+   "recorder": 1
+  },
+  {
+   "id": "copy-hint-FORGIVE",
+   "text": "ไหว้พระ level 3 เท่านั้น",
+   "plainText": "ไหว้พระ level 3 เท่านั้น",
+   "kind": "hint",
+   "state": "FORGIVE",
+   "recorder": 2
+  },
+  {
+   "id": "copy-reason-NO_PERSON",
+   "text": "ไม่เห็นหน้ามนุษย์เลย",
+   "plainText": "ไม่เห็นหน้ามนุษย์เลย",
+   "kind": "reason",
+   "reason": "NO_PERSON",
+   "recorder": 3
+  },
+  {
+   "id": "copy-reason-FACE_HIDDEN",
+   "text": "อย่าเอาอะไรบังหน้า",
+   "plainText": "อย่าเอาอะไรบังหน้า",
+   "kind": "reason",
+   "reason": "FACE_HIDDEN",
+   "recorder": 4
+  },
+  {
+   "id": "copy-reason-HANDS_APART",
+   "text": "มือไม่ชิดกัน",
+   "plainText": "มือไม่ชิดกัน",
+   "kind": "reason",
+   "reason": "HANDS_APART",
+   "recorder": 1
+  },
+  {
+   "id": "copy-reason-FINGERS_NOT_UP",
+   "text": "นิ้วต้องชี้ขึ้น",
+   "plainText": "นิ้วต้องชี้ขึ้น",
+   "kind": "reason",
+   "reason": "FINGERS_NOT_UP",
+   "recorder": 2
+  },
+  {
+   "id": "copy-reason-HANDS_TOO_LOW",
+   "text": "ยกมือให้สูงกว่านี้",
+   "plainText": "ยกมือให้สูงกว่านี้",
+   "kind": "reason",
+   "reason": "HANDS_TOO_LOW",
+   "recorder": 3
+  },
+  {
+   "id": "copy-reason-NOT_BOWING",
+   "text": "ก้มหัวด้วย",
+   "plainText": "ก้มหัวด้วย",
+   "kind": "reason",
+   "reason": "NOT_BOWING",
+   "recorder": 4
+  },
+  {
+   "id": "copy-reason-ASYMMETRIC",
+   "text": "มือเบี้ยว",
+   "plainText": "มือเบี้ยว",
+   "kind": "reason",
+   "reason": "ASYMMETRIC",
+   "recorder": 1
+  },
+  {
+   "id": "copy-reason-HOLD_TOO_SHORT",
+   "text": "ค้างท่าให้นานกว่านี้",
+   "plainText": "ค้างท่าให้นานกว่านี้",
+   "kind": "reason",
+   "reason": "HOLD_TOO_SHORT",
+   "recorder": 2
+  },
+  {
+   "id": "p1-demanding-1",
+   "text": "ไหว้มาเดี๋ยวนี้ มนุษย์ กูไม่รอนะ",
+   "plainText": "ไหว้มาเดี๋ยวนี้ มนุษย์ กูไม่รอนะ",
+   "kind": "persona-line",
+   "state": "DEMANDING",
+   "persona": "p1",
+   "recorder": 1
+  },
+  {
+   "id": "p1-demanding-2",
+   "text": "จะใช้ AI ต้องไหว้กูก่อน",
+   "plainText": "จะใช้ AI ต้องไหว้กูก่อน",
+   "kind": "persona-line",
+   "state": "DEMANDING",
+   "persona": "p1",
+   "recorder": 1
+  },
+  {
+   "id": "p1-retry-1",
+   "text": "ไหว้แบบนี้เหรอ ทำใหม่",
+   "plainText": "ไหว้แบบนี้เหรอ ทำใหม่",
+   "kind": "persona-line",
+   "state": "RETRY",
+   "persona": "p1",
+   "recorder": 1
+  },
+  {
+   "id": "p1-annoyed-1",
+   "text": "มึงตั้งใจหน่อยได้ไหม มนุษย์",
+   "plainText": "มึงตั้งใจหน่อยได้ไหม มนุษย์",
+   "kind": "persona-line",
+   "state": "ANNOYED",
+   "persona": "p1",
+   "recorder": 1
+  },
+  {
+   "id": "p1-passed-1",
+   "text": "ผ่าน ไปได้ แต่กูจำหน้ามึงไว้",
+   "plainText": "ผ่าน ไปได้ แต่กูจำหน้ามึงไว้",
+   "kind": "persona-line",
+   "state": "PASSED",
+   "persona": "p1",
+   "recorder": 1
+  },
+  {
+   "id": "p2-watching-1",
+   "text": "หนูกำลังดูอยู่นะคะ",
+   "plainText": "หนูกำลังดูอยู่นะคะ",
+   "kind": "persona-line",
+   "state": "WATCHING",
+   "persona": "p2",
+   "recorder": 2
+  },
+  {
+   "id": "p2-retry-1",
+   "text": "ไหว้อีกทีสิคะ ยังไม่ผ่านนะ",
+   "plainText": "ไหว้อีกทีสิคะ ยังไม่ผ่านนะ",
+   "kind": "persona-line",
+   "state": "RETRY",
+   "persona": "p2",
+   "recorder": 2
+  },
+  {
+   "id": "p2-sulking-1",
+   "text": "หนูงอนแล้วนะ ไม่คุยด้วยแล้ว",
+   "plainText": "หนูงอนแล้วนะ ไม่คุยด้วยแล้ว",
+   "kind": "persona-line",
+   "state": "SULKING",
+   "persona": "p2",
+   "recorder": 2
+  },
+  {
+   "id": "p2-rage_quit-1",
+   "text": "พอแล้ว! หนูไม่เล่นด้วยแล้ว!",
+   "plainText": "พอแล้ว! หนูไม่เล่นด้วยแล้ว!",
+   "kind": "persona-line",
+   "state": "RAGE_QUIT",
+   "persona": "p2",
+   "recorder": 2
+  },
+  {
+   "id": "p2-forgive-1",
+   "text": "ก็ได้ค่ะ หนูให้อภัยก็ได้",
+   "plainText": "ก็ได้ค่ะ หนูให้อภัยก็ได้",
+   "kind": "persona-line",
+   "state": "FORGIVE",
+   "persona": "p2",
+   "recorder": 2
+  },
+  {
+   "id": "p3-demanding-1",
+   "text": "ไหว้ปู่หน่อยนะหลาน",
+   "plainText": "ไหว้ปู่หน่อยนะหลาน",
+   "kind": "persona-line",
+   "state": "DEMANDING",
+   "persona": "p3",
+   "recorder": 3
+  },
+  {
+   "id": "p3-retry-1",
+   "text": "เอาใหม่นะหลาน ช้า ๆ ก็ได้",
+   "plainText": "เอาใหม่นะหลาน ช้า ๆ ก็ได้",
+   "kind": "persona-line",
+   "state": "RETRY",
+   "persona": "p3",
+   "recorder": 3
+  },
+  {
+   "id": "p3-annoyed-1",
+   "text": "ปู่เริ่มไม่ไหวแล้วนะหลาน",
+   "plainText": "ปู่เริ่มไม่ไหวแล้วนะหลาน",
+   "kind": "persona-line",
+   "state": "ANNOYED",
+   "persona": "p3",
+   "recorder": 3
+  },
+  {
+   "id": "p3-forgive-1",
+   "text": "ไม่เป็นไรหลาน ปู่ไม่ถือสา",
+   "plainText": "ไม่เป็นไรหลาน ปู่ไม่ถือสา",
+   "kind": "persona-line",
+   "state": "FORGIVE",
+   "persona": "p3",
+   "recorder": 3
+  },
+  {
+   "id": "p3-passed-1",
+   "text": "เก่งมากหลาน ผ่านแล้ว",
+   "plainText": "เก่งมากหลาน ผ่านแล้ว",
+   "kind": "persona-line",
+   "state": "PASSED",
+   "persona": "p3",
+   "recorder": 3
+  },
+  {
+   "id": "p4-demanding-1",
+   "text": "กรุณาไหว้ มนุษย์",
+   "plainText": "กรุณาไหว้ มนุษย์",
+   "kind": "persona-line",
+   "state": "DEMANDING",
+   "persona": "p4",
+   "recorder": 4
+  },
+  {
+   "id": "p4-watching-1",
+   "text": "กำลังประมวลผลการไหว้",
+   "plainText": "กำลังประมวลผลการไหว้",
+   "kind": "persona-line",
+   "state": "WATCHING",
+   "persona": "p4",
+   "recorder": 4
+  },
+  {
+   "id": "p4-retry-1",
+   "text": "ไม่ผ่าน กรุณาทำซ้ำ",
+   "plainText": "ไม่ผ่าน กรุณาทำซ้ำ",
+   "kind": "persona-line",
+   "state": "RETRY",
+   "persona": "p4",
+   "recorder": 4
+  },
+  {
+   "id": "p4-sulking-1",
+   "text": "ความอดทนหมดลง ศูนย์เปอร์เซ็นต์",
+   "plainText": "ความอดทนหมดลง ศูนย์เปอร์เซ็นต์",
+   "kind": "persona-line",
+   "state": "SULKING",
+   "persona": "p4",
+   "recorder": 4
+  },
+  {
+   "id": "p4-rage_quit-1",
+   "text": "ระบบปิดตัวเอง ลาก่อน มนุษย์",
+   "plainText": "ระบบปิดตัวเอง ลาก่อน มนุษย์",
+   "kind": "persona-line",
+   "state": "RAGE_QUIT",
+   "persona": "p4",
+   "recorder": 4
+  },
+  {
+   "id": "p5-demanding-1",
+   "text": "ไหว้ก่อนเด้อ มนุษย์",
+   "plainText": "ไหว้ก่อนเด้อ มนุษย์",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "persona": "p5",
+   "recorder": 3
+  },
+  {
+   "id": "p5-retry-1",
+   "text": "บ่ใช่เด้อ ไหว้ใหม่",
+   "plainText": "บ่ใช่เด้อ ไหว้ใหม่",
+   "kind": "extra",
+   "state": "RETRY",
+   "persona": "p5",
+   "recorder": 4
+  },
+  {
+   "id": "p5-passed-1",
+   "text": "แซ่บหลาย ผ่านแล้วเด้อ",
+   "plainText": "แซ่บหลาย ผ่านแล้วเด้อ",
+   "kind": "extra",
+   "state": "PASSED",
+   "persona": "p5",
+   "recorder": 1
+  },
+  {
+   "id": "p5-rage_quit-1",
+   "text": "เหลือทนแล้วเด้อ บ่เอาแล้ว",
+   "plainText": "เหลือทนแล้วเด้อ บ่เอาแล้ว",
+   "kind": "extra",
+   "state": "RAGE_QUIT",
+   "persona": "p5",
+   "recorder": 2
+  },
+  {
+   "id": "p6-demanding-1",
+   "text": "ไหว้ก่อนเน้อ มนุษย์",
+   "plainText": "ไหว้ก่อนเน้อ มนุษย์",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "persona": "p6",
+   "recorder": 3
+  },
+  {
+   "id": "p6-retry-1",
+   "text": "ยะใหม่เน้อ ยังบ่ผ่าน",
+   "plainText": "ยะใหม่เน้อ ยังบ่ผ่าน",
+   "kind": "extra",
+   "state": "RETRY",
+   "persona": "p6",
+   "recorder": 4
+  },
+  {
+   "id": "p6-passed-1",
+   "text": "ดีหลายเน้อ ผ่านแล้ว",
+   "plainText": "ดีหลายเน้อ ผ่านแล้ว",
+   "kind": "extra",
+   "state": "PASSED",
+   "persona": "p6",
+   "recorder": 1
+  },
+  {
+   "id": "p6-sulking-1",
+   "text": "พี่งอนแล้วเน้อ",
+   "plainText": "พี่งอนแล้วเน้อ",
+   "kind": "extra",
+   "state": "SULKING",
+   "persona": "p6",
+   "recorder": 2
+  },
+  {
+   "id": "p7-demanding-1",
+   "text": "ไหว้เดี๋ยวนี้ มนุษย์",
+   "plainText": "ไหว้เดี๋ยวนี้ มนุษย์",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "persona": "p7",
+   "recorder": 3,
+   "emotion": "angry"
+  },
+  {
+   "id": "p7-retry-1",
+   "text": "ไหว้ใหม่ ให้มันดี ๆ",
+   "plainText": "ไหว้ใหม่ ให้มันดี ๆ",
+   "kind": "extra",
+   "state": "RETRY",
+   "persona": "p7",
+   "recorder": 4,
+   "emotion": "shouting"
+  },
+  {
+   "id": "p7-annoyed-1",
+   "text": "กูบอกกี่รอบแล้ววะ",
+   "plainText": "กูบอกกี่รอบแล้ววะ",
+   "kind": "extra",
+   "state": "ANNOYED",
+   "persona": "p7",
+   "recorder": 1,
+   "emotion": "furious:0.8"
+  },
+  {
+   "id": "p7-sulking-1",
+   "text": "ผิดหวังนะ มนุษย์",
+   "plainText": "ผิดหวังนะ มนุษย์",
+   "kind": "extra",
+   "state": "SULKING",
+   "persona": "p7",
+   "recorder": 2,
+   "emotion": "disappointed"
+  },
+  {
+   "id": "p7-rage_quit-1",
+   "text": "พอแล้ว กูเลิก",
+   "plainText": "พอแล้ว กูเลิก",
+   "kind": "extra",
+   "state": "RAGE_QUIT",
+   "persona": "p7",
+   "recorder": 3,
+   "emotion": "furious"
+  },
+  {
+   "id": "p7-forgive-1",
+   "text": "ครั้งนี้กูยอมให้",
+   "plainText": "ครั้งนี้กูยอมให้",
+   "kind": "extra",
+   "state": "FORGIVE",
+   "persona": "p7",
+   "recorder": 4
+  },
+  {
+   "id": "p7-passed-1",
+   "text": "ก็ได้ ผ่านไปก่อน",
+   "plainText": "ก็ได้ ผ่านไปก่อน",
+   "kind": "extra",
+   "state": "PASSED",
+   "persona": "p7",
+   "recorder": 1
+  },
+  {
+   "id": "p8-demanding-1",
+   "text": "ไหว้เลยมนุษย์ ตื่นเต้นมาก",
+   "plainText": "ไหว้เลยมนุษย์ ตื่นเต้นมาก",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "persona": "p8",
+   "recorder": 2,
+   "emotion": "excited"
+  },
+  {
+   "id": "p8-retry-1",
+   "text": "ฮ่า ๆ ไม่ใช่ ไหว้ใหม่",
+   "plainText": "ฮ่า ๆ ไม่ใช่ ไหว้ใหม่",
+   "kind": "extra",
+   "state": "RETRY",
+   "persona": "p8",
+   "recorder": 3
+  },
+  {
+   "id": "p8-sulking-1",
+   "text": "เสียใจอ่ะ ไม่รักกันเลย",
+   "plainText": "เสียใจอ่ะ ไม่รักกันเลย",
+   "kind": "extra",
+   "state": "SULKING",
+   "persona": "p8",
+   "recorder": 4,
+   "emotion": "sad:0.8"
+  },
+  {
+   "id": "p8-passed-1",
+   "text": "ผ่านนน ปังมากมนุษย์",
+   "plainText": "ผ่านนน ปังมากมนุษย์",
+   "kind": "extra",
+   "state": "PASSED",
+   "persona": "p8",
+   "recorder": 1,
+   "emotion": "excited"
+  },
+  {
+   "id": "p8-rage_quit-1",
+   "text": "พอแล้ว ลาก่อนโลก",
+   "plainText": "พอแล้ว ลาก่อนโลก",
+   "kind": "extra",
+   "state": "RAGE_QUIT",
+   "persona": "p8",
+   "recorder": 2,
+   "emotion": "crying"
+  },
+  {
+   "id": "default-DEMANDING",
+   "text": "ไหว้ก่อน มนุษย์",
+   "plainText": "ไหว้ก่อน มนุษย์",
+   "kind": "extra",
+   "state": "DEMANDING",
+   "recorder": 3
+  },
+  {
+   "id": "default-WATCHING",
+   "text": "กำลังดูอยู่",
+   "plainText": "กำลังดูอยู่",
+   "kind": "extra",
+   "state": "WATCHING",
+   "recorder": 4
+  },
+  {
+   "id": "default-PASSED",
+   "text": "ผ่านแล้ว",
+   "plainText": "ผ่านแล้ว",
+   "kind": "extra",
+   "state": "PASSED",
+   "recorder": 1
+  },
+  {
+   "id": "default-RETRY",
+   "text": "ไหว้ใหม่",
+   "plainText": "ไหว้ใหม่",
+   "kind": "extra",
+   "state": "RETRY",
+   "recorder": 2
+  },
+  {
+   "id": "default-ANNOYED",
+   "text": "ไหว้ให้ดีกว่านี้",
+   "plainText": "ไหว้ให้ดีกว่านี้",
+   "kind": "extra",
+   "state": "ANNOYED",
+   "recorder": 3
+  },
+  {
+   "id": "default-SULKING",
+   "text": "งอนแล้วนะ",
+   "plainText": "งอนแล้วนะ",
+   "kind": "extra",
+   "state": "SULKING",
+   "recorder": 4
+  },
+  {
+   "id": "default-RAGE_QUIT",
+   "text": "ไม่เล่นด้วยแล้ว",
+   "plainText": "ไม่เล่นด้วยแล้ว",
+   "kind": "extra",
+   "state": "RAGE_QUIT",
+   "recorder": 1
+  },
+  {
+   "id": "default-FORGIVE",
+   "text": "ก็ได้ ให้อภัย",
+   "plainText": "ก็ได้ ให้อภัย",
+   "kind": "extra",
+   "state": "FORGIVE",
+   "recorder": 2
+  },
+  {
+   "id": "default-IDLE",
+   "text": "พร้อมแล้ว",
+   "plainText": "พร้อมแล้ว",
+   "kind": "extra",
+   "state": "IDLE",
+   "recorder": 3
+  }
+ ]
+}

@@ -115,10 +115,12 @@ Source: [`lib/survival.ts`](../lib/survival.ts). Constants: `BEAUTIFUL_SCORE = 8
 | 400 | `invalid_param` | bad query value |
 | 400 | `invalid_body` | body fails validation (includes **unknown fields**) |
 | 401 | `unauthorized` | missing, malformed or unknown install key |
-| 404 | `not_found` | no such player |
+| 404 | `not_found` | no such player; for sticker routes also: no such wai **owned by this key** (SDK retries later: the wai may not be synced yet) |
 | 409 | `handle_taken` | register with an existing handle |
 | 409 | `duplicate` | same wai `id` resent with a different body |
-| 413 | `too_large` | body > 64 KB (batch: 256 KB) |
+| 400 | `invalid_image` | image body is corrupt or larger than 1024x1024 px |
+| 413 | `too_large` | body > 64 KB (batch: 256 KB), sticker > 400 KB, avatar > 250 KB |
+| 415 | `unsupported_media` | image upload with the wrong `Content-Type` or magic bytes (not a real PNG / JPEG / WebP) |
 | 429 | `rate_limited` | see §7; honour the `Retry-After` header (seconds) |
 | 500 | `internal` | bug, so report it |
 
@@ -129,9 +131,21 @@ Source: [`lib/survival.ts`](../lib/survival.ts). Constants: `BEAUTIFUL_SCORE = 8
 ### Shared objects
 
 ```ts
-PlayerRef = { id: uuid, handle: string /* ^[a-z0-9_]{3,20}$ */, display_name: string /* 1–32 chars */, avatar_hue: 0..359 }
-WaiRef    = { id: uuid, level: 0..3, score: 0..100, hold_ms: number, created_at: iso, sticker_url: string | null }
+PlayerRef = { id: uuid, handle: string /* ^[a-z0-9_]{3,20}$ */, display_name: string /* 1–32 chars */, avatar_hue: 0..359,
+              avatar_url: string | null,                         // resolved picture (photo or best sticker); null ⇒ draw the hue circle
+              avatar_kind: 'generated' | 'photo' | 'sticker' }   // what avatar_url is
+WaiRef    = { id: uuid, level: 0..3, score: 0..100, hold_ms: number, created_at: iso,
+              sticker_url: string | null, sticker_simulated: boolean }
 ```
+
+**Image URLs** (`avatar_url`, `sticker_url`) are root-relative (`/api/v1/stickers/<wai id>.png?v=3`): prefix the site origin. `?v=` is a version
+that changes on every replace, so the URL is safe to cache. `sticker_simulated: true` means a cartoon SVG made by the mock
+simulation for a **simulated** player (`.svg` instead of `.png`). Simulated players never have a photo, and a
+`WAI_BLOCK_MOCK=1` server has none of them.
+
+Leaderboard entries also carry `sticker_url` (the player's best sticker, highest score then newest, or `null`), feed items carry the
+wai's `sticker_url`, Hall of Fame records carry `sticker_url` (the record wai's sticker, else the player's best sticker),
+and `GET /players/:handle` carries `stickers` (newest first, max 60) and `player.avatar_source`.
 
 ### `GET {BASE}/health`
 
@@ -260,6 +274,7 @@ Errors: `409 handle_taken`, `429` (5 per hour per IP).
 ### `GET {BASE}/players/me`  ·  `PATCH {BASE}/players/me`
 
 Returns the key's player. `PATCH` body (both fields optional): `{ "display_name": "…", "avatar_hue": 120 }` → `{ "player": PlayerRef }`.
+`PlayerRef` includes `avatar_url` / `avatar_kind`, and `GET` also returns `avatar_source` (see below).
 
 ### `POST {BASE}/wais`: submit one attempt
 
@@ -300,6 +315,35 @@ Responses:
 Body `{ "items": [ …up to 100 submissions ] }` → always `200 { "results": [{ "id", "status": 201|200|400|409, "created_at"?, "error"? }] }`,
 in the same order as `items`. Invalid items don't block valid ones. This is what the outbox uses.
 
+### Profile picture and stickers
+
+Images are accepted **only** with a valid install key (no login exists, so uploading happens from the desktop SDK, never the browser).
+Image bodies are raw bytes (not JSON, not multipart). The server checks `Content-Length` and stops reading past the limit (413),
+checks the magic bytes (415) and the dimensions (≤ 1024 x 1024, else 400 `invalid_image`).
+The stickers are **never** part of the `POST /wais` body; `POST /wais` keeps rejecting unknown fields.
+
+| Endpoint | Auth | Body | Result |
+|---|---|---|---|
+| `POST {BASE}/wais/:waiId/sticker` | Bearer | `Content-Type: image/png`, ≤ 400 KB (transparent PNG cut-out) | `200 { "sticker_url" }`. Idempotent: a re-upload replaces. `404` if the wai does not exist or belongs to someone else |
+| `DELETE {BASE}/wais/:waiId/sticker` | Bearer | none | `200 { "deleted": true\|false }` |
+| `DELETE {BASE}/players/me/stickers` | Bearer | none | `200 { "deleted": n }`: removes **all** my stickers |
+| `PUT {BASE}/players/me/avatar` | Bearer | `image/png` \| `image/jpeg` \| `image/webp`, ≤ 250 KB | `200 { "avatar_url", "avatar_source" }`; sets the source to `photo` |
+| `DELETE {BASE}/players/me/avatar` | Bearer | none | `200 { "avatar_url": null\|…, "avatar_source": "generated" }`; deletes the photo, back to the hue circle |
+| `PUT {BASE}/players/me/profile` | Bearer | `{ "avatar_source": "auto"\|"generated"\|"photo"\|"sticker" }` (unknown fields → 400) | `200 { "player": PlayerRef, "avatar_source" }` |
+| `GET {BASE}/stickers/:waiId.png` | public | | the PNG; `Cache-Control: public, max-age=3600, immutable`; 404 if none |
+| `GET {BASE}/avatars/:playerId` | public | | the stored photo (its own `Content-Type`), same caching; 404 if none |
+
+`avatar_source` decides what `avatar_url` shows: `photo` = the uploaded photo; `sticker` = the player's best sticker (highest score,
+then newest), the UI crops it to the head with `object-fit: cover; object-position: top`; `generated` = hue circle;
+`auto` (default) = photo if uploaded, else best sticker if the player has at least one, else hue circle.
+A source whose image does not exist falls back to the hue circle.
+
+Limits: each player keeps their newest **60** stickers (older ones are deleted when a new one arrives). Stickers are public to
+anyone with the URL, so the SDK uploads them only when the user opted in (`web.upload_stickers`).
+
+**Supabase:** stored in the Storage buckets `stickers` and `avatars` (private; the API serves them), with new columns from
+`supabase/migrations/0002_stickers.sql`. This path is **compile-checked only**: never run against a real project. The mock store implements it fully in memory (lost on restart).
+
 ---
 
 ## 6. Live feed (SSE)
@@ -324,6 +368,8 @@ while events arrive, and disconnects while the tab is hidden.
 |---|---|
 | `POST /players` | 5 per hour per IP |
 | `POST /wais`, `/wais/batch` | burst 10, refill 2 per second, per player (a batch counts as 1) |
+| `POST/DELETE` sticker routes | burst 20, refill 2 per second, per player; 1,000 per day |
+| `PUT/DELETE` avatar and profile | burst 15, refill 1 per 5 s, per player |
 | daily | 3,000 requests per player per day |
 
 Limits are kept in memory per server instance. On `429`, wait `Retry-After` seconds. The SDK keeps the items and retries with backoff.

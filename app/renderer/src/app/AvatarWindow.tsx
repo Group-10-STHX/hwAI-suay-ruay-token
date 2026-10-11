@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { MAX_VISIBLE_CARDS, REQUEST_TIMEOUT_MS, skipItem } from '../api'
-import { Mascot } from '../mascot'
+import { avatarUrl, MAX_VISIBLE_CARDS, REQUEST_TIMEOUT_MS, skipItem } from '../api'
+import { avatarMoodFor, Mascot } from '../mascot'
+import { useSfxLevel } from '../sfx/store'
+import { useScoreSound } from '../sfx/useScoreSound'
 import { CardStack, PendingCount, TimeLeft } from '../queue'
 import { Island } from '../states'
 import { providerAccent, v } from '../theme/tokens'
@@ -10,6 +12,12 @@ import { useStore } from './store'
 export function AvatarWindow() {
   const { queue, vision, daemonOnline } = useStore()
   const now = useNow(queue.items.length > 0)
+  // เสียง HUD: เปิดที่หน้าต่างนี้ที่เดียว (ไม่งั้นเสียงซ้อน) ระดับเลือกที่หน้าหลัก
+  const [sfx] = useSfxLevel()
+  useScoreSound({ state: queue.state, vision, level: sfx })
+  // ตัวละครที่เลือก (jason = SVG ในแอป · ชื่ออื่นดึงภาพจาก daemon)
+  const avatar = queue.avatar
+  const avatarSrc = avatar && avatar !== 'jason' ? avatarUrl(avatar, avatarMoodFor(queue.state)) : undefined
   // ใบบนสุดอยู่ใน island ใบที่เหลือลงกองการ์ด แต่ละคำขอโชว์ครั้งเดียว
   const { top, waiting, shown, hidden } = splitQueue(queue.items, MAX_VISIBLE_CARDS)
   const accent = top ? providerAccent[top.source] : undefined
@@ -21,6 +29,7 @@ export function AvatarWindow() {
       style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end', padding: 16 }}
     >
       {queue.bypass && <Badge tone="blessed">WAI_BYPASS เปิดอยู่</Badge>}
+      {queue.monitor && <Badge tone="blessed">โหมดสังเกต ไม่ต้องไหว้</Badge>}
       {!daemonOnline && <Badge tone="hud">ต่อ daemon ไม่ได้</Badge>}
       {active && (
         <Island
@@ -32,7 +41,7 @@ export function AvatarWindow() {
           providerLabel={accent?.label}
           agentLabel={top?.agentLabel}
           timeLeft={top && <TimeLeft createdAt={top.createdAt} now={now} timeoutMs={REQUEST_TIMEOUT_MS} />}
-          mascot={<Mascot state={queue.state} providerColor={accent?.color ?? v('hudDim')} />}
+          mascot={<Mascot state={queue.state} providerColor={accent?.color ?? v('hudDim')} avatar={avatar} avatarSrc={avatarSrc} />}
           cards={
             <>
               <CardStack
@@ -40,7 +49,9 @@ export function AvatarWindow() {
                 now={now}
                 timeoutMs={REQUEST_TIMEOUT_MS}
                 max={shown}
-                avatar={(it) => <Mascot state={queue.state} providerColor={providerAccent[it.source].color} size="small" still />}
+                avatar={(it) => (
+                  <Mascot state={queue.state} providerColor={providerAccent[it.source].color} size="small" still avatar={avatar} avatarSrc={avatarSrc} />
+                )}
               />
               <PendingCount count={hidden} />
             </>

@@ -16,6 +16,8 @@ npm run dev          # http://localhost:3000 (mock data + live simulation; accep
 npm run build        # production build; must pass with zero type errors
 npm start            # serve the build
 npm run typecheck
+node --test sdk/wai-sync.test.mjs   # SDK unit tests (mock fetch)
+WAI_DIST_DIR=.next-w npm run build   # build/serve into another dir when `next dev` is running
 npm run smoke        # end-to-end API checks against http://localhost:3000/api/v1 (or pass a base URL); real-only checks run when WAI_BLOCK_MOCK=1
 ```
 
@@ -37,18 +39,23 @@ schema in `supabase/migrations/0001_init.sql`).
    `lib/service.ts` `current()`, and API routes call the same functions. Never compute rankings anywhere else, and
    never `fetch` your own API from a server component.
 3. **Stores only load and save rows** (`lib/store/*`). Mock and Supabase must behave identically: idempotent
-   inserts (201/200/409), `created_at` set by the server, rows in time order.
+   inserts (201/200/409), `created_at` set by the server, rows in time order. Image bytes (stickers/avatars) go through
+   the store too; the engine only sees version numbers and builds `avatar_url` / `sticker_url`.
 4. **Writes are strict.** `lib/validate.ts` rejects unknown fields so `agent_label`, prompt text and paths can never land.
    Keep it that way.
 5. **Time is Asia/Bangkok.** Use `lib/time.ts` (`startOf`, `bkkDay`) and never `new Date().getDate()`.
 6. **Survival formula** lives only in `lib/survival.ts`. If you change it, update docs/API.md §2 and the formula shown
    on `app/players/[handle]/page.tsx`.
 7. **Server components by default.** Client components are only `LiveFeed`, `BellCurve`, `Countdown`,
-   `BootSequence` and `TvRotator`. Tabs are `<Link>`s (URL state), not client state.
+   `BootSequence`, `TvRotator`, `StickerWall` and `TvSticker`. Tabs are `<Link>`s (URL state), not client state.
 8. **Theme tokens live in `app/globals.css` `:root`.** The theme is dark only. Animate only transform/opacity, and
    everything must stop under `prefers-reduced-motion`. Chart colours: `--lv0..3` is a validated ordinal ramp, and
-   text never wears a series colour.
+   text never wears a series colour. Preview themes (`?theme=arcade|book|news`, docs/ARCHITECTURE.md § Preview themes)
+   live in `app/themes/*.css`, each scoped to `[data-theme=…]`; never let them leak into the default look.
 9. **No horizontal scroll at 390 px.** Check mobile after any layout change.
+10. **Images are write-only through an install key.** No browser upload, no credentials in the web UI. `POST /wais` never
+    takes an image, and its strict unknown-field 400 stays. Simulated stickers exist only for simulated players
+    (`sticker_simulated: true`, never in `WAI_BLOCK_MOCK=1`).
 
 ## Common tasks
 

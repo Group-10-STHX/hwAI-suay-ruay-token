@@ -1,14 +1,23 @@
 import Link from 'next/link';
 import type { HallOfFame as Hof } from '@/lib/types';
 import { RECORD_ICON, SHAME_RECORDS, UNIT_LABEL, dLong, dShort, fmtValue } from '@/lib/format';
-import { Avatar, Hud, LevelPill } from './bits';
+import { Avatar, Hud, LevelPill, Sticker } from './bits';
+
+/** Tabloid kicker for the newsroom theme's headline (decorative, aria-hidden; hidden in the default theme). */
+const KICKER: Record<string, string> = {
+  last_human: 'รอดคนเดียว!', best_score: 'สวยสะกดโลก!', longest_hold: 'อึดเหลือเชื่อ!', most_in_day: 'ขยันจน AI อึ้ง!',
+  longest_streak: 'ไม่มีวันหยุด!', lv3_master: 'ศรัทธาแรงกล้า!', most_forgiven: 'ง้อเก่งเว่อร์!', perfect_100: 'ประวัติศาสตร์!',
+  most_rage: 'ฉาวโฉ่!', first_target: 'ระทึก!',
+};
 
 export function HallOfFame({ h }: { h: Hof }) {
   return (
     <Hud className="area-hof" id="hof-title" code="// ARCHIVE :: HUMANS_OF_RECORD" title="Hall of Fame" sub="สถิติตลอดกาลที่ AI จดจำไว้">
       <div className="records">
         {h.records.map((r) => (
-          <Link key={r.key} href={`/players/${r.player.handle}`} className={`rec${SHAME_RECORDS.has(r.key) ? ' rec-shame' : ''}`}>
+          <Link key={r.key} href={`/players/${r.player.handle}`} className={`rec${SHAME_RECORDS.has(r.key) ? ' rec-shame' : ''}${r.sticker_url ? ' rec-hero' : ''}`}>
+            <span className="rec-head" aria-hidden="true">{KICKER[r.key] ?? 'ข่าวด่วน!'} {r.player.display_name} {r.title.replace(/\s*\(Shame\)$/, '')}</span>
+            {r.sticker_url ? <span className="rec-img"><Sticker url={r.sticker_url} size={96} alt={`${r.title}: ${r.player.display_name}`} /></span> : null}
             <span className="rec-icon" aria-hidden="true">{RECORD_ICON[r.key] ?? '⭐'}</span>
             <span className="rec-title">{r.title}</span>
             <span className="rec-value num">

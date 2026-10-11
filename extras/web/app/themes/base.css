@@ -1,0 +1,39 @@
+/* Preview-theme scaffolding. Switch with ?theme=arcade|book|news (any other value resets), see app/layout.tsx.
+   Every theme file is scoped to html[data-theme=…]; with no data-theme the default HUD in globals.css is untouched.
+   Elements below exist only for the themes, so the default look hides them (hidden lazy images are never fetched). */
+
+.theme-strip, .hero-stk, .pod-art, .rec-head, .t-arcade, .t-book, .t-news { display: none; }
+
+/* shared marquee mechanics (shown by arcade + news) */
+.live-marquee { display: flex; align-items: stretch; overflow: hidden; white-space: nowrap; }
+.lm-label { flex: none; display: flex; align-items: center; position: relative; z-index: 1; }
+.lm-viewport { flex: 1; min-width: 0; overflow: hidden; }
+.lm-track { display: inline-flex; animation: lm-run 70s linear infinite; }
+.lm-track > span { padding: 7px 36px 7px 0; }
+.lm-track i, .lm-track em { font-style: normal; }
+@keyframes lm-run { to { transform: translateX(-50%); } }
+
+/* sticker frames: the image fills its (position:relative, sized) frame, contained and anchored to the bottom */
+.hero-stk-img, .pod-art, .rec-img { position: relative; }
+.hero-stk-img > .stk, .pod-art > .stk { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom; }
+
+/* die-cut white edge + paper shadow for cut-out stickers (simulated cartoons have no white outline of their own) */
+:root { --diecut: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff); }
+
+/* footer theme picker (design preview) */
+.theme-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 10px; font-size: 12px; }
+.theme-pick a { color: var(--ink-2); text-underline-offset: 3px; padding: 4px 0; }
+.theme-pick a:hover { color: var(--ink); }
+html:not([data-theme]) .theme-pick [data-k="hud"],
+[data-theme="arcade"] .theme-pick [data-k="arcade"],
+[data-theme="book"] .theme-pick [data-k="book"],
+[data-theme="news"] .theme-pick [data-k="news"] { color: var(--ink); font-weight: 700; text-decoration: none; }
+
+/* fixes every preview theme shares (the default HUD keeps its current behaviour) */
+[data-theme] .who > span:not(.meter) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }  /* handle line: one line, never spills out of the row */
+[data-theme] .who .meter { display: block; }                                                                          /* survival bar actually shows */
+[data-theme] .tv-stage .feed { font-size: 17px; }                                                                     /* TV feed readable from 3 m */
+[data-theme] .tv-stage .feed .meta { font-size: 12.5px; }
+[data-theme] .tv-stage .feed li { grid-template-columns: 36px minmax(0, 1fr) auto; }
+[data-theme] .tv-stage .feed .av { --s: 36px; }
+[data-theme] .tv-stage .st { font-size: 14px; }

@@ -1,4 +1,4 @@
-import type { SessionState } from '../api/types'
+import type { AvatarMood, SessionState } from '../api/types'
 import annoyed from './assets/jason-annoyed.svg'
 import demanding from './assets/jason-demanding.svg'
 import forgive from './assets/jason-forgive.svg'
@@ -26,3 +26,18 @@ export const MOOD_SRC: Record<SessionState, string> = {
 
 /** น้องตัวเล็กบนการ์ด: นิ่ง ไม่ขยับ จะได้ไม่แย่งซีนตัวหลัก */
 export const STILL_SRC = { idle: neutralStill, waiting: watchingStill } as const
+
+/** mood ของรูปตัวละครของผู้ใช้ตาม state (ใช้ส่งให้ api.avatarUrl) */
+export const AVATAR_MOOD: Record<SessionState, AvatarMood> = {
+  IDLE: 'confused',
+  DEMANDING: 'confused',
+  WATCHING: 'confused',
+  RETRY: 'sad',
+  SULKING: 'sad',
+  ANNOYED: 'angry',
+  RAGE_QUIT: 'angry',
+  PASSED: 'forgive',
+  FORGIVE: 'forgive',
+}
+
+export const avatarMoodFor = (state: SessionState): AvatarMood => AVATAR_MOOD[state]

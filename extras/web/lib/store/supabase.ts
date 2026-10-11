@@ -5,17 +5,18 @@ import type { PlayerRow, Snapshot } from '../engine';
 import { addPlayer, addWai, emptySnapshot } from '../engine';
 import { ApiError } from '../errors';
 import { iso } from '../time';
-import type { WaiSubmission } from '../types';
+import type { AvatarSource, WaiSubmission } from '../types';
 import { sameWai } from '../validate';
 import { hashKey, newInstallKey } from './keys';
-import type { InsertResult, Store } from './types';
+import { MAX_STICKERS_PER_PLAYER, type InsertResult, type Store } from './types';
 
 const TTL = 10_000;
 const PAGE = 1000;
-const WAI_COLS = 'id, player_id, session_id, source, kind, level, score, hold_ms, passed, action, forgave, anger, client_ts, created_at';
+const WAI_COLS = 'id, player_id, session_id, source, kind, level, score, hold_ms, passed, action, forgave, anger, client_ts, created_at, sticker_v';
 
-interface DbPlayer { id: string; handle: string; display_name: string; avatar_hue: number; created_at: string }
-interface DbWai extends Omit<WaiSubmission, 'client_ts'> { player_id: string; client_ts: string | null; created_at: string }
+const PLAYER_COLS = 'id, handle, display_name, avatar_hue, created_at, avatar_v, avatar_source';
+interface DbPlayer { id: string; handle: string; display_name: string; avatar_hue: number; created_at: string; avatar_v?: number; avatar_source?: AvatarSource }
+interface DbWai extends Omit<WaiSubmission, 'client_ts'> { player_id: string; client_ts: string | null; created_at: string; sticker_v?: number }
 
 const toPlayer = (r: DbPlayer): PlayerRow => ({ ...r, created_at: Date.parse(r.created_at) });
 const toSubmission = (r: DbWai): WaiSubmission => ({
@@ -31,7 +32,7 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
 
   async function load(): Promise<Snapshot> {
     const s = emptySnapshot();
-    const { data: players, error } = await db.from('players').select('id, handle, display_name, avatar_hue, created_at').order('created_at');
+    const { data: players, error } = await db.from('players').select(PLAYER_COLS).order('created_at');
     if (error) throw error;
     const index = new Map<string, number>();
     for (const p of players as DbPlayer[]) index.set(p.id, addPlayer(s, toPlayer(p)));
@@ -41,7 +42,7 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
       for (const r of data as DbWai[]) {
         const p = index.get(r.player_id);
         if (p === undefined) continue;
-        addWai(s, { ...toSubmission(r), p, t: Date.parse(r.created_at), client_ts: r.client_ts ? Date.parse(r.client_ts) : null });
+        addWai(s, { ...toSubmission(r), p, t: Date.parse(r.created_at), client_ts: r.client_ts ? Date.parse(r.client_ts) : null, sticker: r.sticker_v ?? 0 });
       }
       if (data.length < PAGE) break;
     }
@@ -49,6 +50,12 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
   }
 
   const invalidate = () => { cached = null; };
+  const ver = () => Math.floor(Date.now() / 1000);
+  async function ownedWai(player: PlayerRow, waiId: string) {
+    const { data, error } = await db.from('wais').select('id, sticker_v').eq('id', waiId).eq('player_id', player.id).maybeSingle();
+    if (error) throw error;
+    return data as { id: string; sticker_v: number } | null;
+  }
 
   return {
     kind: 'supabase',
@@ -62,7 +69,7 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
       const install_key = newInstallKey();
       const { data, error } = await db.from('players')
         .insert({ handle, display_name, install_key_hash: hashKey(install_key) })
-        .select('id, handle, display_name, avatar_hue, created_at').single();
+        .select(PLAYER_COLS).single();
       if (error?.code === '23505') throw new ApiError(409, 'handle_taken', `@${handle} is taken`, 'handle');
       if (error) throw error;
       invalidate();
@@ -71,7 +78,7 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
     async authenticate(key) {
       const h = hashKey(key), hit = authCache.get(h);
       if (hit && Date.now() - hit.at < 60_000) return hit.player;
-      const { data, error } = await db.from('players').select('id, handle, display_name, avatar_hue, created_at').eq('install_key_hash', h).maybeSingle();
+      const { data, error } = await db.from('players').select(PLAYER_COLS).eq('install_key_hash', h).maybeSingle();
       if (error) throw error;
       if (!data) throw new ApiError(401, 'unauthorized', 'unknown install key');
       const player = toPlayer(data as DbPlayer);
@@ -79,7 +86,7 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
       return player;
     },
     async updatePlayer(id, patch) {
-      const { data, error } = await db.from('players').update(patch).eq('id', id).select('id, handle, display_name, avatar_hue, created_at').single();
+      const { data, error } = await db.from('players').update(patch).eq('id', id).select(PLAYER_COLS).single();
       if (error) throw error;
       authCache.clear();
       invalidate();
@@ -107,6 +114,81 @@ export function createSupabaseStore(url: string, serviceKey: string): Store {
           ? { id: w.id, status: 200, created_at: iso(Date.parse(ex.created_at)) }
           : { id: w.id, status: 409, error: { code: 'duplicate', message: 'same id with a different body' } };
       });
+    },
+
+    async putSticker(player, waiId, png) {
+      const w = await ownedWai(player, waiId);
+      if (!w) throw new ApiError(404, 'not_found', 'no such wai for this player');
+      const up = await db.storage.from('stickers').upload(`${waiId}.png`, png, { contentType: 'image/png', upsert: true });
+      if (up.error) throw up.error;
+      const v = Math.max(ver(), (w.sticker_v || 0) + 1);
+      const { error } = await db.from('wais').update({ sticker_v: v }).eq('id', waiId);
+      if (error) throw error;
+      // keep only the newest MAX_STICKERS_PER_PLAYER
+      const { data: all, error: e2 } = await db.from('wais').select('id').eq('player_id', player.id).gt('sticker_v', 0)
+        .order('created_at', { ascending: false }).range(MAX_STICKERS_PER_PLAYER, MAX_STICKERS_PER_PLAYER + 500);
+      if (e2) throw e2;
+      const old = ((all ?? []) as { id: string }[]).map((r) => r.id);
+      if (old.length) {
+        await db.storage.from('stickers').remove(old.map((id) => `${id}.png`));
+        await db.from('wais').update({ sticker_v: 0 }).in('id', old);
+      }
+      invalidate();
+      return v;
+    },
+    async getSticker(waiId) {
+      const { data, error } = await db.storage.from('stickers').download(`${waiId}.png`);
+      if (error || !data) return null;
+      return { bytes: new Uint8Array(await data.arrayBuffer()), mime: 'image/png' };
+    },
+    async deleteSticker(player, waiId) {
+      const w = await ownedWai(player, waiId);
+      if (!w || !w.sticker_v) return false;
+      await db.storage.from('stickers').remove([`${waiId}.png`]);
+      const { error } = await db.from('wais').update({ sticker_v: 0 }).eq('id', waiId);
+      if (error) throw error;
+      invalidate();
+      return true;
+    },
+    async deleteAllStickers(player) {
+      const { data, error } = await db.from('wais').select('id').eq('player_id', player.id).gt('sticker_v', 0);
+      if (error) throw error;
+      const ids = ((data ?? []) as { id: string }[]).map((r) => r.id);
+      for (let i = 0; i < ids.length; i += 100) {
+        const part = ids.slice(i, i + 100);
+        await db.storage.from('stickers').remove(part.map((id) => `${id}.png`));
+        const { error: e2 } = await db.from('wais').update({ sticker_v: 0 }).in('id', part);
+        if (e2) throw e2;
+      }
+      invalidate();
+      return ids.length;
+    },
+    async putAvatar(player, bytes, mime) {
+      const up = await db.storage.from('avatars').upload(player.id, bytes, { contentType: mime, upsert: true });
+      if (up.error) throw up.error;
+      const { error } = await db.from('players')
+        .update({ avatar_v: Math.max(ver(), (player.avatar_v || 0) + 1), avatar_mime: mime, avatar_source: 'photo' }).eq('id', player.id);
+      if (error) throw error;
+      authCache.clear();
+      invalidate();
+    },
+    async getAvatar(playerId) {
+      const { data, error } = await db.storage.from('avatars').download(playerId);
+      if (error || !data) return null;
+      return { bytes: new Uint8Array(await data.arrayBuffer()), mime: data.type || 'image/png' };
+    },
+    async deleteAvatar(player) {
+      await db.storage.from('avatars').remove([player.id]);
+      const { error } = await db.from('players').update({ avatar_v: 0, avatar_mime: null, avatar_source: 'generated' }).eq('id', player.id);
+      if (error) throw error;
+      authCache.clear();
+      invalidate();
+    },
+    async setAvatarSource(player, source) {
+      const { error } = await db.from('players').update({ avatar_source: source }).eq('id', player.id);
+      if (error) throw error;
+      authCache.clear();
+      invalidate();
     },
   };
 }

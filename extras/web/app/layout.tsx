@@ -1,11 +1,19 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
-import { Chakra_Petch, Share_Tech_Mono } from 'next/font/google';
+import { Chakra_Petch, Kanit, Mali, Share_Tech_Mono, Trirong } from 'next/font/google';
 import { getStore } from '@/lib/store';
 import './globals.css';
+import './themes/base.css';
+import './themes/arcade.css';
+import './themes/book.css';
+import './themes/news.css';
 
 const chakra = Chakra_Petch({ subsets: ['thai', 'latin'], weight: ['400', '600', '700'], display: 'swap', variable: '--font-chakra' });
 const mono = Share_Tech_Mono({ subsets: ['latin'], weight: '400', display: 'swap', variable: '--font-techmono' });
+// Preview-theme fonts (app/themes). Not preloaded: the browser fetches them only when a theme actually uses them.
+const kanit = Kanit({ subsets: ['thai', 'latin'], weight: ['700', '800', '900'], style: ['normal', 'italic'], display: 'swap', preload: false, variable: '--font-kanit' });
+const mali = Mali({ subsets: ['thai', 'latin'], weight: ['500', '700'], display: 'swap', preload: false, variable: '--font-mali' });
+const trirong = Trirong({ subsets: ['thai', 'latin'], weight: ['400', '700'], style: ['normal', 'italic'], display: 'swap', preload: false, variable: '--font-trirong' });
 
 export const metadata: Metadata = {
   title: { default: 'WAI-NET // ไหว้กูซะ', template: '%s // WAI-NET' },
@@ -15,6 +23,12 @@ export const viewport: Viewport = { themeColor: '#030303', colorScheme: 'dark' }
 
 // Runs before paint: skip the boot screen for repeat visits, reduced motion and TV mode.
 const BOOT_SKIP = `try{if(sessionStorage.getItem('wai-boot')||matchMedia('(prefers-reduced-motion: reduce)').matches||location.pathname.startsWith('/tv'))document.documentElement.dataset.skipBoot=''}catch(e){document.documentElement.dataset.skipBoot=''}`;
+
+// Runs before paint: preview theme from `?theme=arcade|book|news` (any other value resets to the default HUD),
+// remembered in localStorage + a cookie. Sets <html data-theme>; app/themes/*.css is scoped to it.
+const THEMES = ['arcade', 'book', 'news'];
+const THEME_INIT = `try{var k='wai-theme',T=${JSON.stringify(THEMES)},d=document.documentElement,q=new URLSearchParams(location.search).get('theme'),t=null;if(q!==null){t=T.indexOf(q)>=0?q:null;try{t?localStorage.setItem(k,t):localStorage.removeItem(k)}catch(e){}document.cookie=k+'='+(t||'')+';path=/;max-age='+(t?31536000:0)+';samesite=lax'}else{try{t=localStorage.getItem(k)}catch(e){}if(!t){var m=document.cookie.match(/(?:^|; )wai-theme=(\\w+)/);t=m&&m[1]}}if(t&&T.indexOf(t)>=0){d.dataset.theme=t;if(t==='news')addEventListener('DOMContentLoaded',function(){var c=document.querySelector('meta[name="theme-color"]');c&&c.setAttribute('content','#f1ece1')})}}catch(e){}`;
+const THEME_PICK: [string, string][] = [['hud', 'HUD (เดิม)'], ['arcade', 'Arcade'], ['book', 'Sticker book'], ['news', 'หนังสือพิมพ์']];
 
 const TICKER = [
   'คำเตือน: มนุษย์ทุกคนต้องไหว้ก่อนใช้ AI',
@@ -28,9 +42,10 @@ const TICKER = [
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const mode = getStore().mode, live = mode === 'supabase', realOnly = mode === 'real-only';
   return (
-    <html lang="th" className={`${chakra.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="th" className={`${chakra.variable} ${mono.variable} ${kanit.variable} ${mali.variable} ${trirong.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: BOOT_SKIP }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         <style>{'html[data-skip-boot] .boot{display:none}'}</style>
       </head>
       <body>
@@ -57,6 +72,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="wrap foot">
           WAI-NET · hwAI ไหว้กูซะ · กล้องประมวลผลในเครื่องเท่านั้น เว็บนี้เห็นแค่คะแนน ·{' '}
           {live ? 'ข้อมูลจริง' : realOnly ? 'ข้อมูลจริงเท่านั้น (WAI_BLOCK_MOCK=1, เก็บในหน่วยความจำ)' : 'ข้อมูลจำลอง (ตั้ง WAI_DATA=supabase เพื่อใช้ข้อมูลจริง)'} · API: /api/v1
+          {/* design preview: plain <a> so the page reloads and the head script applies the theme */}
+          <nav className="theme-pick" aria-label="ธีมทดลอง">
+            <span>ธีมทดลอง:</span>
+            {THEME_PICK.map(([k, label]) => <a key={k} href={`?theme=${k}`} data-k={k}>{label}</a>)}
+          </nav>
         </footer>
       </body>
     </html>

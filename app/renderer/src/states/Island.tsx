@@ -20,7 +20,7 @@ export type IslandProps = {
 
 const SHOW_SCORE: Partial<Record<SessionState, true>> = { RETRY: true, ANNOYED: true }
 
-/** island ลอย: ไม่มีกรอบ ไม่มีพื้นหลัง (§2) ฟองคำพูดซ้าย น้องขวา การ์ดเรียงข้างล่าง */
+/** island ลอย: ไม่มีกรอบรวม (§2) ฟองคำพูดซ้าย น้องขวาอยู่บนแผ่นพื้นหลังทึบมี padding การ์ดเรียงข้างล่าง */
 export function Island({ state, failCount, score, reasons, providerColor, providerLabel, agentLabel, timeLeft, mascot, cards }: IslandProps) {
   const tone = stateColor[state]
   const hint = SPEECH_HINT[state]
@@ -67,8 +67,20 @@ export function Island({ state, failCount, score, reasons, providerColor, provid
           </div>
         </div>
         {/* key ทำให้ effect เล่นใหม่ทุกครั้งที่ state เปลี่ยน (bless เล่นครั้งเดียว) */}
-        <div key={state} className={mascotFx}>
-          {mascot}
+        {/* แผ่นพื้นหลังตัวน้อง: ทึบ ~88% + padding กันมองยากบนพื้นจอที่ลาย (FRONT_RULES §2) */}
+        <div
+          style={{
+            padding: space.md,
+            borderRadius: radius.lg,
+            background: `color-mix(in srgb, ${v('bg')} 88%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${v(tone)} 45%, transparent)`,
+            boxShadow: shadow.backing,
+            backdropFilter: 'blur(6px)',
+          }}
+        >
+          <div key={state} className={mascotFx}>
+            {mascot}
+          </div>
         </div>
       </div>
       {cards}

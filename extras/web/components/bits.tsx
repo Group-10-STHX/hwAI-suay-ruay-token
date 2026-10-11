@@ -1,11 +1,30 @@
 import type { PlayerRef } from '@/lib/types';
 import { LEVEL_LABEL, initial } from '@/lib/format';
 
+/** Profile picture: photo or best sticker (cropped to the head) inside the HUD frame, else the generated hue circle. */
 export function Avatar({ p, size = '' }: { p: PlayerRef; size?: '' | 's' | 'l' | 'xl' }) {
+  if (p.avatar_url) {
+    const px = size === 'xl' ? 116 : size === 'l' ? 60 : size === 's' ? 28 : 36;
+    return (
+      <span className={`av av-img av-${p.avatar_kind}${size ? ` av-${size}` : ''}`} style={{ ['--h' as string]: p.avatar_hue }} aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={p.avatar_url} alt="" width={px} height={px} loading="lazy" decoding="async" />
+      </span>
+    );
+  }
   return (
     <span className={`av${size ? ` av-${size}` : ''}`} style={{ ['--h' as string]: p.avatar_hue }} aria-hidden="true">
       {initial(p.display_name)}
     </span>
+  );
+}
+
+/** Small cut-out sticker. Simulated stickers (mock players) are cartoon SVGs and get a SIM mark in the title. */
+export function Sticker({ url, size = 34, alt = '' }: { url: string; size?: number; alt?: string }) {
+  const sim = url.includes('.svg');
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="stk" src={url} alt={alt} width={size} height={size} loading="lazy" decoding="async" title={sim ? 'sticker จำลอง (SIMULATED)' : undefined} />
   );
 }
 

@@ -5,11 +5,12 @@ import { randomUUID } from 'node:crypto';
 import type { PlayerRow, Snapshot, WaiRow } from '../engine';
 import { addPlayer, addWai, emptySnapshot } from '../engine';
 import { ApiError } from '../errors';
+import { cartoonSvg, simHasSticker } from '../cartoon';
 import { DAY, bkkDay, iso, startOf } from '../time';
 import type { Kind, Level, Source, WaiSubmission } from '../types';
 import { sameWai } from '../validate';
 import { hashKey, newInstallKey } from './keys';
-import type { InsertResult, Store } from './types';
+import { MAX_STICKERS_PER_PLAYER, type InsertResult, type Store } from './types';
 
 const PEOPLE: [string, string][] = [
   ['nong_dot', 'น้องดอท'], ['phi_tee', 'พี่ตี๋'], ['somchai_dev', 'สมชาย.dev'], ['ploy_codes', 'พลอยโค้ด'],
@@ -50,6 +51,9 @@ export function createMemoryStore(opts: { seed?: number; withMock?: boolean } = 
   const snap: Snapshot = emptySnapshot();
   const sims: (Sim | null)[] = []; // null = a real registered player (never simulated)
   const keys = new Map<string, number>(); // sha256(key) → player index
+  const files = new Map<string, { bytes: Uint8Array; mime: string }>(); // 's:<waiId>' | 'a:<playerId>'
+  let verClock = 0;
+  const nextVer = (prev: number) => (verClock = Math.max(verClock + 1, prev + 1, Math.floor(Date.now() / 1000)));
   const submitted = new Map<string, { w: WaiSubmission; at: number }>();
   const now0 = Date.now(), today0 = startOf('day', now0);
 
@@ -87,9 +91,11 @@ export function createMemoryStore(opts: { seed?: number; withMock?: boolean } = 
       P.anger = anger = P.anger + 1;
       action = P.anger <= 4 ? 'retry' : P.anger === 5 ? 'deny' : 'rage_quit';
     }
+    const id = uuid();
     return {
-      id: uuid(), p, session_id: P.session, source, kind, level: level as Level, score, hold_ms: hold, passed,
+      id, p, session_id: P.session, source, kind, level: level as Level, score, hold_ms: hold, passed,
       action, forgave: passed && raged, anger, t, client_ts: t,
+      sticker: simHasSticker(id, score, passed) ? -1 : 0, // simulated players only: a generated cartoon, never a photo
     };
   }
 
@@ -174,6 +180,62 @@ export function createMemoryStore(opts: { seed?: number; withMock?: boolean } = 
         addWai(snap, { ...w, p, t: now, client_ts: Date.parse(w.client_ts) });
         return { id: w.id, status: 201, created_at: iso(now) };
       });
+    },
+
+    async putSticker(player, waiId, png) {
+      const row = snap.byId.get(waiId);
+      const p = snap.byHandle.get(player.handle);
+      if (!row || p === undefined || row.p !== p) throw new ApiError(404, 'not_found', 'no such wai for this player');
+      row.sticker = nextVer(row.sticker && row.sticker > 0 ? row.sticker : 0);
+      files.set('s:' + waiId, { bytes: png, mime: 'image/png' });
+      const mine = snap.byPlayer[p].filter((r) => r.sticker && r.sticker > 0);
+      if (mine.length > MAX_STICKERS_PER_PLAYER) {
+        mine.sort((a, b) => a.t - b.t).slice(0, mine.length - MAX_STICKERS_PER_PLAYER).forEach((r) => { r.sticker = 0; files.delete('s:' + r.id); });
+      }
+      snap.version++;
+      return row.sticker;
+    },
+    async getSticker(waiId) {
+      const row = snap.byId.get(waiId);
+      if (!row || !row.sticker) return null;
+      if (row.sticker < 0) return { bytes: new TextEncoder().encode(cartoonSvg(waiId)), mime: 'image/svg+xml' };
+      return files.get('s:' + waiId) ?? null;
+    },
+    async deleteSticker(player, waiId) {
+      const row = snap.byId.get(waiId);
+      if (!row || row.p !== snap.byHandle.get(player.handle) || !row.sticker || row.sticker < 0) return false;
+      row.sticker = 0;
+      files.delete('s:' + waiId);
+      snap.version++;
+      return true;
+    },
+    async deleteAllStickers(player) {
+      const p = snap.byHandle.get(player.handle);
+      let n = 0;
+      if (p !== undefined) for (const r of snap.byPlayer[p]) if (r.sticker && r.sticker > 0) { r.sticker = 0; files.delete('s:' + r.id); n++; }
+      if (n) snap.version++;
+      return n;
+    },
+    async putAvatar(player, bytes, mime) {
+      const pl = snap.players[snap.byHandle.get(player.handle)!];
+      pl.avatar_v = nextVer(pl.avatar_v ?? 0);
+      pl.avatar_source = 'photo';
+      files.set('a:' + pl.id, { bytes, mime });
+      snap.version++;
+    },
+    async getAvatar(playerId) {
+      return files.get('a:' + playerId) ?? null;
+    },
+    async deleteAvatar(player) {
+      const pl = snap.players[snap.byHandle.get(player.handle)!];
+      pl.avatar_v = 0;
+      pl.avatar_source = 'generated';
+      files.delete('a:' + pl.id);
+      snap.version++;
+    },
+    async setAvatarSource(player, source) {
+      snap.players[snap.byHandle.get(player.handle)!].avatar_source = source;
+      snap.version++;
     },
   };
 }

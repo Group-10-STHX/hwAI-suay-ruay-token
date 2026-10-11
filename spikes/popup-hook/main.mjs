@@ -2,12 +2,16 @@
 // ของจริงเป็นงานของ #1 (/app/main) อันนี้แค่พิสูจน์ว่า hook → popup → ปลด ทำงานได้
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron'
 import { execFile } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
+import { codexTrusted, findOnPath, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { createSessions, planVision } from './session-state.mjs' // state machine ต่อ session (contract §4)
+import { createAvatars, handleAvatarRoute } from './avatars.mjs' // เลือก/เสิร์ฟตัวละคร (~/.waikusa/avatars)
+import { createVoice, defaultPlayImpl } from './voice.mjs'
+import { createVoiceAdmin } from './voice-admin.mjs' // หลังบ้านอัดเสียง /admin/voice // เสียงพูด: เสียงที่เพื่อนอัด → Paxa TTS (แคช) → say กันยา
+import { createStickers, isStickerStyle, normalizeStickerStyle, STICKER_FILE_RE, STICKER_STYLES } from './stickers.mjs' // สติ๊กเกอร์ตอนไหว้ผ่าน (~/.waikusa/stickers)
 import { createWaiLog } from './wai-log.mjs' // ~/.waikusa/wais.jsonl + สถิติ + sync ขึ้นเว็บ (contract §2, §3)
 import { randomUUID } from 'node:crypto'
 import http from 'node:http'
@@ -15,9 +19,20 @@ import http from 'node:http'
 const HERE = dirname(fileURLToPath(import.meta.url))
 // ตอน dev ติด hook แค่ใน ~/wai-sandbox · แอปที่ package แล้วค่อย global (ผู้ใช้ติ๊กเองใน onboarding)
 const SCOPE = process.env.WAI_HOOK_SCOPE ?? (app.isPackaged ? 'global' : 'sandbox')
-const SHORTCUT = join(homedir(), 'Applications', 'ไหว้กูซะ.app')
+const IS_MAC = process.platform === 'darwin'
+const IS_WIN = process.platform === 'win32'
+const SHORTCUT = join(homedir(), 'Applications', 'ไหว้กูซะ.app') // mac เท่านั้น (install-shortcut.sh)
 const WAI_HOME = join(homedir(), '.waikusa') // โฟลเดอร์ของ daemon: config.json, wais.jsonl
 const CONFIG = join(WAI_HOME, 'config.json')
+// โหมด dev: เก็บคลิปคุณภาพต่ำ (เหมือนกล้องวงจรปิด) ต่อการไหว้ 1 ครั้ง ไว้ในเครื่องเท่านั้น
+// เปิดด้วย WAI_DEV_RECORD=1 หรือใส่ "devRecord": true ใน ~/.waikusa/config.json · ค่าเริ่มต้นปิด
+const CLIPS_DIR = join(WAI_HOME, 'clips')
+const MAX_CLIPS = 60 // เก็บล่าสุด 60 คลิป เกินแล้วลบเฉพาะคลิปเก่าสุดในโฟลเดอร์ clips/ ของเราเอง
+const MAX_CLIP_BYTES = 8 * 1024 * 1024
+// โลโก้ตัวน้องไหว้ (assets/): icon.png = Dock/หน้าต่าง · tray.png (22px) + tray@2x.png บน menu bar
+const ASSETS = join(HERE, 'assets')
+const ICON = join(ASSETS, 'icon.png')
+const TRAY_ICON = join(ASSETS, 'tray.png')
 
 function readConfig() {
   try {
@@ -30,10 +45,18 @@ function saveConfig(patch) {
   mkdirSync(dirname(CONFIG), { recursive: true })
   writeFileSync(CONFIG, JSON.stringify({ ...readConfig(), ...patch }, null, 2))
 }
-const CODEX_CLI = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex' // มากับแอป ChatGPT/Codex
+/** Codex CLI: WAI_CODEX_CLI > แอป ChatGPT บน mac > `codex` ใน PATH · ไม่เจอ = null (ไม่ crash) */
+function codexCli() {
+  const env = process.env.WAI_CODEX_CLI
+  if (env && existsSync(env)) return env
+  const mac = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex'
+  if (IS_MAC && existsSync(mac)) return mac
+  return findOnPath('codex', { winExts: ['.exe', '.cmd'] })
+}
 const PORT = 7777
 // dev: vite (:5173) · แอปจาก shortcut: ไฟล์ที่ build แล้ว (WAI_RENDERER_URL=file://.../dist/)
-const RENDERER = process.env.WAI_RENDERER_URL ?? 'http://localhost:5173/'
+// ต้องลงท้ายด้วย / (Windows file URL: file:///C:/path/to/dist/)
+const RENDERER = (process.env.WAI_RENDERER_URL ?? 'http://localhost:5173/').replace(/\/?$/, '/')
 const WAIT_MS = 55_000 // long-poll รอบละไม่เกิน 60 วิ ตาม contract
 const EXPIRE_MS = 300_000 // hook timeout
 // หน้าต่างกล้องที่ซ่อนอยู่ ใช้ heuristic ของ Vision (vision/wai-heuristic.js)
@@ -60,6 +83,25 @@ let enabled = process.env.WAI_BYPASS !== '1'
 const sessions = createSessions()
 // บันทึกการไหว้จริงทุกครั้ง (ผ่าน/ไม่ผ่าน) ไม่บันทึก skip, bypass, หมดเวลา, ปิดแอป
 const waiLog = createWaiLog({ home: WAI_HOME })
+const avatars = createAvatars({ home: WAI_HOME })
+const stickers = createStickers({ home: WAI_HOME })
+const voice = createVoice({ home: WAI_HOME, log: console.log }) // key อ่านจาก ~/.waikusa/secrets.json
+const REPO_ROOT = join(HERE, '..', '..')
+const voiceAdmin = createVoiceAdmin({
+  home: WAI_HOME,
+  linesFile: join(REPO_ROOT, 'voice', 'lines.all.json'),
+  adminDir: join(REPO_ROOT, 'voice', 'admin'),
+  play: (file) => defaultPlayImpl({ kind: 'file', path: file })?.done,
+  now: Date.now,
+  log: console.log,
+})
+// พูดเมื่อ state ของ session หัวคิวเปลี่ยน (ไม่พูดซ้ำ state เดิมของคำขอเดิม)
+let lastSpoken = ''
+const speak = (state) => enabled && voice.speak({ state })
+// โหมดสังเกต: จับคำขอจริงจาก AI ทุกช่องทางแต่ไม่บังคับไหว้ (โชว์การ์ดสั้นๆ แล้วปล่อยผ่านเอง) ไว้ทดสอบว่าจับได้จริงไหม
+// เปิดด้วย WAI_MONITOR=1 หรือ "monitor": true ใน ~/.waikusa/config.json หรือสวิตช์ในหน้าหลัก/tray
+const MONITOR_HOLD_MS = 2500
+let monitor = process.env.WAI_MONITOR === '1' || readConfig().monitor === true
 
 function createWindow() {
   const { workArea } = screen.getPrimaryDisplay()
@@ -77,26 +119,53 @@ function createWindow() {
     skipTaskbar: true,
     hasShadow: false,
     show: false,
-    webPreferences: { preload: join(HERE, 'preload.cjs') }, // window.wai.onVisionEvent
+    // เสียง HUD (WebAudio) ใน popup ไม่มี gesture ของผู้ใช้ ต้องอนุญาตให้เล่นเองได้
+    webPreferences: { preload: join(HERE, 'preload.cjs'), autoplayPolicy: 'no-user-gesture-required' }, // window.wai.onVisionEvent
   })
   win.setAlwaysOnTop(true, 'screen-saver')
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  if (!IS_WIN) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }) // เรื่อง Spaces ของ mac/linux ไม่มีบน Windows
   win.loadURL(RENDERER + 'avatar.html')
+  // ผู้ใช้ปิด popup เอง (หรือ OS ปิดให้) → อย่าถือ window ที่ตายแล้วไว้ ไม่งั้น syncWindow พัง "Object has been destroyed"
+  win.on('closed', () => {
+    win = null
+  })
+}
+
+/** popup ที่ยังใช้ได้ ถ้าถูกปิดไปแล้วสร้างใหม่ให้ */
+function livePopup() {
+  if (!win || win.isDestroyed()) createWindow()
+  return win
 }
 
 /** หน้าหลัก: เปิดตอนเริ่มแอป ปิดแล้วแอปยังอยู่บน menu bar */
 function openHome() {
   if (home) return home.show()
   home = new BrowserWindow({
-    width: 420,
-    height: 600,
+    icon: ICON,
+    width: 400,
+    height: 680,
     title: 'ไหว้กูซะ',
     backgroundColor: '#0A0A0C',
-    titleBarStyle: 'hiddenInset',
+    ...(IS_MAC ? { titleBarStyle: 'hiddenInset' } : { autoHideMenuBar: true }), // Windows/Linux ใช้กรอบปกติ ไม่มีเมนูบาร์
     resizable: false,
     webPreferences: { preload: join(HERE, 'preload.cjs') },
   })
   home.loadURL(RENDERER + 'home.html')
+  // ขนาดพอดีเนื้อหา ไม่ต้องเลื่อน: วัดความสูงจริงของหน้าแล้วปรับหน้าต่าง (จำกัด 360–900)
+  const fit = setInterval(async () => {
+    if (!home || home.isDestroyed()) return clearInterval(fit)
+    try {
+      const h = await home.webContents.executeJavaScript(
+        "(() => { const p = document.querySelector('#root > div'); return p ? p.scrollHeight : 0 })()",
+      )
+      if (typeof h !== 'number' || h <= 0) return
+      const want = Math.min(900, Math.max(360, Math.ceil(h)))
+      const [w, cur] = home.getContentSize()
+      if (Math.abs(cur - want) > 2) home.setContentSize(w, want)
+    } catch {
+      /* หน้ากำลังโหลด ลองรอบหน้า */
+    }
+  }, 400)
   app.dock?.show()
   home.on('closed', () => {
     home = null
@@ -118,13 +187,101 @@ function createVision() {
 }
 
 /** สั่งกล้องเปิด/ปิดตามคิว + level ขั้นต่ำตาม state ของ session หัวคิว (เรียกทุกครั้งที่คิวหรือ state เปลี่ยน) */
+/** ชื่อไฟล์คลิป: เรียงตามเวลา อักขระปลอดภัยเท่านั้น (ทำซ้ำใน vision/worker/clip-plan.js เพราะไฟล์นั้นเป็น ESM ของ renderer) */
+function clipFileName({ at, outcome, level, score }) {
+  const d = new Date(at)
+  const p = (n) => String(n).padStart(2, '0')
+  const o = ['pass', 'fail', 'long', 'cut'].includes(outcome) ? outcome : 'clip'
+  const lv = Number.isInteger(level) ? Math.max(0, Math.min(3, level)) : 0
+  const sc = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0
+  return `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}_${o}_L${lv}_s${sc}.webm`
+}
+
+const devRecord = () => process.env.WAI_DEV_RECORD === '1' || readConfig().devRecord === true
+
 function syncVision() {
   if (!vision || vision.isDestroyed()) return
   const top = queue[0]
   vision.webContents.send('vision:control', {
-    run: enabled && queue.length > 0,
+    run: enabled && queue.some((q) => !q.monitor), // โหมดสังเกตไม่เปิดกล้อง
     requiredLevel: top ? sessions.requiredLevel(top.session_id) : 1,
+    devRecord: devRecord(),
+    stickerStyle: stickerStyle(),
+    stickers: enabled && !monitor, // โหมดสังเกต/bypass ไม่ใช่การไหว้จริง ไม่ทำสติ๊กเกอร์
   })
+}
+
+// ---------- สติ๊กเกอร์ตอนไหว้ผ่าน ----------
+// worker ส่ง vision:pass {seq} แล้วตามด้วย vision:sticker {seq, png} (ประมวลผลตัดฉากหลังทีหลังเล็กน้อย)
+// ลำดับอาจสลับ: เก็บ pass ที่ผ่านแล้ว (seq → wai id) และสติ๊กเกอร์ที่มาก่อน (seq → รูป) ไว้ราว 10 วิ
+const stickerStyle = () => normalizeStickerStyle(readConfig().sticker_style) // photo | cartoon | comic | pixel | neon | kawaii
+const STICKER_WAIT_MS = 10_000
+const passedBySeq = new Map() // seq → { id, t }
+const pendingStickers = new Map() // seq → { png: Buffer, t }
+
+function sweepStickerBuffers() {
+  const cut = Date.now() - STICKER_WAIT_MS
+  for (const m of [passedBySeq, pendingStickers]) for (const [k, v] of m) if (v.t < cut) m.delete(k)
+}
+
+function finishSticker(seq) {
+  const pass = passedBySeq.get(seq)
+  const pend = pendingStickers.get(seq)
+  if (!pass || !pend) return
+  passedBySeq.delete(seq)
+  pendingStickers.delete(seq)
+  const file = stickers.save(pass.id, pend.png)
+  if (!file) return
+  waiLog.attachSticker(pass.id, file)
+  waiLog.uploadSticker(pass.id, join(stickers.dir, file)) // เปิดเฉพาะ web.upload_stickers === true · ไม่ throw
+  console.log(`[wai] sticker ${file} (${Math.round(pend.png.length / 1024)} KB)`)
+}
+
+ipcMain.on('vision:sticker', (_e, s) => {
+  try {
+    if (!enabled || monitor || !s || !Number.isInteger(s.seq) || !(s.png instanceof ArrayBuffer || ArrayBuffer.isView(s.png))) return
+    sweepStickerBuffers()
+    const png = Buffer.from(s.png instanceof ArrayBuffer ? s.png : s.png.buffer, s.png.byteOffset ?? 0, s.png.byteLength)
+    pendingStickers.set(s.seq, { png, t: Date.now() })
+    finishSticker(s.seq)
+  } catch (e) {
+    console.log('[wai] sticker failed:', e.message)
+  }
+})
+
+/** เก็บคลิป dev: ชื่อไฟล์สร้างในนี้เองจากค่าที่ตรวจแล้ว ไม่เอาชื่อจาก renderer */
+ipcMain.on('vision:clip', (_e, clip) => {
+  if (!devRecord() || !clip || !(clip.bytes instanceof ArrayBuffer)) return
+  if (clip.bytes.byteLength === 0 || clip.bytes.byteLength > MAX_CLIP_BYTES) return
+  try {
+    const now = new Date()
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const dir = join(CLIPS_DIR, day)
+    mkdirSync(dir, { recursive: true })
+    const name = clipFileName({ at: now.getTime(), outcome: clip.outcome, level: clip.level, score: clip.score })
+    writeFileSync(join(dir, name), Buffer.from(clip.bytes))
+    appendFileSync(
+      join(CLIPS_DIR, 'index.jsonl'),
+      JSON.stringify({ file: `${day}/${name}`, at: now.toISOString(), outcome: clip.outcome, level: clip.level, score: clip.score, ms: clip.ms, bytes: clip.bytes.byteLength }) + '\n',
+    )
+    console.log(`[wai] dev clip ${day}/${name} (${Math.round(clip.bytes.byteLength / 1024)} KB)`)
+    pruneClips()
+  } catch (e) {
+    console.log('[wai] dev clip save failed:', e.message)
+  }
+})
+
+function pruneClips() {
+  const files = []
+  for (const d of readdirSync(CLIPS_DIR, { withFileTypes: true })) {
+    if (!d.isDirectory()) continue
+    for (const f of readdirSync(join(CLIPS_DIR, d.name))) {
+      if (f.endsWith('.webm')) files.push(join(CLIPS_DIR, d.name, f))
+    }
+  }
+  if (files.length <= MAX_CLIPS) return
+  files.sort() // yyyy-mm-dd/HHMMSS_… จึงเรียงตามเวลา
+  for (const f of files.slice(0, files.length - MAX_CLIPS)) unlinkSync(f)
 }
 
 ipcMain.on('vision:ready', syncVision)
@@ -149,22 +306,41 @@ function onVision(type, payload = {}) {
   if (!enabled || !top) return
   const plan = planVision(sessions, top, type, payload)
   console.log(`[wai] ${type} ${top.id} level ${payload.level} score ${payload.score} → ${plan.action} (${plan.state} anger ${plan.anger}${plan.forgave ? ' forgave' : ''})`)
-  waiLog.record(plan.record)
+  const rec = waiLog.record(plan.record)
+  if (type === 'pass' && rec?.passed && Number.isInteger(payload.seq) && !top.monitor) {
+    passedBySeq.set(payload.seq, { id: rec.id, t: Date.now() })
+    // บอก worker ว่า seq นี้คือ wai id ไหน (สไตล์ kawaii ใช้เป็น seed ของดาววิบวับ) · worker ไม่รอเกิน ~0.4 วิ
+    if (vision && !vision.isDestroyed()) vision.webContents.send('vision:wai', { seq: payload.seq, id: rec.id })
+    finishSticker(payload.seq)
+  }
   if (!plan.resolve) return syncWindow() // ยังไม่ปลด แต่ state เปลี่ยน → ส่ง requiredLevel ใหม่ให้กล้อง
   const ids = plan.releaseSession ? queue.filter((q) => q.session_id === top.session_id).map((q) => q.id) : [top.id]
   for (const id of ids) resolve(id, plan.resolve)
+  // ไหว้ผ่าน / RAGE_QUIT: พูดตาม state ที่ตัดสินแล้ว (หัวคิวถัดไปจะพูดเองตอน syncWindow)
+  if (plan.resolve.passed && plan.resolve.level > 0) speak('PASSED')
+  else if (plan.resolve.action === 'rage_quit') speak('RAGE_QUIT')
 }
 ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
 ipcMain.on('vision:fail', (_e, payload) => onVision('fail', payload))
 
 /** มีคิว = เด้ง popup, คิวหมด = ซ่อน */
 function syncWindow() {
-  if (queue[0]) sessions.demand(queue[0].session_id) // หัวคิวใบใหม่: PASSED → DEMANDING, RAGE_QUIT → FORGIVE
+  if (queue[0] && !queue[0].monitor) {
+    sessions.demand(queue[0].session_id) // หัวคิวใบใหม่: PASSED → DEMANDING, RAGE_QUIT → FORGIVE
+    const key = `${queue[0].id}:${sessions.get(queue[0].session_id).state}`
+    if (key !== lastSpoken) {
+      lastSpoken = key
+      speak(sessions.get(queue[0].session_id).state)
+    }
+  }
   if (tray) updateTray()
   syncVision()
-  if (!win) return
-  if (queue.length > 0 && !win.isVisible()) win.showInactive()
-  if (queue.length === 0 && win.isVisible()) win.hide()
+  if (queue.length > 0) {
+    const w = livePopup()
+    if (!w.isVisible()) w.showInactive()
+  } else if (win && !win.isDestroyed() && win.isVisible()) {
+    win.hide()
+  }
 }
 
 function resolve(id, result) {
@@ -204,7 +380,9 @@ function readJson(req) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`)
   const [, , route, id] = url.pathname.split('/') // /wai/<route>/<id>
+  if (await voiceAdmin.handle(req, res, url)) return // /admin/voice, /wai/voice/lines|recording|play
   if (req.method === 'OPTIONS') return send(res, 204)
+  if (handleAvatarRoute(req, res, { avatars })) return // /wai/avatars, /wai/avatar, /wai/avatar/<name>/<mood>.png
 
   // POST /wai/request → { id }
   if (req.method === 'POST' && route === 'request') {
@@ -223,6 +401,17 @@ const server = http.createServer(async (req, res) => {
       stats.bypassed++
       results.set(item.id, { passed: true, level: 0, score: 0, action: 'allow' })
       console.log('[wai] bypass', item.agent_label)
+      return send(res, 200, { id: item.id })
+    }
+    if (monitor) {
+      // สังเกตเฉยๆ: ขึ้นการ์ดให้เห็นว่าจับได้ แล้วปล่อยผ่านเอง ไม่แตะ state machine และไม่บันทึกเป็นการไหว้
+      item.monitor = true
+      queue.push(item)
+      console.log(`[wai] MONITOR ${item.source} ${item.kind} · ${item.agent_label}`)
+      setTimeout(() => {
+        if (queue.some((q) => q.id === item.id)) resolve(item.id, { passed: true, level: 0, score: 0, action: 'allow' })
+      }, MONITOR_HOLD_MS)
+      syncWindow()
       return send(res, 200, { id: item.id })
     }
     queue.push(item)
@@ -254,6 +443,8 @@ const server = http.createServer(async (req, res) => {
       state: top ? top.state : 'IDLE',
       fail_count: top ? top.fails : 0,
       bypass: !enabled,
+      monitor: queue.length > 0 && queue.every((q) => q.monitor),
+      avatar: avatars.current(),
     })
   }
 
@@ -267,7 +458,62 @@ const server = http.createServer(async (req, res) => {
 
   // GET /wai/status ← หน้าหลัก (contract §5): requests/passed/bypassed ของรอบนี้ + today/total/best_score จาก wais.jsonl
   if (req.method === 'GET' && route === 'status') {
-    return send(res, 200, { enabled, pending: queue.length, stats: { ...stats, ...waiLog.stats() }, last_seen: lastSeen })
+    return send(res, 200, { enabled, pending: queue.length, stats: { ...stats, ...waiLog.stats() }, last_seen: lastSeen, avatar: avatars.current(), monitor })
+  }
+
+  // GET /wai/voice → บุคลิก + สถานะเสียง · POST /wai/voice { persona?, muted? } (ไม่มี key ในคำตอบ)
+  if (route === 'voice') {
+    if (req.method === 'POST') {
+      const body = await readJson(req)
+      if (typeof body.persona === 'string') voice.setPersona(body.persona)
+      if (typeof body.muted === 'boolean') voice.setMuted(body.muted)
+      // ลองฟังเสียงตาม state โดยไม่ต้องมีคำขอ: { demo: 'RETRY', persona?: 'p7' } (ใช้ทดสอบอารมณ์ของเสียง)
+      if (typeof body.demo === 'string') voice.speak({ state: body.demo, persona: typeof body.persona === 'string' ? body.persona : undefined })
+    }
+    return send(res, 200, { personas: voice.list(), persona: voice.getPersona(), status: voice.status() })
+  }
+
+  // GET /wai/stickers → { items:[{id,file,at,score,level}], style } ใหม่สุดก่อน 24 ใบ
+  if (req.method === 'GET' && url.pathname === '/wai/stickers') {
+    const items = stickers.list(24).map((s) => {
+      const m = waiLog.lookup(s.id)
+      return { id: s.id, file: s.file, at: m?.at ?? new Date(s.mtimeMs).toISOString(), score: m?.score ?? 0, level: m?.level ?? 0 }
+    })
+    return send(res, 200, { items, style: stickerStyle() })
+  }
+
+  // GET /wai/sticker/<file>.png → ไฟล์ PNG (ชื่อต้องตรง ^[A-Za-z0-9_-]+\.png$)
+  if (req.method === 'GET' && url.pathname.startsWith('/wai/sticker/')) {
+    let name = ''
+    try {
+      name = decodeURIComponent(url.pathname.slice('/wai/sticker/'.length))
+    } catch {}
+    if (!STICKER_FILE_RE.test(name)) return send(res, 400, { error: 'bad name' })
+    const f = stickers.resolveFile(name)
+    if (!f) return send(res, 404, { error: 'not found' })
+    try {
+      const buf = readFileSync(f)
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' })
+      return res.end(buf)
+    } catch {
+      return send(res, 404, { error: 'not found' })
+    }
+  }
+
+  // POST /wai/sticker-style { style: 'photo' | 'cartoon' | 'comic' | 'pixel' | 'neon' | 'kawaii' } → { style }
+  if (req.method === 'POST' && url.pathname === '/wai/sticker-style') {
+    const body = await readJson(req)
+    if (!isStickerStyle(body.style)) return send(res, 400, { error: `style must be one of ${STICKER_STYLES.join(', ')}` })
+    saveConfig({ sticker_style: body.style })
+    syncVision()
+    return send(res, 200, { style: body.style })
+  }
+
+  // POST /wai/monitor { monitor } ← สวิตช์โหมดสังเกต (ไม่บังคับไหว้) ในหน้าหลัก/tray
+  if (req.method === 'POST' && route === 'monitor') {
+    const body = await readJson(req)
+    setMonitor(Boolean(body.monitor))
+    return send(res, 200, { monitor })
   }
 
   // POST /wai/enabled { enabled } ← สวิตช์ในหน้าหลัก (ตัวเดียวกับใน tray)
@@ -288,21 +534,40 @@ setInterval(() => {
 
 // ปุ่มในหน้าหลัก: ติด hook ใน sandbox แล้วเปิด Terminal รัน Codex CLI ให้ผู้ใช้พิมพ์ /hooks กด trust เอง
 ipcMain.handle('wai:open-codex-hooks', async () => {
-  if (!existsSync(CODEX_CLI)) return { ok: false, error: 'ไม่เจอ Codex CLI ในแอป ChatGPT' }
+  const cli = codexCli()
+  if (!cli) return { ok: false, error: 'ไม่เจอ Codex CLI (ติดตั้ง Codex ให้มีคำสั่ง codex ใน PATH หรือตั้ง WAI_CODEX_CLI=<path>) แล้วเปิด Codex ในโฟลเดอร์นั้นเอง' }
   install('codex', SCOPE, process.execPath)
-  const cmd = `cd '${SCOPE === 'global' ? homedir() : SANDBOX}' && '${CODEX_CLI}'`
-  await new Promise((ok, fail) =>
-    execFile(
-      'osascript',
-      ['-e', `tell application "Terminal" to do script "${cmd}"`, '-e', 'tell application "Terminal" to activate'],
-      (e) => (e ? fail(e) : ok()),
-    ),
-  )
+  const dir = SCOPE === 'global' ? homedir() : SANDBOX
+  if (IS_MAC) {
+    const cmd = `cd '${dir}' && '${cli}'`
+    await new Promise((ok, fail) =>
+      execFile(
+        'osascript',
+        ['-e', `tell application "Terminal" to do script "${cmd}"`, '-e', 'tell application "Terminal" to activate'],
+        (e) => (e ? fail(e) : ok()),
+      ),
+    )
+  } else if (IS_WIN) {
+    // เปิดหน้าต่าง cmd ใหม่ในโฟลเดอร์นั้น: start "<title>" /D <dir> cmd /k <codex> (ไม่ผ่าน shell string)
+    await new Promise((ok, fail) => execFile('cmd.exe', ['/c', 'start', 'Codex', '/D', dir, 'cmd.exe', '/k', cli], { windowsHide: true }, (e) => (e ? fail(e) : ok())))
+  } else {
+    return { ok: false, error: `ติด hook แล้ว เปิดเทอร์มินัลที่ ${dir} แล้วรัน codex เอง จากนั้นพิมพ์ /hooks เพื่อ trust` }
+  }
   return { ok: true }
 })
 
 // ---------- onboarding ----------
 const run = (bin, args) => new Promise((ok, fail) => execFile(bin, args, (e, out) => (e ? fail(e) : ok(out))))
+
+/** mac/Windows อ่านสิทธิ์กล้องจาก OS ได้ · Windows ถ้าไม่ได้ตอบ 'granted' แล้วให้ OS ถามตอนใช้กล้องครั้งแรก */
+function cameraStatus() {
+  if (!IS_MAC && !IS_WIN) return 'granted'
+  try {
+    return systemPreferences.getMediaAccessStatus('camera')
+  } catch {
+    return 'granted'
+  }
+}
 
 ipcMain.handle('wai:setup-status', () => {
   const cfg = readConfig()
@@ -310,11 +575,11 @@ ipcMain.handle('wai:setup-status', () => {
     scope: SCOPE,
     folder: SCOPE === 'global' ? homedir() : SANDBOX,
     onboarded: Boolean(cfg.onboarded),
-    camera: process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('camera') : 'granted',
+    camera: cameraStatus(),
     claude: { installed: installed('claude', SCOPE) },
-    codex: { installed: installed('codex', SCOPE), trusted: codexTrusted(SCOPE), cli: existsSync(CODEX_CLI) },
+    codex: { installed: installed('codex', SCOPE), trusted: codexTrusted(SCOPE), cli: Boolean(codexCli()) },
     loginItem: Boolean(cfg.loginItem),
-    canLoginItem: app.isPackaged || existsSync(SHORTCUT),
+    canLoginItem: app.isPackaged || IS_WIN || (IS_MAC && existsSync(SHORTCUT)),
   }
 })
 
@@ -329,7 +594,7 @@ ipcMain.handle('wai:hooks', (_e, tool, on) => {
 })
 
 ipcMain.handle('wai:camera', async () => {
-  if (process.platform !== 'darwin') return { ok: true }
+  if (!IS_MAC) return { ok: true } // Windows: OS ถามเองตอนกล้องถูกใช้ครั้งแรก (askForMediaAccess มีเฉพาะ mac)
   return { ok: await systemPreferences.askForMediaAccess('camera') }
 })
 
@@ -337,6 +602,8 @@ ipcMain.handle('wai:camera', async () => {
 ipcMain.handle('wai:login-item', async (_e, on) => {
   try {
     if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: on })
+    else if (IS_WIN) app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: [HERE] }) // dev บน Windows: electron.exe + โฟลเดอร์แอป
+    else if (!IS_MAC) return { ok: false, error: 'เปิดตอนเข้าเครื่องรองรับเฉพาะ macOS และ Windows' }
     else if (!existsSync(SHORTCUT)) return { ok: false, error: 'ติดตั้ง shortcut ก่อน (install-shortcut.sh)' }
     else if (on) await run('osascript', ['-e', `tell application "System Events" to make login item at end with properties {path:"${SHORTCUT}", hidden:true}`])
     else await run('osascript', ['-e', 'tell application "System Events" to delete (every login item whose name is "ไหว้กูซะ")'])
@@ -352,6 +619,13 @@ ipcMain.handle('wai:onboarded', (_e, done) => {
   return { ok: true }
 })
 
+function setMonitor(next) {
+  monitor = next
+  saveConfig({ monitor })
+  updateTray()
+  console.log(`[wai] โหมดสังเกต ${monitor ? 'เปิด (ไม่บังคับไหว้)' : 'ปิด (บังคับไหว้)'}`)
+}
+
 function setEnabled(next) {
   enabled = next
   // ปิดแล้ว ปล่อยทุกใบที่ค้างอยู่ ไม่ให้ AI ค้าง
@@ -361,16 +635,17 @@ function setEnabled(next) {
 }
 
 function updateTray() {
-  tray.setTitle(enabled ? ' 🙏' : ' 💤') // mac แสดงเป็นตัวหนังสือบน menu bar
+  if (IS_MAC) tray.setTitle(enabled ? ' 🙏' : ' 💤') // setTitle มีเฉพาะ mac (แสดงเป็นตัวหนังสือบน menu bar)
   tray.setToolTip(enabled ? 'ไหว้กูซะ: เปิดอยู่' : 'ไหว้กูซะ: ปิดอยู่ (bypass)')
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: enabled ? '● ต้องไหว้ก่อนใช้ AI' : '○ ปิดอยู่ AI ใช้ได้เลย', enabled: false },
+      { label: !enabled ? '○ ปิดอยู่ AI ใช้ได้เลย' : monitor ? '◐ โหมดสังเกต (ไม่บังคับไหว้)' : '● ต้องไหว้ก่อนใช้ AI', enabled: false },
       { label: `รอไหว้ ${queue.length} ใบ`, enabled: false },
       { type: 'separator' },
       { label: 'เปิดใช้งาน', type: 'checkbox', checked: enabled, click: (i) => setEnabled(i.checked) },
+      { label: 'โหมดสังเกต (จับได้ไหม ไม่บังคับไหว้)', type: 'checkbox', checked: monitor, click: (i) => setMonitor(i.checked) },
       { label: 'เปิดหน้าหลัก', click: openHome },
-      { label: 'โชว์ popup', click: () => win?.showInactive() },
+      { label: 'โชว์ popup', click: () => livePopup().showInactive() },
       { type: 'separator' },
       { label: 'ออก', role: 'quit' },
     ]),
@@ -383,12 +658,16 @@ app.on('second-instance', () => openHome())
 
 app.whenReady().then(() => {
   app.dock?.hide() // เป็นแอป menu bar ไม่ขึ้น Dock
-  tray = new Tray(nativeImage.createEmpty()) // SPIKE: ยังไม่มีไอคอน (Windows ต้องมีไอคอนจริง)
+  app.dock?.setIcon(nativeImage.createFromPath(ICON))
+  const trayImg = nativeImage.createFromPath(TRAY_ICON) // mac: @2x หยิบให้เองบนจอ retina
+  tray = new Tray(IS_WIN ? trayImg.resize({ width: 16, height: 16 }) : trayImg) // Windows ถาดระบบใช้ 16px
+  if (IS_WIN) tray.on('click', openHome)
   updateTray()
   createWindow()
   createVision()
   openHome()
   server.listen(PORT, '127.0.0.1', () => console.log(`[wai] daemon on http://127.0.0.1:${PORT} → ${RENDERER}`))
+  if (devRecord()) console.log(`[wai] DEV RECORD on → ${CLIPS_DIR} (คุณภาพต่ำ เก็บในเครื่อง ล่าสุด ${MAX_CLIPS} คลิป)`)
 })
 app.on('window-all-closed', (e) => e.preventDefault()) // daemon อยู่ต่อแม้ไม่มี window
 app.on('activate', openHome) // กดไอคอนใน Dock/Launchpad = เปิดหน้าหลัก

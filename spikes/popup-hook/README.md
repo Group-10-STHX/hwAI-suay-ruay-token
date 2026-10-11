@@ -47,6 +47,14 @@ log: `~/Library/Logs/wai-kusa.log` · แอปชี้มาที่ path ข
 ## Onboarding (เปิดแอปครั้งแรก)
 ต้อนรับ → ขอกล้อง → ☐ Claude Code ☐ Codex (+ ปุ่มเปิด Codex ให้ trust) → ☐ เปิดตอนเข้าเครื่อง → เริ่มใช้งาน
 เปิดใหม่ได้จากปุ่ม ⚙ ในหน้าหลัก · สถานะเก็บที่ `~/.waikusa/config.json` (ลบไฟล์นี้ = เห็น onboarding อีกรอบ)
-- `install-hooks.mjs`: merge ลง settings เดิม ไม่ทับ hook อื่น, backup `.wai.bak` ครั้งแรก, ถอดเฉพาะของเรา (marker `WAI_HOOK=1`), JSON เสียอยู่แล้ว = ไม่แตะ
-- hook รันด้วย Electron (`ELECTRON_RUN_AS_NODE=1`) ไม่ต้องมี node · dev = `~/wai-sandbox`, แอปที่ package = global (`WAI_HOOK_SCOPE` บังคับได้)
+- `install-hooks.mjs`: merge ลง settings เดิม ไม่ทับ hook อื่น, backup `.wai.bak` ครั้งแรก, ถอดเฉพาะของเรา (marker `--wai-hook` ท้ายคำสั่ง · รู้จัก `WAI_HOOK=1` รุ่นเก่าด้วย), JSON เสียอยู่แล้ว = ไม่แตะ
+- hook รันด้วย `node` จาก PATH (ไม่ต้องมี env prefix ใช้ได้ทั้ง Windows/mac) · ไม่มี node → Electron + `hook-run.cjs` (spawn ตัวเองพร้อม `ELECTRON_RUN_AS_NODE=1`) · dev = `~/wai-sandbox`, แอปที่ package = global (`WAI_HOOK_SCOPE` บังคับได้)
 - เปิดตอนเข้าเครื่องตอน dev ชี้ไปที่ `~/Applications/ไหว้กูซะ.app` (ต้องลง shortcut ก่อน)
+
+## โหมด dev: เก็บคลิปการไหว้ (คุณภาพต่ำ แบบกล้องวงจรปิด)
+เปิดด้วย `WAI_DEV_RECORD=1` หรือใส่ `"devRecord": true` ใน `~/.waikusa/config.json` (ค่าเริ่มต้นปิด)
+- 1 คลิป = 1 การไหว้ (จากเริ่มยกมือจนผ่าน/ไม่ผ่าน + หางสั้นๆ) ขาวดำ 320×180 ~6 fps ~90 kbps มีแถบเวลา
+- เก็บใน `~/.waikusa/clips/<วันที่>/HHMMSS_<pass|fail>_L<ระดับ>_s<คะแนน>.webm` และบรรทัดใน `clips/index.jsonl`
+- ไม่ออกจากเครื่อง ไม่ส่งขึ้นเว็บ · เก็บล่าสุด 60 คลิป เกินแล้วลบเฉพาะคลิปเก่าสุดในโฟลเดอร์ `clips/` นี้เท่านั้น
+- ท่อนที่แค่กะพริบสั้นกว่า 0.3 วินาทีไม่เก็บ
+- ทดสอบตรรกะ: `node --test vision/worker/clip-plan.test.mjs`

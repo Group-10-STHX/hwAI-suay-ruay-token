@@ -9,6 +9,8 @@
 //
 // --module   heuristic module to score (default ../wai-heuristic.js); point it at an old copy for A/B runs
 // --per-run  start a fresh tracker at every recording gap (>1.5 s) instead of one continuous tracker
+//            (the continuous tracker is fed the real gap as dt, so its hold drains as it would live)
+// --hold MS  pass hold target (default 1000, what the worker uses)
 // --dump N   print the frames with ground-truth label N that the stable level got wrong, with features
 // --json F   also write the numbers to F
 
@@ -80,7 +82,8 @@ const zeros = () => [0, 0, 0, 0];
 const confRaw = [zeros(), zeros(), zeros(), zeros()];
 const confStable = [zeros(), zeros(), zeros(), zeros()];
 const variantFP = {}; // label 0 variants: frames with stable > 0
-const runs = []; // {label, variant, n, passes:[level], maxStable, framesStable}
+const runs = []; // {label, variant, n, passes:[level], passAt:[s], maxStable, framesStable}
+const conf = [[], [], [], []]; // confidence on frames with stable > 0, per label
 const dumped = [];
 
 let tracker = new WaiTracker(th);
@@ -91,10 +94,12 @@ for (const fr of frames) {
   const key = `${fr.label}:${fr.variant}`;
   if (gap > GAP_MS || !run || run.key !== key) {
     if (gap > GAP_MS && perRun) tracker = new WaiTracker(th);
-    run = { key, label: fr.label, variant: fr.variant, n: 0, passes: [], maxStable: 0, stablePos: 0, maxHold: 0, t0: fr.t };
+    run = { key, label: fr.label, variant: fr.variant, n: 0, passes: [], passAt: [], maxStable: 0, stablePos: 0, maxHold: 0, t0: fr.t };
     runs.push(run);
   }
-  const dt = prevT == null ? 33 : Math.min(MAX_DT, Math.max(1, gap));
+  // Dropped frames inside a recording are capped; a pause between recordings is fed as it was,
+  // so a continuous tracker's hold and pass arming drain exactly as they would have live.
+  const dt = prevT == null ? 33 : gap > GAP_MS ? gap : Math.min(MAX_DT, Math.max(1, gap));
   prevT = fr.t;
 
   const det = rebuild(fr.lm);
@@ -105,11 +110,15 @@ for (const fr of frames) {
 
   confRaw[fr.label][res.raw] += 1;
   confStable[fr.label][res.stable] += 1;
+  if (res.stable > 0 && typeof res.confidence === "number") conf[fr.label].push(res.confidence);
   run.n += 1;
   run.maxStable = Math.max(run.maxStable, res.stable);
   run.maxHold = Math.max(run.maxHold, res.holdMs);
   if (res.stable > 0) run.stablePos += 1;
-  if (res.passed) run.passes.push(res.stable);
+  if (res.passed) {
+    run.passes.push(res.stable);
+    run.passAt.push(((fr.t - run.t0) / 1000).toFixed(1));
+  }
   if (fr.label === 0) {
     variantFP[fr.variant] = variantFP[fr.variant] ?? { n: 0, fp: 0 };
     variantFP[fr.variant].n += 1;
@@ -151,10 +160,14 @@ const stableStats = printConf("STABLE level (after smoothing)", confStable);
 console.log("\nlabel-0 variants: frames where stable > 0");
 for (const [v, s] of Object.entries(variantFP)) console.log(`  ${v.padEnd(11)} ${String(s.fp).padStart(4)} / ${s.n}`);
 
-console.log("\nruns: ground truth -> max stable, share of frames with stable>0, longest hold, pass events (level)");
+const meanConf = conf.map((a) => (a.length ? (a.reduce((x, y) => x + y, 0) / a.length).toFixed(2) : "-"));
+console.log(`\nmean confidence on stable>0 frames, per label: 0=${meanConf[0]} 1=${meanConf[1]} 2=${meanConf[2]} 3=${meanConf[3]}`);
+
+console.log("\nruns: ground truth -> max stable, share of frames with stable>0, longest hold, pass events (level @ seconds into the run)");
 for (const r of runs) {
+  const passes = r.passes.map((p, i) => `${p}@${r.passAt[i]}s`).join(",");
   console.log(
-    `  ${r.key.padEnd(14)} n=${String(r.n).padStart(4)}  maxStable=${r.maxStable}  stable>0 ${pct(r.stablePos, r.n)}  maxHold=${String(Math.round(r.maxHold)).padStart(5)}ms  passes=[${r.passes.join(",")}]`,
+    `  ${r.key.padEnd(14)} n=${String(r.n).padStart(4)}  maxStable=${r.maxStable}  stable>0 ${pct(r.stablePos, r.n)}  maxHold=${String(Math.round(r.maxHold)).padStart(5)}ms  passes=[${passes}]`,
   );
 }
 

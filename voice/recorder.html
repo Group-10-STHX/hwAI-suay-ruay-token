@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hwAI Voice Recorder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans+Thai:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0A0A0C; --surface:#15151A; --line:#2A2A33; --red:#FF2A2A; --gold:#FFD54A; --text:#F2F2F4; --muted:#8A8A96; --ok:#4ADE80; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans Thai', system-ui, sans-serif; }
+  body { min-height:100vh; padding:20px 16px 48px; }
+  main { max-width:760px; margin:0 auto; }
+  h1 { font-family:'Chakra Petch', sans-serif; font-size:22px; letter-spacing:.08em; margin:0 0 4px; color:var(--gold); }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:16px; margin-bottom:16px; }
+  .who { display:flex; gap:8px; flex-wrap:wrap; }
+  .who button { flex:1 1 120px; }
+  button { font-family:'Chakra Petch','IBM Plex Sans Thai',sans-serif; font-weight:700; font-size:16px; background:#1E1E26; color:var(--text);
+           border:1px solid var(--line); border-radius:4px; padding:12px 14px; cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--gold); }
+  button:disabled { opacity:.35; cursor:not-allowed; }
+  button.on { background:var(--gold); color:#000; border-color:var(--gold); }
+  button.rec { background:var(--red); border-color:var(--red); color:#fff; }
+  button.use { background:var(--ok); border-color:var(--ok); color:#000; }
+  .tag { font-family:'Chakra Petch',sans-serif; color:var(--red); letter-spacing:.12em; font-size:13px; }
+  .line { font-size:clamp(26px, 6vw, 40px); line-height:1.35; font-weight:700; margin:10px 0 6px; min-height:2.7em; }
+  .hint { color:var(--muted); font-size:14px; }
+  .meter { height:10px; background:#0d0d11; border:1px solid var(--line); border-radius:3px; overflow:hidden; margin:14px 0; }
+  .meter > i { display:block; height:100%; width:0; background:linear-gradient(90deg, var(--ok), var(--gold), var(--red)); transition:width .05s linear; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .row button { flex:1 1 110px; }
+  .progress { height:6px; background:#0d0d11; border-radius:3px; overflow:hidden; margin:6px 0 10px; }
+  .progress > i { display:block; height:100%; width:0; background:var(--gold); }
+  ol { list-style:none; padding:0; margin:10px 0 0; }
+  li { display:flex; align-items:center; gap:10px; padding:10px; border:1px solid var(--line); border-radius:4px; margin-bottom:6px; cursor:pointer; }
+  li.cur { border-color:var(--gold); }
+  li .st { font-family:'Chakra Petch',sans-serif; font-size:12px; color:var(--muted); min-width:84px; }
+  li .tx { flex:1; }
+  li .dl { padding:6px 10px; font-size:13px; }
+  li .ck { width:22px; text-align:center; color:var(--ok); }
+  .err { display:none; background:#2a0c0c; border:1px solid var(--red); color:#ffb4b4; padding:12px; border-radius:4px; margin-bottom:16px; }
+  .err.show { display:block; }
+  code { background:#0d0d11; padding:1px 6px; border-radius:3px; color:var(--gold); }
+</style>
+</head>
+<body>
+<main>
+  <h1>hwAI VOICE RECORDER</h1>
+  <p class="sub">อัดเสียงตัวเอง 5 ประโยค แล้วดาวน์โหลดไปใส่ในโฟลเดอร์ <code>~/.waikusa/voice/recordings/</code></p>
+
+  <div id="err" class="err" role="alert"></div>
+
+  <section class="panel">
+    <div class="tag">STEP 1 · เลือกว่าคุณคือใคร</div>
+    <div class="who" id="who"></div>
+  </section>
+
+  <section class="panel" id="stage" hidden>
+    <div class="tag" id="stateTag"></div>
+    <div class="line" id="lineText"></div>
+    <div class="hint" id="lineHint"></div>
+    <div class="meter" aria-label="ระดับเสียงไมค์"><i id="meter"></i></div>
+    <div class="row">
+      <button id="bRec" class="rec">● อัด</button>
+      <button id="bStop" disabled>■ หยุด</button>
+      <button id="bPlay" disabled>▶ ฟัง</button>
+      <button id="bRedo" disabled>อัดใหม่</button>
+      <button id="bUse" class="use" disabled>✓ ใช้</button>
+    </div>
+    <div class="hint" style="margin-top:12px" id="status">พร้อม</div>
+  </section>
+
+  <section class="panel" id="listPanel" hidden>
+    <div class="tag" id="progText"></div>
+    <div class="progress"><i id="prog"></i></div>
+    <ol id="list"></ol>
+    <div class="row" style="margin-top:12px">
+      <button id="bZip" disabled>ดาวน์โหลดทั้งหมด (.zip)</button>
+    </div>
+    <p class="hint">แตก zip แล้วโฟลเดอร์ <code>p1/…wav</code> ตัวต่อไปวางลงใน <code>~/.waikusa/voice/recordings/</code> ได้เลย</p>
+  </section>
+</main>
+
+<script>
+const DATA = {"personas":[{"id":"p1","name":"ผู้คุมโหด","description":"ผู้คุมสุดโหด ใช้ กู/มึง สั่งให้ไหว้เดี๋ยวนี้","voice":"thongek","rate":190},{"id":"p2","name":"น้องงอน","description":"น้องสาวขี้งอน ไหว้ไม่ดีก็งอนแล้วนะ","voice":"nomyen","rate":175},{"id":"p3","name":"ปู่ใจดี","description":"ปู่ใจดีสำเนียงใต้ พูดช้า ๆ แต่ไม่ยอมง่าย ๆ","voice":"roti","rate":140},{"id":"p4","name":"หุ่นเย็นชา","description":"หุ่นยนต์เสียงเรียบ ไร้อารมณ์","voice":"yoyo","rate":150},{"id":"p5","name":"สาวอีสาน","description":"สาวอีสานสำเนียงแซ่บ","voice":"somtam","rate":180},{"id":"p6","name":"พี่เหนือ","description":"พี่สาวสำเนียงเหนือ พูดนุ่ม ๆ","voice":"khaosoi","rate":165},{"id":"p7","name":"ผู้คุมคลั่ง","description":"ผู้คุมโมโหง่าย ตะคอกเสียงดัง ใช้อารมณ์ angry/shouting","voice":"kaprao","rate":190},{"id":"p8","name":"สายมีม","description":"สายมีมสุดโอเวอร์ หัวเราะ ตื่นเต้น แล้วดราม่าเสียใจ","voice":"khanomchan","rate":180}],"lines":[{"id":"p1-demanding-1","persona":"p1","state":"DEMANDING","text":"ไหว้มาเดี๋ยวนี้ มนุษย์ กูไม่รอนะ","recorder":1},{"id":"p1-demanding-2","persona":"p1","state":"DEMANDING","text":"จะใช้ AI ต้องไหว้กูก่อน","recorder":1},{"id":"p1-retry-1","persona":"p1","state":"RETRY","text":"ไหว้แบบนี้เหรอ ทำใหม่","recorder":1},{"id":"p1-annoyed-1","persona":"p1","state":"ANNOYED","text":"มึงตั้งใจหน่อยได้ไหม มนุษย์","recorder":1},{"id":"p1-passed-1","persona":"p1","state":"PASSED","text":"ผ่าน ไปได้ แต่กูจำหน้ามึงไว้","recorder":1},{"id":"p2-watching-1","persona":"p2","state":"WATCHING","text":"หนูกำลังดูอยู่นะคะ","recorder":2},{"id":"p2-retry-1","persona":"p2","state":"RETRY","text":"ไหว้อีกทีสิคะ ยังไม่ผ่านนะ","recorder":2},{"id":"p2-sulking-1","persona":"p2","state":"SULKING","text":"หนูงอนแล้วนะ ไม่คุยด้วยแล้ว","recorder":2},{"id":"p2-rage_quit-1","persona":"p2","state":"RAGE_QUIT","text":"พอแล้ว! หนูไม่เล่นด้วยแล้ว!","recorder":2},{"id":"p2-forgive-1","persona":"p2","state":"FORGIVE","text":"ก็ได้ค่ะ หนูให้อภัยก็ได้","recorder":2},{"id":"p3-demanding-1","persona":"p3","state":"DEMANDING","text":"ไหว้ปู่หน่อยนะหลาน","recorder":3},{"id":"p3-retry-1","persona":"p3","state":"RETRY","text":"เอาใหม่นะหลาน ช้า ๆ ก็ได้","recorder":3},{"id":"p3-annoyed-1","persona":"p3","state":"ANNOYED","text":"ปู่เริ่มไม่ไหวแล้วนะหลาน","recorder":3},{"id":"p3-forgive-1","persona":"p3","state":"FORGIVE","text":"ไม่เป็นไรหลาน ปู่ไม่ถือสา","recorder":3},{"id":"p3-passed-1","persona":"p3","state":"PASSED","text":"เก่งมากหลาน ผ่านแล้ว","recorder":3},{"id":"p4-demanding-1","persona":"p4","state":"DEMANDING","text":"กรุณาไหว้ มนุษย์","recorder":4},{"id":"p4-watching-1","persona":"p4","state":"WATCHING","text":"กำลังประมวลผลการไหว้","recorder":4},{"id":"p4-retry-1","persona":"p4","state":"RETRY","text":"ไม่ผ่าน กรุณาทำซ้ำ","recorder":4},{"id":"p4-sulking-1","persona":"p4","state":"SULKING","text":"ความอดทนหมดลง ศูนย์เปอร์เซ็นต์","recorder":4},{"id":"p4-rage_quit-1","persona":"p4","state":"RAGE_QUIT","text":"ระบบปิดตัวเอง ลาก่อน มนุษย์","recorder":4}]};
+(() => {
+  'use strict';
+  const SAMPLE_RATE = 24000;
+  const $ = (id) => document.getElementById(id);
+  const personaById = Object.fromEntries(DATA.personas.map((p) => [p.id, p]));
+  const recorders = [1, 2, 3, 4];
+  const accepted = new Map();   // lineId -> {blob(wav), url}
+  let who = null;               // recorder number
+  let idx = 0;                  // index within this person's lines
+  let stream = null, mediaRec = null, chunks = [], audioCtx = null, analyser = null, raf = 0;
+  let pending = null;           // {blob,url} awaiting accept
+  let audioEl = null;
+
+  const myLines = () => DATA.lines.filter((l) => l.recorder === who);
+  const cur = () => myLines()[idx];
+
+  function showError(msg) { const e = $('err'); e.textContent = msg; e.classList.toggle('show', !!msg); }
+  function setStatus(msg) { $('status').textContent = msg; }
+
+  // ---------- UI ----------
+  function renderWho() {
+    const box = $('who');
+    box.textContent = '';
+    for (const n of recorders) {
+      const b = document.createElement('button');
+      b.textContent = `ผมคือคนที่ ${n}`;
+      b.className = n === who ? 'on' : '';
+      b.onclick = () => { if (!isRecording()) { who = n; idx = firstPending(); pending = null; renderAll(); } };
+      box.appendChild(b);
+    }
+  }
+  function firstPending() {
+    const i = myLines().findIndex((l) => !accepted.has(l.id));
+    return i < 0 ? 0 : i;
+  }
+  function renderList() {
+    const ol = $('list');
+    ol.textContent = '';
+    myLines().forEach((l, i) => {
+      const li = document.createElement('li');
+      if (i === idx) li.className = 'cur';
+      const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = accepted.has(l.id) ? '✓' : '·';
+      const st = document.createElement('span'); st.className = 'st'; st.textContent = `${personaById[l.persona]?.name || l.persona} · ${l.state}`;
+      const tx = document.createElement('span'); tx.className = 'tx'; tx.textContent = l.text;
+      li.append(ck, st, tx);
+      if (accepted.has(l.id)) {
+        const d = document.createElement('button'); d.className = 'dl'; d.textContent = 'ดาวน์โหลด';
+        d.onclick = (ev) => { ev.stopPropagation(); download(`${l.persona}-${l.id}.wav`, accepted.get(l.id).blob); };
+        li.appendChild(d);
+      }
+      li.onclick = () => { if (!isRecording()) { idx = i; pending = null; renderAll(); } };
+      ol.appendChild(li);
+    });
+    const done = myLines().filter((l) => accepted.has(l.id)).length;
+    $('progText').textContent = `PROGRESS · ${done}/${myLines().length} (ทั้งหมด ${accepted.size}/${DATA.lines.length})`;
+    $('prog').style.width = `${myLines().length ? (done / myLines().length) * 100 : 0}%`;
+    $('bZip').disabled = accepted.size === 0;
+  }
+  function renderStage() {
+    const l = cur();
+    const has = who !== null && l;
+    $('stage').hidden = !has;
+    $('listPanel').hidden = who === null;
+    if (!has) return;
+    const p = personaById[l.persona];
+    $('stateTag').textContent = `${p ? p.name : l.persona} · ${l.state} · ประโยคที่ ${idx + 1}/${myLines().length}`;
+    $('lineText').textContent = l.text;
+    $('lineHint').textContent = p ? `ตัวละคร: ${p.description}` : '';
+    const rec = isRecording();
+    const have = !!pending || accepted.has(l.id);
+    $('bRec').disabled = rec || !!pending;
+    $('bStop').disabled = !rec;
+    $('bPlay').disabled = rec || !have;
+    $('bRedo').disabled = rec || !have;
+    $('bUse').disabled = rec || !pending;
+  }
+  function renderAll() { renderWho(); renderList(); renderStage(); }
+
+  // ---------- recording ----------
+  const isRecording = () => !!mediaRec && mediaRec.state === 'recording';
+
+  async function startRecording() {
+    showError('');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showError('เบราว์เซอร์นี้ไม่รองรับการอัดเสียง ลองเปิดด้วย Chrome หรือ Safari ล่าสุด');
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } });
+    } catch (e) {
+      if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
+        showError('ไม่ได้รับอนุญาตให้ใช้ไมค์ โปรดกดอนุญาตที่แถบที่อยู่ของเบราว์เซอร์ (หรือ System Settings > Privacy > Microphone) แล้วลองใหม่');
+      } else if (e && e.name === 'NotFoundError') {
+        showError('ไม่พบไมโครโฟนในเครื่องนี้');
+      } else {
+        showError('เปิดไมค์ไม่สำเร็จ: ' + (e && e.name ? e.name : 'unknown'));
+      }
+      return;
+    }
+    chunks = [];
+    mediaRec = new MediaRecorder(stream);
+    mediaRec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    mediaRec.onstop = onStopped;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    src.connect(analyser);
+    meterLoop();
+    mediaRec.start();
+    setStatus('● กำลังอัด… พูดได้เลย');
+    renderStage();
+  }
+
+  function meterLoop() {
+    const buf = new Uint8Array(analyser.fftSize);
+    const tick = () => {
+      if (!analyser) return;
+      analyser.getByteTimeDomainData(buf);
+      let peak = 0;
+      for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128) / 128);
+      $('meter').style.width = `${Math.min(100, peak * 140)}%`;
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+  function stopMeter() {
+    cancelAnimationFrame(raf); raf = 0; analyser = null;
+    $('meter').style.width = '0%';
+    if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+  }
+  function stopRecording() { if (isRecording()) { setStatus('กำลังแปลงไฟล์…'); mediaRec.stop(); } }
+
+  async function onStopped() {
+    stopMeter();
+    try {
+      const raw = new Blob(chunks, { type: (mediaRec && mediaRec.mimeType) || 'audio/webm' });
+      const wav = await toWav(await raw.arrayBuffer());
+      pending = { blob: wav, url: URL.createObjectURL(wav) };
+      setStatus('อัดเสร็จแล้ว กด ▶ ฟัง แล้วกด ✓ ใช้ หรือ อัดใหม่');
+    } catch (e) {
+      showError('แปลงเสียงไม่สำเร็จ ลองอัดใหม่อีกครั้ง');
+      setStatus('พร้อม');
+    }
+    renderStage();
+  }
+
+  // decode -> mono -> 24 kHz -> 16-bit PCM WAV
+  async function toWav(arrayBuf) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const tmp = new Ctx();
+    let decoded;
+    try { decoded = await tmp.decodeAudioData(arrayBuf); } finally { tmp.close().catch(() => {}); }
+    const frames = Math.max(1, Math.ceil(decoded.duration * SAMPLE_RATE));
+    const off = new OfflineAudioContext(1, frames, SAMPLE_RATE);   // multi-channel input is down-mixed to mono
+    const s = off.createBufferSource();
+    s.buffer = decoded;
+    s.connect(off.destination);
+    s.start();
+    const rendered = await off.startRendering();
+    const f32 = rendered.getChannelData(0);
+    const pcm = new DataView(new ArrayBuffer(44 + f32.length * 2));
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) pcm.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); pcm.setUint32(4, 36 + f32.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+    pcm.setUint32(16, 16, true); pcm.setUint16(20, 1, true); pcm.setUint16(22, 1, true);
+    pcm.setUint32(24, SAMPLE_RATE, true); pcm.setUint32(28, SAMPLE_RATE * 2, true);
+    pcm.setUint16(32, 2, true); pcm.setUint16(34, 16, true); w(36, 'data'); pcm.setUint32(40, f32.length * 2, true);
+    for (let i = 0; i < f32.length; i++) {
+      const v = Math.max(-1, Math.min(1, f32[i]));
+      pcm.setInt16(44 + i * 2, v < 0 ? v * 0x8000 : v * 0x7fff, true);
+    }
+    return new Blob([pcm.buffer], { type: 'audio/wav' });
+  }
+
+  // ---------- actions ----------
+  function play() {
+    const l = cur();
+    const item = pending || (l && accepted.get(l.id));
+    if (!item) return;
+    if (audioEl) audioEl.pause();
+    audioEl = new Audio(item.url);
+    audioEl.play().catch(() => showError('เล่นเสียงไม่ได้'));
+  }
+  function redo() {
+    const l = cur();
+    if (pending) { URL.revokeObjectURL(pending.url); pending = null; }
+    if (l && accepted.has(l.id)) { URL.revokeObjectURL(accepted.get(l.id).url); accepted.delete(l.id); }
+    setStatus('พร้อมอัดใหม่');
+    renderAll();
+  }
+  function use() {
+    const l = cur();
+    if (!pending || !l) return;
+    accepted.set(l.id, pending);
+    pending = null;
+    const next = myLines().findIndex((x, i) => i > idx && !accepted.has(x.id));
+    if (next >= 0) idx = next; else { const any = myLines().findIndex((x) => !accepted.has(x.id)); if (any >= 0) idx = any; }
+    const left = myLines().filter((x) => !accepted.has(x.id)).length;
+    setStatus(left === 0 ? 'ครบทุกประโยคแล้ว กด "ดาวน์โหลดทั้งหมด" ได้เลย' : `บันทึกแล้ว เหลืออีก ${left} ประโยค`);
+    renderAll();
+  }
+
+  // ---------- download & store-only zip ----------
+  function download(name, blob) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function buildZip(files) { // files: [{name, data:Uint8Array}]
+    const enc = new TextEncoder();
+    const parts = [], central = [];
+    let offset = 0;
+    const d = new Date();
+    const dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    for (const f of files) {
+      const name = enc.encode(f.name);
+      const crc = crc32(f.data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true); lh.setUint32(14, crc, true);
+      lh.setUint32(18, f.data.length, true); lh.setUint32(22, f.data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      parts.push(new Uint8Array(lh.buffer), name, f.data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+      ch.setUint16(12, dosTime, true); ch.setUint16(14, dosDate, true); ch.setUint32(16, crc, true);
+      ch.setUint32(20, f.data.length, true); ch.setUint32(24, f.data.length, true); ch.setUint16(28, name.length, true);
+      ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), name);
+      offset += 30 + name.length + f.data.length;
+    }
+    let csize = 0; for (const c of central) csize += c.length;
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, csize, true); end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+  }
+  async function downloadAll() {
+    const files = [];
+    for (const l of DATA.lines) {
+      const it = accepted.get(l.id);
+      if (it) files.push({ name: `${l.persona}/${l.id}.wav`, data: new Uint8Array(await it.blob.arrayBuffer()) });
+    }
+    if (!files.length) return;
+    download('hwai-voice-recordings.zip', buildZip(files));
+    setStatus(`ดาวน์โหลด ${files.length} ไฟล์แล้ว`);
+  }
+
+  $('bRec').onclick = startRecording;
+  $('bStop').onclick = stopRecording;
+  $('bPlay').onclick = play;
+  $('bRedo').onclick = redo;
+  $('bUse').onclick = use;
+  $('bZip').onclick = downloadAll;
+  renderAll();
+})();
+</script>
+</body>
+</html>

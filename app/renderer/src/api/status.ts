@@ -9,6 +9,8 @@ type RawStatus = {
   pending: number
   stats?: { requests?: number; passed?: number; bypassed?: number; today?: RawDay; total?: RawDay; best_score?: number }
   last_seen?: AppStatus['lastSeen']
+  avatar?: string
+  monitor?: boolean
 }
 
 const day = (d?: RawDay): DayStats => ({ wais: d?.wais ?? 0, passed: d?.passed ?? 0, beautiful: d?.beautiful ?? 0, tokens: d?.tokens ?? 0 })
@@ -33,7 +35,7 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void, onError?: (e: 
       const res = await fetch(`${DAEMON_URL}/wai/status`)
       if (!res.ok) throw new Error(`GET /wai/status ${res.status}`)
       const raw: RawStatus = await res.json()
-      if (!stopped) onStatus({ enabled: raw.enabled, pending: raw.pending, stats: mapStats(raw.stats), lastSeen: raw.last_seen ?? {} })
+      if (!stopped) onStatus({ enabled: raw.enabled, pending: raw.pending, stats: mapStats(raw.stats), lastSeen: raw.last_seen ?? {}, avatar: typeof raw.avatar === 'string' ? raw.avatar : undefined, monitor: raw.monitor === true })
     } catch (e) {
       onError?.(e)
     }
@@ -44,6 +46,14 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void, onError?: (e: 
     stopped = true
     clearTimeout(timer)
   }
+}
+
+export async function setMonitor(monitor: boolean): Promise<void> {
+  await fetch(`${DAEMON_URL}/wai/monitor`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ monitor }),
+  })
 }
 
 export async function setEnabled(enabled: boolean): Promise<void> {

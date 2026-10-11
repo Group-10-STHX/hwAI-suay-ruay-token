@@ -59,6 +59,9 @@ const baseFor = (thumbV) => thumbV - 0.3;
  *  apart       extra sideways spread of each hand, in shoulder widths
  *  swPx        shoulder width in pixels
  *  ghost       add a collapsed ghost hand far to the side
+ *  cyFrac      where the shoulder midpoint sits in the image, as a fraction of its height (> 1: below the frame)
+ *  shoulderHalf  where the shoulder landmarks are reported, in true shoulder widths from the midline
+ *              (0.5 = correct; less = the pose model pulled them inward, as it does when the arms rise)
  */
 function person({
   thumbV = null,
@@ -72,9 +75,11 @@ function person({
   ghost = false,
   wristVis = 0.9,
   handsHigh = false,
+  cyFrac = 0.62,
+  shoulderHalf = 0.5,
 } = {}) {
   const cx = W / 2;
-  const cy = H * 0.62;
+  const cy = H * cyFrac;
   const rad = (tiltDeg * Math.PI) / 180;
   // body (u, v) -> image, rotated by the camera tilt around the shoulder midpoint
   const img = ({ u, v }) => {
@@ -96,8 +101,8 @@ function person({
   pose[4] = pose[6] = pose[5];
   pose[7] = lm({ u: noseU + 0.15, v: NOSE_V + 0.08 });
   pose[8] = lm({ u: noseU - 0.15, v: NOSE_V + 0.08 });
-  pose[11] = lm({ u: 0.5, v: 0 }, shoulders);
-  pose[12] = lm({ u: -0.5, v: 0 }, shoulders);
+  pose[11] = lm({ u: shoulderHalf, v: 0 }, shoulders);
+  pose[12] = lm({ u: -shoulderHalf, v: 0 }, shoulders);
 
   const hands = { landmarks: [], worldLandmarks: [], handedness: [], handednesses: [] };
   const addHand = (pts, name) => {
@@ -297,8 +302,9 @@ test("pass fires once per wai, after the hold, and only at the required level", 
   assert.deepEqual(passes, [2]);
   ({ passes } = run(person({ thumbV: NOSE_V }), 60, tracker, 2));
   assert.deepEqual(passes, []);
-  // hands down and up again: a new wai, a new pass
-  run(person({ thumbV: null }), 20, tracker, 2);
+  // hands down long enough for the leaky hold to drain (grace + hold target): a new wai, a new pass
+  run(person({ thumbV: null }), 45, tracker, 2);
+  assert.equal(tracker.holdMs, 0);
   ({ passes } = run(person({ thumbV: NOSE_V }), 60, tracker, 2));
   assert.deepEqual(passes, [2]);
 });
@@ -312,6 +318,7 @@ test("VisionEvent contract: level 0-3, score 0-100, holdMs, reasons from the fix
       assert.ok([0, 1, 2, 3].includes(r.stable));
       assert.ok(r.score >= 0 && r.score <= 100);
       assert.ok(Number.isFinite(r.holdMs) && r.holdMs >= 0);
+      assert.ok(r.confidence >= 0 && r.confidence <= 1);
       for (const code of reasons) assert.ok(WAI_REASONS.has(code), `unknown reason ${code}`);
     }
   }
@@ -334,4 +341,134 @@ test("bow: a visible face with no pitch change denies level 3; a bowed face conf
     { data: [1, 0, 0, 0, 0, Math.cos(a), Math.sin(a), 0, 0, -Math.sin(a), Math.cos(a), 0, 0, 0, 0, 1] },
   ];
   assert.equal(run(bowedFace, 30, tracker).last.stable, 3);
+});
+
+// ---- robustness: sitting close, leaning, a hand in front of the face, model failures ----
+
+/** Rotate the hand-model hand `idx` by `deg` about its wrist, in pixel space. */
+function rotateHand(det, idx, deg) {
+  const pts = det.hands.landmarks[idx];
+  const w = pts[0];
+  const a = (deg * Math.PI) / 180;
+  det.hands.landmarks[idx] = pts.map((p) => {
+    const dx = (p.x - w.x) * W;
+    const dy = (p.y - w.y) * H;
+    return { x: w.x + (dx * Math.cos(a) - dy * Math.sin(a)) / W, y: w.y + (dx * Math.sin(a) + dy * Math.cos(a)) / H, z: 0 };
+  });
+}
+
+/** A person whose hands are not seen at all: no hand-model hands, pose wrists invisible. */
+const handsGone = (opts = {}) => person({ ...opts, handModel: "none", wristVis: 0.1 });
+
+test("sitting close: shoulders extrapolated below the image hand the frame to the face, leaning included", () => {
+  const close = { cyFrac: 1.08, swPx: 600 }; // shoulder midpoint 8% below the bottom edge, still reported with high visibility
+  const F = extractFeatures(person({ thumbV: NOSE_V, ...close }), W, H, {}, DEFAULT_TH);
+  assert.equal(F.source, "face");
+  assert.equal(classify(F, DEFAULT_TH), 2);
+  for (const lean of [-0.2, 0.2]) {
+    assert.equal(level(person({ thumbV: BROW_V, ...close, lean })), 3, `lean ${lean} level 3`);
+    assert.equal(level(person({ thumbV: CHIN_V, ...close, lean })), 1, `lean ${lean} level 1`);
+  }
+});
+
+test("face hidden while the raised arms pull the shoulder landmarks inward: the level holds", () => {
+  // thumbs a third of the way from the nose to the brow, fingertips just above the brow: level 2
+  const tracker = new WaiTracker();
+  run(handsGone(), 30, tracker); // relaxed frames: the face is remembered in pixels
+  assert.ok(tracker.memory.faceHpx > 0);
+  const det = person({ thumbV: NOSE_V + 0.3 * FACE_H, face: false, shoulderHalf: 0.375 }); // shoulders 25% narrower
+  assert.equal(run(det, 30, tracker).last.stable, 2);
+  // the same frames measured against a face height remembered in shoulder widths read a level too high
+  const sw = extractFeatures(det, W, H, { faceH: FACE_H }, DEFAULT_TH);
+  assert.equal(classify(sw, DEFAULT_TH), 3);
+});
+
+test("a pose nose parked on the shoulder line is replaced by the remembered upright nose", () => {
+  const tracker = new WaiTracker();
+  run(handsGone(), 30, tracker); // learns the upright neck
+  const det = person({ thumbV: 0.1, face: false }); // thumbs just above the shoulder line: hands at the chest
+  const pl = det.pose.landmarks[0];
+  pl[0] = { x: (pl[11].x + pl[12].x) / 2, y: (pl[11].y + pl[12].y) / 2 - (0.03 * 320) / H, z: 0, visibility: 0.99 };
+  const F = extractFeatures(det, W, H, tracker.calibration, DEFAULT_TH);
+  assert.equal(F.headSource, "memory");
+  assert.equal(run(det, 30, tracker).last.stable, 1, "hands at the chest are level 1 at most");
+});
+
+test("a hand cut off by the bottom edge of the image is not a wai", () => {
+  // a resting hand whose wrist is below the frame: the model squeezes 21 points into the stub that shows
+  const det = person({ thumbV: null });
+  const stub = hand(+1, -0.9, -0.06).map((p) => ({ u: p.u, v: -0.9 + (p.v + 0.9) * 0.3 }));
+  const cx = W / 2;
+  const cy = H * 0.62;
+  det.hands.landmarks.push(stub.map((p) => ({ x: (cx + p.u * 320) / W, y: (cy - p.v * 320) / H, z: 0 })));
+  const F = extractFeatures(det, W, H, {}, DEFAULT_TH);
+  assert.equal(F.realHands, 1);
+  assert.ok(F.fingersUp < DEFAULT_TH.fingersUpMin, `stub fingersUp ${F.fingersUp}`);
+  assert.equal(classify(F, DEFAULT_TH), 0);
+});
+
+test("a hand in front of the face: a wai hand hiding the other counts, a hand over the mouth or a face-palm does not", () => {
+  // one upright hand on the midline with the face hidden behind it, after the face was seen
+  const tracker = new WaiTracker();
+  run(handsGone(), 30, tracker);
+  assert.equal(run(person({ thumbV: NOSE_V, face: false, handModel: "one", wristVis: 0.2 }), 30, tracker).last.stable, 2);
+  // a hand lying across the mouth: fingers horizontal
+  const flat = person({ thumbV: NOSE_V, handModel: "one", wristVis: 0.2 });
+  rotateHand(flat, 0, 90);
+  assert.equal(level(flat), 0);
+  // a face-palm: an upright hand on the face while the other wrist is confidently seen hanging at the hip
+  const palm = person({ thumbV: NOSE_V, handModel: "one", wristVis: 0.9 });
+  const pl = palm.pose.landmarks[0];
+  pl[16] = { x: (W / 2 - 0.45 * 320) / W, y: (H * 0.62 + 0.8 * 320) / H, z: 0, visibility: 0.9 };
+  assert.equal(level(palm), 0);
+});
+
+test("leaky hold: a brief loss of the hands keeps the hold, the wai passes once, a real pause re-arms it", () => {
+  const th = { ...DEFAULT_TH, holdMs: 1000 };
+  const tracker = new WaiTracker(th);
+  const up = person({ thumbV: BROW_V, face: false });
+  const gone = handsGone({ face: false });
+  let passes = run(up, 18, tracker, 3).passes; // ~0.6 s up
+  assert.deepEqual(passes, []);
+  const before = tracker.holdMs;
+  passes = run(gone, 8, tracker, 3).passes; // hands lost for ~0.26 s, inside the grace
+  assert.deepEqual(passes, []);
+  assert.ok(tracker.holdMs >= before, `the hold must not reset in a brief dip (${tracker.holdMs} < ${before})`);
+  passes = run(up, 25, tracker, 3).passes;
+  assert.deepEqual(passes, [3], "the two halves add up to one pass");
+  assert.deepEqual(run(up, 30, tracker, 3).passes, [], "no second pass while the wai goes on");
+  // hands away for 2 s: the hold drains to zero and the pass is re-armed
+  run(gone, 60, tracker, 3);
+  assert.equal(tracker.holdMs, 0);
+  assert.equal(tracker.passedLevel, 0);
+  assert.deepEqual(run(up, 45, tracker, 3).passes, [3]);
+});
+
+test("leaky hold never passes on its own: a short wai followed by nothing drains without a pass", () => {
+  const tracker = new WaiTracker({ ...DEFAULT_TH, holdMs: 1000 });
+  const passes = [...run(person({ thumbV: BROW_V }), 15, tracker).passes, ...run(handsGone(), 60, tracker).passes];
+  assert.deepEqual(passes, []);
+  assert.equal(tracker.holdMs, 0);
+});
+
+test("a pass waits until the reported level itself has been held, not a level the hands just reached", () => {
+  const th = { ...DEFAULT_TH, holdMs: 1000 };
+  const tracker = new WaiTracker(th);
+  run(person({ thumbV: BROW_V }), 20, tracker, 1); // ~0.6 s of hold at level 3
+  const { passes, last } = run(person({ thumbV: CHIN_V }), 14, tracker, 1); // the hands sink to level 1
+  assert.equal(last.stable, 1);
+  assert.ok(tracker.holdMs >= th.holdMs, `hold ${tracker.holdMs}`);
+  assert.deepEqual(passes, [], "the hold is over the target but level 1 has not been held yet");
+  assert.deepEqual(run(person({ thumbV: CHIN_V }), 8, tracker, 1).passes, [1], "held at level 1 for a vote window: now it passes there");
+});
+
+test("confidence: 0..1, two clean hands beat the pose fallback, and no hands means certainly no wai", () => {
+  const two = run(person({ thumbV: BROW_V }), 30).last;
+  const poseOnly = run(person({ thumbV: BROW_V, handModel: "none" }), 30).last;
+  const none = run(person({ thumbV: null }), 30).last;
+  for (const r of [two, poseOnly, none]) assert.ok(r.confidence >= 0 && r.confidence <= 1, `confidence ${r.confidence}`);
+  assert.equal(two.stable, 3);
+  assert.ok(two.confidence > poseOnly.confidence, `${two.confidence} > ${poseOnly.confidence}`);
+  assert.equal(none.stable, 0);
+  assert.ok(none.confidence >= 0.9);
 });

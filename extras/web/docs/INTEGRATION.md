@@ -30,7 +30,7 @@ Everything else (queueing, retries, auth, privacy filtering) lives in [`sdk/wai-
 | Deployment | **No public URL yet.** The booth `base_url` is still to be decided |
 | Daemon (`/app/main`) | **Doesn't exist yet.** §4 describes the integration point by contract, not by file |
 | Root contract | **Not yet in the root `CLAUDE.md`.** Per team rule, add the daemon → web upload there and get #1's agreement |
-| Stickers | **Not in v1.** `sticker_url` is always `null` and there is no upload endpoint |
+| Stickers and profile pictures | Web + SDK implemented (API.md §5 "Profile picture and stickers"). **Opt-in**: `web.upload_stickers: true`. Supabase storage path is compile-checked only. The daemon side (cut-out PNG per wai) belongs to agent S: it just calls `sync.recordSticker({ id, path })` |
 
 ## 1. Ground rules (non-negotiable)
 
@@ -134,6 +134,23 @@ The SDK forces `action` to `allow` when `passed` is true and defaults a failed a
 - Idempotent: every item has a uuid, so a retry after a timeout never double-counts.
 - `status()` returns `{ enabled, bypass, base_url, handle, queued, lastError, lastFlushAt }`. Good for a settings screen or a debug log.
 
+### 4.5 Stickers and profile picture (opt-in)
+
+When a wai passes, the desktop app cuts the person out into a transparent PNG (≤ 400 KB, ≤ 1024 x 1024) and, **after** `record()` of the
+same wai, calls:
+
+```js
+sync.recordSticker({ id: waiId, path: '/home/me/.waikusa/stickers/<waiId>.png' });  // same id as record()
+await sync.setAvatar('/path/face.jpg');   // png|jpg|webp ≤ 250 KB; setAvatar(null) resets
+```
+
+- Only when `web.upload_stickers === true`, uploads are `enabled` and `WAI_BYPASS` is not set; otherwise `recordSticker()` returns `false` and nothing is queued.
+- The queue `~/.wai/stickers-outbox.jsonl` holds `{ id, path, tries }`, never image bytes. The file is read at upload time and skipped silently if it is gone or > 400 KB.
+- The upload waits until the wai batch itself succeeded (the outbox is flushed first). A `404` (wai not synced yet) is retried with backoff, at most 8 tries; `413/415/400` drop the item.
+- CLI: `node sdk/wai-sync.mjs stickers on|off`, `avatar <file>`, `avatar --reset`, `avatar --source generated|photo|sticker|auto`,
+  `sticker <waiId> <file>` (test), `backfill-stickers <dir>` (uploads `<dir>/<waiId>.png` for wai ids known to the server, 404 = skip).
+- `status()` adds `stickers_queued` and `upload_stickers`.
+
 ## 5. Optional: settings UI (#2, `/app/renderer`)
 
 Expose these through IPC from the main process:
@@ -143,6 +160,8 @@ Expose these through IPC from the main process:
 | "แสดงบน Leaderboard" toggle | `writeWebConfig({ enabled })` (exported by the SDK) |
 | Register handle | `webSync.register(handle, displayName, baseUrl)` → stores `install_key`, sets `enabled: true` |
 | Status line | `webSync.status()` |
+| "ส่ง sticker ขึ้นเว็บ" toggle (default OFF) | `writeWebConfig({ upload_stickers })` |
+| Profile picture | `webSync.setAvatar(path \| null)` |
 | "ดูโอกาสรอดของฉัน" link | open `${site}/players/${handle}` |
 
 Handle rules are `^[a-z0-9_]{3,20}$` with `me` reserved. Display names are 1–32 characters and Thai is fine.
@@ -153,8 +172,10 @@ On `409 handle_taken`, ask for another handle.
 `~/.wai/config.json` (created by `register`, mode 0600):
 
 ```json
-{ "web": { "enabled": true, "base_url": "http://localhost:3000/api/v1", "handle": "dev_yourname", "install_key": "wai_sk_…" } }
+{ "web": { "enabled": true, "base_url": "http://localhost:3000/api/v1", "handle": "dev_yourname", "install_key": "wai_sk_…", "upload_stickers": false } }
 ```
+
+`web.upload_stickers` (boolean, default `false`) is the explicit opt-in for sending cut-out photos of the person to the server.
 
 Other top-level keys belong to the daemon and are preserved. For the demo booth, point `base_url` at the deployed site.
 
@@ -170,6 +191,8 @@ Other top-level keys belong to the daemon and are preserved. For the demo booth,
 | 6 | `web.enabled: false` | nothing uploaded, no outbox writes |
 | 7 | Time the hook with the web server down | no added latency on `GET /wai/wait/:id` |
 | 8 | `grep -c agent_label ~/.wai/outbox.jsonl` | `0` |
+| 9 | `stickers on`, pass a wai, `recordSticker({id, path})` | sticker on `/players/<you>` wall and next to your leaderboard row |
+| 10 | `stickers off` (default) | nothing in `stickers-outbox.jsonl`, `recordSticker()` returns `false` |
 
 ## 8. Troubleshooting
 

@@ -1,0 +1,16 @@
+{
+  "name": "hwai-waikusa",
+  "private": true,
+  "description": "hwAI ไหว้กูซะ: helper scripts (cross-platform). Each part keeps its own package.json.",
+  "scripts": {
+    "setup": "npm --prefix app/renderer install && npm --prefix spikes/popup-hook install",
+    "dev": "node scripts/dev.mjs",
+    "test": "node --test spikes/popup-hook/test/*.test.mjs",
+    "hooks:sandbox": "node spikes/popup-hook/install-hooks.mjs install sandbox",
+    "hooks:project": "node spikes/popup-hook/install-hooks.mjs install",
+    "hooks:global": "node spikes/popup-hook/install-hooks.mjs install global",
+    "hooks:status": "node spikes/popup-hook/install-hooks.mjs status",
+    "hooks:uninstall": "node spikes/popup-hook/install-hooks.mjs uninstall"
+  },
+  "engines": { "node": ">=22" }
+}

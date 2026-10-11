@@ -28,6 +28,8 @@ export function createWaiLog({ home, sync = true, now = () => new Date(), logger
   const total = zero();
   const byDay = new Map();
   let best = 0;
+  // id → {at, score, level, passed, sticker?} ไว้ให้ /wai/stickers และ attachSticker (ไม่เก็บ parts ฯลฯ)
+  const meta = new Map();
 
   const add = (r) => {
     const day = bangkokDay(r.at);
@@ -47,9 +49,16 @@ export function createWaiLog({ home, sync = true, now = () => new Date(), logger
         if (!line.trim()) continue;
         try {
           const r = JSON.parse(line);
+          // บรรทัดแพตช์: {"v":1,"patch":"sticker","id","sticker"} ไม่มี at → ตัวอ่านเก่าข้ามเอง
+          if (r && r.patch === 'sticker' && typeof r.id === 'string' && typeof r.sticker === 'string') {
+            const m = meta.get(r.id);
+            if (m) m.sticker = r.sticker;
+            continue;
+          }
           if (r && typeof r === 'object' && r.at && !Number.isNaN(new Date(r.at).getTime())) {
             r.score = Number(r.score) || 0;
             add(r);
+            if (typeof r.id === 'string') meta.set(r.id, { at: r.at, score: r.score, level: Number(r.level) || 0, passed: !!r.passed, sticker: typeof r.sticker === 'string' ? r.sticker : null });
           }
         } catch { /* skip broken line */ }
       }
@@ -78,6 +87,8 @@ export function createWaiLog({ home, sync = true, now = () => new Date(), logger
         awards: awardsFor({ passed, level, score, style }),
         tokens: tokensFor({ passed, level, score }),
       };
+      meta.set(rec.id, { at: rec.at, score: rec.score, level: rec.level, passed, sticker: null });
+      if (meta.size > 5000) meta.delete(meta.keys().next().value);
       add(rec); // stats stay right even if the disk write fails
       try {
         mkdirSync(home, { recursive: true });
@@ -99,6 +110,39 @@ export function createWaiLog({ home, sync = true, now = () => new Date(), logger
     }
   }
 
+  /** ผูกสติ๊กเกอร์กับบันทึกไหว้ (append บรรทัดแพตช์ ไม่เขียนไฟล์เดิมทับ) · false ถ้าไม่รู้จัก id */
+  function attachSticker(id, fileName) {
+    try {
+      const m = meta.get(id);
+      if (!m || typeof fileName !== 'string' || !/^[A-Za-z0-9_-]+\.png$/.test(fileName)) return false;
+      m.sticker = fileName;
+      try {
+        mkdirSync(home, { recursive: true });
+        appendFileSync(file, JSON.stringify({ v: 1, patch: 'sticker', id, sticker: fileName, at_patch: new Date(now()).toISOString() }) + '\n');
+      } catch (e) { logger.warn?.('[wai-log] sticker patch write failed', e?.message || e); }
+      return true;
+    } catch { return false; }
+  }
+
+  /** อัปโหลดสติ๊กเกอร์ขึ้นเว็บ เฉพาะเมื่อ ~/.waikusa/config.json → web.upload_stickers === true · ไม่ throw ไม่บล็อก */
+  function uploadSticker(id, absPath) {
+    try {
+      let cfg = {};
+      try { cfg = JSON.parse(readFileSync(join(home, 'config.json'), 'utf8')); } catch { /* ไม่มี config = ปิด */ }
+      if (cfg?.web?.upload_stickers !== true) return false;
+      if (!waiSync || typeof waiSync.recordSticker !== 'function') return false;
+      const r = waiSync.recordSticker({ id, path: absPath });
+      if (r && typeof r.catch === 'function') r.catch(() => {});
+      return true;
+    } catch (e) {
+      try { logger.warn?.('[wai-log] sticker upload failed', e?.message || e); } catch {}
+      return false;
+    }
+  }
+
+  /** ข้อมูลย่อของบันทึก (สำหรับ list สติ๊กเกอร์) หรือ null */
+  const lookup = (id) => (meta.has(id) ? { ...meta.get(id) } : null);
+
   const stats = () => ({
     today: { ...(byDay.get(bangkokDay(now())) || zero()) },
     total: { ...total },
@@ -106,7 +150,7 @@ export function createWaiLog({ home, sync = true, now = () => new Date(), logger
   });
 
   return {
-    record, stats,
+    record, stats, attachSticker, uploadSticker, lookup,
     flush: () => (waiSync ? waiSync.flush() : Promise.resolve({ sent: 0, kept: 0 })),
     stop: () => { try { waiSync?.stop(); } catch {} },
   };

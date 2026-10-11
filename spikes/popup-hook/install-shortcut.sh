@@ -4,6 +4,11 @@
 # ถอนการติดตั้ง: bash install-shortcut.sh --uninstall
 set -euo pipefail
 
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo "สคริปต์นี้สร้างแอป .app สำหรับ macOS เท่านั้น · Windows/Linux ใช้: node scripts/dev.mjs (ที่ root ของ repo) — ดู README.md" >&2
+  exit 1
+fi
+
 APP="$HOME/Applications/ไหว้กูซะ.app"
 if [[ "${1:-}" == "--uninstall" ]]; then
   rm -rf "$APP" && echo "ลบ $APP แล้ว"

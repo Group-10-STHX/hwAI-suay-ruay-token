@@ -1,5 +1,6 @@
 import { QUEUE_POLL_MS, type AppStatus, type QueueSnapshot, type VisionEvent } from '../api/types'
 import type { SetupBridge, SetupStatus } from '../api/setup'
+import { getMockAvatar, onMockAvatar } from './mockAvatars'
 import { DEFAULT_QUEUE_SIZE, SCENARIOS, scenarioSnapshot, type ScenarioName } from './scenarios'
 
 // ยิง scenario เป็นคิว + vision event ปลอม
@@ -56,13 +57,15 @@ export function onMockControl(cb: (c: MockControl) => void): () => void {
 }
 
 export function subscribeQueue(onSnapshot: (s: QueueSnapshot) => void): () => void {
-  const emit = () => onSnapshot(scenarioSnapshot(SCENARIOS[control.scenario], control.queueSize))
+  const emit = () => onSnapshot({ ...scenarioSnapshot(SCENARIOS[control.scenario], control.queueSize), avatar: getMockAvatar() })
   emit()
   const timer = setInterval(emit, QUEUE_POLL_MS)
   const off = onMockControl(emit)
+  const offAvatar = onMockAvatar(emit)
   return () => {
     clearInterval(timer)
     off()
+    offAvatar()
   }
 }
 
@@ -91,6 +94,8 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void): () => void {
         bestScore: 96,
       },
       lastSeen: { 'claude-code': Date.now() - 90_000 },
+      avatar: getMockAvatar(),
+      monitor: mockMonitor,
     })
   emit()
   const timer = setInterval(emit, 1000)
@@ -99,6 +104,11 @@ export function subscribeStatus(onStatus: (s: AppStatus) => void): () => void {
 
 export async function setEnabled(enabled: boolean) {
   mockEnabled = enabled
+}
+
+let mockMonitor = false
+export async function setMonitor(monitor: boolean) {
+  mockMonitor = monitor
 }
 
 export async function sendTestRequest() {

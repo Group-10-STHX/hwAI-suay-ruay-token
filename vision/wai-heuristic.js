@@ -16,6 +16,15 @@
 //      elbows or wrists, which open up in a high wai.
 //   4. Level 3 also wants a bow: face pitch against a baseline, or the nose dropping toward the
 //      shoulders. The baseline is calibrated from relaxed frames, or by calibrate().
+//   5. When the hands hide the face, the face height and the nose position come from a memory
+//      kept in pixels, not in shoulder widths: raising the arms pulls the pose model's shoulder
+//      landmarks inward by up to a quarter, which would otherwise inflate every height. A pose
+//      nose that lands on the shoulder line is anatomically impossible and is replaced by the
+//      remembered upright nose. Shoulders outside the image (sitting close) hand the frame to the face.
+//   6. The pass hold is leaky: it keeps counting across a short loss of the hands (the hand model
+//      drops them for a few frames when they overlap the face), freezes for a grace period and
+//      then drains, so one pass per wai still holds. A pass reports a level only after that level
+//      itself has been stable for a vote window, never a level the hands are passing through.
 
 export const DEFAULT_TH = Object.freeze({
   // gates, in shoulder widths
@@ -25,7 +34,9 @@ export const DEFAULT_TH = Object.freeze({
   tipGapMax: 0.45, // pose fallback: index-tip gap (high wai: wrists open, tips still touch)
   centerMax: 0.5, // hands' horizontal offset from the nose
   oneHandCenterMax: 0.3, // a single visible hand hides the other one only if it sits on the face midline
-  fingersUpMin: 0.05, // fingertips above the wrists
+  // fingertips above the wrists by a quarter shoulder width (half a hand): the fingers point up. A
+  // hand cut off by the bottom edge of the image (resting low) shows only a short stub above its wrist.
+  fingersUpMin: 0.25,
   // level anchors, in face units (nose tip to brow) above the nose tip, for levels 1 / 2 / 3
   thumbAnchors: [-1.2, 0, 1.0], // chin, nose, brow
   tipAnchors: [0, 1.0, 1.9], // nose, brow, hairline
@@ -39,6 +50,9 @@ export const DEFAULT_TH = Object.freeze({
   // timing
   holdMs: 700, // a wai held this long counts as a pass
   passMinScore: 70, // score needed for a pass
+  passMinDwellMs: 300, // the level a pass reports must itself have been stable this long (about one vote window)
+  holdGraceMs: 350, // after the wai drops out, the hold freezes this long: the hand model needs a few frames to find overlapping hands again
+  holdLeak: 1.0, // then it drains at this rate (ms of hold per ms): a dip costs as long as it lasts, a real pause clears it
   windowMs: 400, // vote window for the stable level
   share: 0.6, // share of the window a level needs to become stable
 });
@@ -51,6 +65,7 @@ export const levelName = (level) => LEVEL_NAMES[level] ?? "-";
 const FACE_H = 0.21; // nose tip to brow
 const EYE_NOSE = 0.13; // eye line to nose tip
 const NECK_UPRIGHT = 0.5; // nose above the shoulder line, head upright
+const HEAD_MIN_V = 0.15; // the nose never comes closer to the shoulder line than this (half a head), even chin on chest
 // Detection sanity
 const SHOULDER_VIS_MIN = 0.3;
 const POSE_VIS_MIN = 0.3; // pose wrists below this are usually hallucinated hanging arms
@@ -64,6 +79,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const bdist = (a, b) => Math.hypot(a.u - b.u, a.v - b.v);
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const vis = (lm) => lm?.visibility ?? 1;
+const inFrame = (lm) => lm.x >= 0 && lm.x <= 1 && lm.y >= 0 && lm.y <= 1; // normalized coordinates outside 0..1 are extrapolations
 const wrap180 = (deg) => ((((deg + 180) % 360) + 360) % 360) - 180;
 
 /** Piecewise-linear map of x through the anchor points xs -> ys, clamped at both ends. */
@@ -95,7 +111,9 @@ function makeFrame(origin, ex, unit, source) {
 }
 
 function bodyFrame(pl, fl, W, H) {
-  if (pl && vis(pl[11]) >= SHOULDER_VIS_MIN && vis(pl[12]) >= SHOULDER_VIS_MIN) {
+  // Shoulders carry the frame only when both are seen inside the image: a person sitting close
+  // has them extrapolated below the frame, where their width and tilt are guesses.
+  if (pl && vis(pl[11]) >= SHOULDER_VIS_MIN && vis(pl[12]) >= SHOULDER_VIS_MIN && inFrame(pl[11]) && inFrame(pl[12])) {
     const L = px(pl[11], W, H);
     const R = px(pl[12], W, H);
     const sw = dist(L, R);
@@ -119,7 +137,9 @@ function bodyFrame(pl, fl, W, H) {
 
 /**
  * Per-frame features in the body frame. `calib` may carry a bow baseline (pitch, neck) and the
- * face memory (faceH, noseOffU, noseOffV) that WaiTracker keeps for frames where hands hide the face.
+ * face memory that WaiTracker keeps for frames where hands hide the face: faceHpx and
+ * noseOffPxU/V in pixels (preferred, they survive the shoulder landmarks moving when the arms
+ * rise) or the older faceH / noseOffU / noseOffV in shoulder widths.
  * Returns null when there is no person. A person whose hands are not visible gets handsSeen=false.
  */
 export function extractFeatures({ pose, face, hands }, W, H, calib = {}, th = DEFAULT_TH) {
@@ -133,24 +153,36 @@ export function extractFeatures({ pose, face, hands }, W, H, calib = {}, th = DE
   // ---- head: nose tip and face height, from the face when it is visible, else pose + memory ----
   const faceNose = fl?.[1] ? P(fl[1]) : null;
   const poseNose = pl && vis(pl[0]) >= SHOULDER_VIS_MIN ? P(pl[0]) : null;
+  const memFaceH = calib.faceHpx != null ? Math.max(0.1, calib.faceHpx / frame.unit) : (calib.faceH ?? FACE_H);
+  const memOffU = calib.noseOffPxU != null ? calib.noseOffPxU / frame.unit : (calib.noseOffU ?? 0);
+  const memOffV = calib.noseOffPxV != null ? calib.noseOffPxV / frame.unit : (calib.noseOffV ?? 0);
+  // The remembered upright nose is only meaningful in a shoulder frame; a head frame puts the nose there by construction.
+  const uprightNose = { u: 0, v: frame.source === "shoulders" && calib.neck != null ? calib.neck : NECK_UPRIGHT };
   let nose;
   let faceH;
   let headSource;
   if (faceNose) {
     nose = faceNose;
-    faceH = fl[9] ? Math.max(0.1, P(fl[9]).v - nose.v) : (calib.faceH ?? FACE_H);
+    faceH = fl[9] ? Math.max(0.1, P(fl[9]).v - nose.v) : memFaceH;
     headSource = "face";
   } else if (poseNose) {
-    nose = { u: poseNose.u + (calib.noseOffU ?? 0), v: poseNose.v + (calib.noseOffV ?? 0) };
-    faceH = calib.faceH ?? FACE_H;
+    nose = { u: poseNose.u + memOffU, v: poseNose.v + memOffV };
+    faceH = memFaceH;
     headSource = "pose";
+    if (frame.source === "shoulders" && nose.v < HEAD_MIN_V) {
+      // The pose model lost the head under the hands and parked the nose on the shoulder line.
+      nose = uprightNose;
+      headSource = "memory";
+    }
   } else {
-    nose = { u: 0, v: NECK_UPRIGHT };
-    faceH = calib.faceH ?? FACE_H;
+    nose = uprightNose;
+    faceH = memFaceH;
     headSource = "none";
   }
   const faceHMeasured = faceNose && fl[9] && frame.source === "shoulders" ? faceH : null;
+  const faceHpx = faceNose && fl[9] ? faceH * frame.unit : null;
   const noseOff = faceNose && poseNose ? { u: faceNose.u - poseNose.u, v: faceNose.v - poseNose.v } : null;
+  const noseOffPx = noseOff ? { u: noseOff.u * frame.unit, v: noseOff.v * frame.unit } : null;
   const m = face?.facialTransformationMatrixes?.[0];
   const pitch = m ? wrap180((Math.atan2(m.data[6], m.data[10]) * 180) / Math.PI) : null;
   const neck = frame.source === "shoulders" && headSource !== "none" ? nose.v : null;
@@ -276,7 +308,9 @@ export function extractFeatures({ pose, face, hands }, W, H, calib = {}, th = DE
     nose,
     faceH,
     faceHMeasured,
+    faceHpx,
     noseOff,
+    noseOffPx,
     lean: nose.u,
     pitch,
     neck,
@@ -339,13 +373,18 @@ export class WaiTracker {
     this.th = { ...DEFAULT_TH, ...th };
     this.manual = { pitch: null, neck: null }; // from calibrate()
     this.auto = { pitch: null, neck: null }; // learned from relaxed frames
-    this.memory = { faceH: null, noseOffU: null, noseOffV: null }; // face geometry for when hands hide it
+    // face geometry for when hands hide it: pixels (robust to the shoulder landmarks moving) and the older shoulder-width copies
+    this.memory = { faceHpx: null, noseOffPxU: null, noseOffPxV: null, faceH: null, noseOffU: null, noseOffV: null };
     this.calib = { pitch: null, neck: null };
     this.ema = {};
     this.last = {};
     this.history = []; // [{level, age}]
     this.stable = 0;
+    this.share = 0; // share of the vote window held by the stable level
     this.holdMs = 0;
+    this.dipMs = 0; // how long the wai has been gone while the hold is still alive
+    this.dwell = [0, 0, 0, 0]; // hold time spent at each stable level in the current wai
+    this.formSum = 0; // form integrated over the hold (ms), formSum / holdMs = the mean form
     this.passedLevel = 0; // level already passed in the current wai, 0 = not yet
   }
 
@@ -358,9 +397,7 @@ export class WaiTracker {
     return {
       pitch: this.manual.pitch ?? this.auto.pitch,
       neck: this.manual.neck ?? this.auto.neck,
-      faceH: this.memory.faceH,
-      noseOffU: this.memory.noseOffU,
-      noseOffV: this.memory.noseOffV,
+      ...this.memory,
     };
   }
 
@@ -391,10 +428,18 @@ export class WaiTracker {
   learn(raw, rawLevel) {
     if (!raw) return;
     const ema = (prev, v, a) => (prev == null ? v : prev + a * (v - prev));
-    if (raw.faceHMeasured != null) this.memory.faceH = ema(this.memory.faceH, raw.faceHMeasured, 0.3);
-    if (raw.noseOff) {
-      this.memory.noseOffU = ema(this.memory.noseOffU, raw.noseOff.u, 0.3);
-      this.memory.noseOffV = ema(this.memory.noseOffV, raw.noseOff.v, 0.3);
+    // Face geometry is remembered only while the hands are away from the face: hands on the face
+    // bend the face mesh, and a bow stretches the projected nose-to-brow distance.
+    const faceClear = rawLevel === 0 && (!raw.handsSeen || raw.tipRel == null || raw.tipRel < -1.5);
+    if (faceClear) {
+      if (raw.faceHpx != null) this.memory.faceHpx = ema(this.memory.faceHpx, raw.faceHpx, 0.3);
+      if (raw.faceHMeasured != null) this.memory.faceH = ema(this.memory.faceH, raw.faceHMeasured, 0.3);
+      if (raw.noseOffPx) {
+        this.memory.noseOffPxU = ema(this.memory.noseOffPxU, raw.noseOffPx.u, 0.3);
+        this.memory.noseOffPxV = ema(this.memory.noseOffPxV, raw.noseOffPx.v, 0.3);
+        this.memory.noseOffU = ema(this.memory.noseOffU, raw.noseOff.u, 0.3);
+        this.memory.noseOffV = ema(this.memory.noseOffV, raw.noseOff.v, 0.3);
+      }
     }
     // Upright posture: no hands in view, no wai. The neck is longest when upright, so the baseline
     // follows rises quickly and drops very slowly (a shrug or a bow should not pull it down).
@@ -412,18 +457,91 @@ export class WaiTracker {
     for (const h of this.history) counts[h.level] += 1;
     const best = counts.indexOf(Math.max(...counts));
     if (counts[best] / this.history.length >= this.th.share) this.stable = best;
+    this.share = counts[this.stable] / this.history.length;
     return this.stable;
   }
 
-  /** 0-100: symmetric hands, centered on the face, squarely inside the level band, held. */
-  score(F, level) {
+  /**
+   * Leaky hold. While a wai is stable the hold and the dwell at that level grow. When it drops
+   * out, the hold (capped at the target, so a long hold does not buy a long memory) freezes for
+   * holdGraceMs and then drains at holdLeak; the wai is over, and the pass re-armed, once it
+   * reaches zero. A dip shorter than the grace costs nothing, a hands-down pause clears everything.
+   */
+  hold(dt, form) {
+    const th = this.th;
+    if (this.stable > 0) {
+      this.dipMs = 0;
+      this.holdMs += dt;
+      this.dwell[this.stable] += dt;
+      this.formSum += form * dt;
+      return;
+    }
+    if (this.holdMs <= 0) {
+      this.dipMs = 0;
+      this.dwell = [0, 0, 0, 0];
+      this.formSum = 0;
+      this.passedLevel = 0;
+      return;
+    }
+    const scale = (k) => {
+      this.dwell = this.dwell.map((d) => d * k);
+      this.formSum *= k;
+      this.holdMs *= k;
+    };
+    if (this.dipMs === 0 && this.holdMs > th.holdMs) scale(th.holdMs / this.holdMs);
+    this.dipMs += dt;
+    if (this.dipMs <= th.holdGraceMs) return;
+    const next = Math.max(0, this.holdMs - th.holdLeak * dt);
+    scale(next / this.holdMs);
+    if (next === 0) {
+      this.holdMs = 0;
+      this.dwell = [0, 0, 0, 0];
+      this.formSum = 0;
+      this.passedLevel = 0;
+    }
+  }
+
+  /**
+   * 0..1: how sure the detector is of the stable level it reports. Two hands seen beat one hand
+   * beat the pose fallback; a unanimous vote window, a height squarely inside the level band and a
+   * visible face add certainty. For level 0 it is the certainty that there is no wai.
+   */
+  confidence(F) {
+    if (!F) return 1; // nobody there: certainly no wai
+    if (this.stable === 0) return clamp01(this.share) * (F.handsSeen && F.together ? 0.6 : 1);
+    const evidence = { hands2: 1, hands1: 0.75, pose: 0.5 }[F.evidence] ?? 0;
+    const head = { face: 1, pose: 0.8, memory: 0.5, none: 0.5 }[F.headSource] ?? 0.5;
+    const h = F.heightLevel ?? this.stable;
+    // distance from the nearest level boundary (1.5 / 2.5), 0 at the boundary, 1 half a level away
+    const margin = this.stable === 3 && h >= 3 ? 1 : clamp01(Math.min(Math.abs(h - 1.5), Math.abs(h - 2.5)) / 0.5);
+    const vote = clamp01((this.share - this.th.share) / (1 - this.th.share));
+    return Math.round(100 * evidence * (0.45 * vote + 0.3 * margin + 0.25 * head)) / 100;
+  }
+
+  /** 0..0.75: the form part of the score, symmetric hands, centered on the face, squarely inside the level band. */
+  form(F, level) {
     if (!level || !F || !F.handsSeen) return 0;
     const sym = F.sym == null ? 0.7 : clamp01(F.sym);
     const cen = clamp01(1 - (F.center ?? 0) / this.th.centerMax);
     const off = Math.abs((F.heightLevel ?? level) - level);
     const fit = level === 3 && F.heightLevel >= 3 ? 1 : clamp01(1 - Math.max(0, off - 0.25) / 0.35);
-    const hold = clamp01(this.holdMs / 1000);
-    return Math.round(100 * (0.35 * sym + 0.25 * cen + 0.15 * fit + 0.25 * hold));
+    return 0.35 * sym + 0.25 * cen + 0.15 * fit;
+  }
+
+  /** 0-100: the form on this frame plus how long the wai has been held. */
+  score(F, level) {
+    if (!level || !F || !F.handsSeen) return 0;
+    return Math.round(100 * (this.form(F, level) + 0.25 * clamp01(this.holdMs / 1000)));
+  }
+
+  /**
+   * 0-100: the score a pass is judged on, the form averaged over the whole hold plus the hold
+   * term. The hands are often already dropping on the frame where the hold crosses the target, so
+   * that frame's own form says little about the wai that was held.
+   */
+  passScore() {
+    if (this.holdMs <= 0) return 0;
+    return Math.round(100 * (this.formSum / this.holdMs + 0.25 * clamp01(this.holdMs / 1000)));
   }
 
   /**
@@ -441,22 +559,19 @@ export class WaiTracker {
     this.learn(raw, rawLevel);
     this.stabilize(rawLevel, dt);
     // Hold time runs while a wai of any level is stable; the stabilizer already makes each level
-    // dwell, so moving between levels does not reset it.
-    if (this.stable === 0) {
-      this.holdMs = 0;
-      this.passedLevel = 0;
-    } else {
-      this.holdMs += dt;
-    }
+    // dwell, so moving between levels does not reset it, and a brief loss of the hands only pauses it.
+    this.hold(dt, this.form(F, this.stable));
 
     const score = this.score(F, this.stable);
+    const minDwell = Math.min(this.th.passMinDwellMs ?? 0, this.th.holdMs);
     let passed = false;
     if (
       this.stable > 0 &&
       this.passedLevel === 0 &&
       this.stable >= requiredLevel &&
       this.holdMs >= this.th.holdMs &&
-      score >= this.th.passMinScore
+      this.dwell[this.stable] >= minDwell &&
+      this.passScore() >= this.th.passMinScore
     ) {
       this.passedLevel = this.stable;
       passed = true;
@@ -467,6 +582,7 @@ export class WaiTracker {
       holdMs: this.holdMs,
       score,
       passed,
+      confidence: this.confidence(F),
       features: F,
       reason: raw ? (raw.handsSeen ? null : "มองไม่เห็นมือ") : "ไม่เจอคน",
     };

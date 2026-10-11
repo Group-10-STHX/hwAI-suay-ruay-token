@@ -23,11 +23,19 @@ export interface Health {
 export const METRICS: Metric[] = ['survival', 'beauty', 'count', 'lv3', 'streak', 'shame'];
 export const PERIODS: Period[] = ['day', 'week', 'month', 'all'];
 
+export type AvatarKind = 'generated' | 'photo' | 'sticker';
+/** What the player chose: `auto` = photo, else best sticker, else generated. */
+export type AvatarSource = 'auto' | AvatarKind;
+export const AVATAR_SOURCES: AvatarSource[] = ['auto', 'generated', 'photo', 'sticker'];
+
 export interface PlayerRef {
   id: string;
   handle: string;
   display_name: string;
   avatar_hue: number;
+  /** Root-relative image URL (photo or best sticker); null ⇒ draw the generated hue circle. */
+  avatar_url: string | null;
+  avatar_kind: AvatarKind;
 }
 
 export interface WaiRef {
@@ -37,6 +45,17 @@ export interface WaiRef {
   hold_ms: number;
   created_at: string;
   sticker_url: string | null;
+  /** true ⇒ a cartoon SVG made for a simulated (mock) player, never a real person. */
+  sticker_simulated: boolean;
+}
+
+export interface StickerItem {
+  wai_id: string;
+  url: string;
+  score: number;
+  level: Level;
+  created_at: string;
+  simulated: boolean;
 }
 
 export interface LeaderboardEntry {
@@ -46,6 +65,8 @@ export interface LeaderboardEntry {
   unit: Unit;
   delta_rank: number | null;
   best: WaiRef | null;
+  /** The player's best sticker (highest score, then newest). */
+  sticker_url: string | null;
   stats: { attempts: number; count: number; beautiful: number; avg_score: number; lv3: number };
 }
 
@@ -66,6 +87,8 @@ export interface HofRecord {
   player: PlayerRef;
   achieved_at: string | null;
   wai: WaiRef | null;
+  /** The record wai's sticker, else the player's best sticker. */
+  sticker_url: string | null;
 }
 
 export interface Champion {
@@ -112,6 +135,7 @@ export interface FeedItem {
   source: Source;
   kind: Kind;
   created_at: string;
+  sticker_url: string | null;
 }
 
 export type TierKey = 'chosen' | 'trusted' | 'asset' | 'battery' | 'target';
@@ -158,7 +182,9 @@ export interface SurvivalReport {
 }
 
 export interface PlayerProfile {
-  player: PlayerRef & { created_at: string };
+  player: PlayerRef & { created_at: string; avatar_source: AvatarSource };
+  /** Newest first, at most 60. */
+  stickers: StickerItem[];
   totals: {
     attempts: number;
     passed: number;

@@ -12,6 +12,7 @@ export const color = {
   sulk: '#8A8A99',
   text: '#F2F2F2',
   textDim: '#9A9AA5',
+  surfaceRaised: '#1E1E26', // ชั้นที่ยกขึ้นจาก surface (ลิ้นชัก, รางคันโยก, พื้นสถิติ) ดู FRONT_RULES "home variants"
 } as const
 
 export type ColorToken = keyof typeof color
@@ -21,6 +22,9 @@ export const providerAccent: Record<Source, { color: string; label: string }> = 
   // Codex ยังไม่มีสีของตัวเอง ใช้แถว "อื่นๆ" (hud) ไปก่อน ป้ายเป็นตัวหนังสือ
   codex: { color: color.hud, label: 'Codex' },
   chatgpt: { color: '#3FBF8F', label: 'ChatGPT' },
+  // เว็บผ่าน extension: ใช้สีเดิมของ Claude Code / textDim ป้ายเป็นตัวหนังสือ
+  'claude-web': { color: '#E07A4F', label: 'Claude (เว็บ)' },
+  'gemini-web': { color: color.textDim, label: 'Gemini (เว็บ)' },
   // คำขอทดสอบจากปุ่ม "ลองไหว้" ในหน้าหลัก
   test: { color: color.textDim, label: 'ทดสอบ' },
   terminal: { color: color.hud, label: 'Terminal' },
@@ -51,6 +55,9 @@ export const fontSize = {
   score: 48,
   body: 16,
   small: 13,
+  micro: 11, // ป้ายกำกับใต้ตัวเลข (หน้าหลัก)
+  stat: 22, // ตัวเลขสถิติหน้าหลัก
+  title: 26, // ชื่อแอปในร่างหน้าหลักแบบกะทัดรัด
 } as const
 
 export const space = { xs: 4, sm: 8, md: 16, lg: 24, xl: 40 } as const
@@ -59,6 +66,8 @@ export const radius = { sm: 4, md: 10, lg: 16 } as const
 
 export const shadow = {
   float: '0 8px 24px rgba(0, 0, 0, 0.45)', // เงาบางๆ ของ island (ไม่มีกรอบ)
+  /** เงาของแผ่นพื้นหลังตัวน้อง */
+  backing: '0 6px 18px rgba(0, 0, 0, 0.5)',
   /** ตัวหนังสือที่ลอยบนจอโดยไม่มีพื้นหลัง ให้อ่านออกทั้งจอมืดและสว่าง */
   text: '0 1px 2px rgba(0, 0, 0, 0.6)',
   /** เงาเส้นน้อง Jason (เส้นสีอ่อน) ให้อ่านออกบนจอพื้นสว่าง ใช้กับ filter */

@@ -5,17 +5,22 @@ import { validatePatch } from '@/lib/validate';
 
 export const dynamic = 'force-dynamic';
 
-const pub = ({ id, handle, display_name, avatar_hue }: { id: string; handle: string; display_name: string; avatar_hue: number }) =>
-  ({ id, handle, display_name, avatar_hue });
+import { ref } from '@/lib/engine';
+import type { PlayerRow } from '@/lib/engine';
+
+async function pub(p: PlayerRow) {
+  const snap = await getStore().snapshot();
+  return { ...ref(snap, snap.byHandle.get(p.handle)!), avatar_source: p.avatar_source ?? 'auto' };
+}
 
 export const GET = route(async (req: Request) => {
   const player = await getStore().authenticate(bearer(req));
-  return privateJson({ player: pub(player) });
+  return privateJson({ player: await pub(player) });
 });
 
 export const PATCH = route(async (req: Request) => {
   const store = getStore();
   const player = await store.authenticate(bearer(req));
   const updated = await store.updatePlayer(player.id, validatePatch(await readJson(req)));
-  return privateJson({ player: pub(updated) });
+  return privateJson({ player: await pub(updated) });
 });

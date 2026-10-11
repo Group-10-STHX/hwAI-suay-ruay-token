@@ -5,7 +5,12 @@
   "main": "main.mjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "hooks:sandbox": "node install-hooks.mjs install sandbox",
+    "hooks:project": "node install-hooks.mjs install",
+    "hooks:global": "node install-hooks.mjs install global",
+    "hooks:status": "node install-hooks.mjs status",
+    "hooks:uninstall": "node install-hooks.mjs uninstall"
   },
   "devDependencies": {
     "electron": "33.2.1"

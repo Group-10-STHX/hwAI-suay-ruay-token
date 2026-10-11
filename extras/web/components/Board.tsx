@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Leaderboard, Metric, Period } from '@/lib/types';
 import { METRICS, PERIODS } from '@/lib/types';
 import { METRIC_LABEL, PERIOD_LABEL, UNIT_LABEL, dShort, fmt, fmtValue } from '@/lib/format';
-import { Avatar, Delta, Hud, LevelPill, Reticle } from './bits';
+import { Avatar, Delta, Hud, LevelPill, Reticle, Sticker } from './bits';
 
 const href = (m: Metric, p: Period) => `/?metric=${m}&period=${p}`;
 
@@ -12,6 +12,7 @@ export function Board({ data, interactive = true }: { data: Leaderboard; interac
   const range = allTime ? 'ตลอดกาล' : `${dShort.format(new Date(data.range.from!))} – ${dShort.format(new Date(data.range.to))}`;
   const showDelta = !allTime && data.period !== 'all';
   const top = data.entries.slice(0, 3), rest = data.entries.slice(3);
+  const hasStk = rest.some((e) => e.sticker_url);
   const unit = data.entries[0] ? UNIT_LABEL[data.entries[0].unit] : '';
   const shownPeriod: Period = data.metric === 'streak' ? 'all' : data.period;
 
@@ -48,8 +49,10 @@ export function Board({ data, interactive = true }: { data: Leaderboard; interac
         <>
           <div className="podium">
             {top.map((e) => (
-              <Link key={e.player.id} href={`/players/${e.player.handle}`} className={`pod pod-${Math.min(e.rank, 3)}`}>
+              <Link key={e.player.id} href={`/players/${e.player.handle}`} className={`pod pod-${Math.min(e.rank, 3)}`} data-rank={e.rank}>
                 <span className="pod-rank">RANK #{e.rank}</span>
+                {/* full-body sticker portrait: shown only by the preview themes (app/themes) */}
+                {e.sticker_url ? <span className="pod-art" aria-hidden="true"><Sticker url={e.sticker_url} size={180} /></span> : null}
                 <span className="pod-target"><Reticle /><Avatar p={e.player} size="l" /></span>
                 <span className="pod-name">{e.player.display_name}</span>
                 <span className="pod-value num">{fmtValue(e.value, e.unit)}<small>{unit}</small></span>
@@ -57,7 +60,7 @@ export function Board({ data, interactive = true }: { data: Leaderboard; interac
               </Link>
             ))}
           </div>
-          <ol className="rows">
+          <ol className={`rows${hasStk ? ' stk-col' : ''}`}>
             {rest.map((e) => (
               <li key={e.player.id}>
                 <Link className="row" href={`/players/${e.player.handle}`}>
@@ -68,6 +71,7 @@ export function Board({ data, interactive = true }: { data: Leaderboard; interac
                     <span>@{e.player.handle}{data.metric === 'survival' ? ` · ไหว้สวย ${e.stats.beautiful}/${e.stats.attempts}` : ''}</span>
                     {data.metric === 'survival' ? <span className="meter" style={{ ['--v' as string]: e.value }}><i /></span> : null}
                   </span>
+                  {hasStk ? (e.sticker_url ? <Sticker url={e.sticker_url} size={34} alt={`sticker ของ ${e.player.display_name}`} /> : <span />) : null}
                   {e.best ? <LevelPill level={e.best.level} /> : <span />}
                   <span className="val num">{fmtValue(e.value, e.unit)}<small>{unit}</small></span>
                   <Delta d={e.delta_rank} show={showDelta} />

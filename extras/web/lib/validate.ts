@@ -1,9 +1,9 @@
 // Strict validation for daemon writes. Unknown fields are rejected so nothing private
 // (prompt text, agent_label, file paths) can be uploaded by accident.
-import type { WaiSubmission } from './types';
+import { AVATAR_SOURCES, type AvatarSource, type WaiSubmission } from './types';
 import { ApiError } from './errors';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const HANDLE = /^[a-z0-9_]{3,20}$/;
 const KEYS = ['id', 'session_id', 'source', 'kind', 'level', 'score', 'hold_ms', 'passed', 'action', 'forgave', 'anger', 'client_ts'];
 
@@ -75,4 +75,13 @@ export function sameWai(a: WaiSubmission, b: WaiSubmission): boolean {
   return KEYS.every((k) => k === 'client_ts'
     ? Date.parse(a.client_ts) === Date.parse(b.client_ts)
     : (a as unknown as Record<string, unknown>)[k] === (b as unknown as Record<string, unknown>)[k]);
+}
+
+export function validateProfile(body: unknown): { avatar_source: AvatarSource } {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) bad('body must be a JSON object');
+  const b = body as Record<string, unknown>;
+  for (const k of Object.keys(b)) if (k !== 'avatar_source') bad(`unknown field "${k}"`, k);
+  if (typeof b.avatar_source !== 'string' || !AVATAR_SOURCES.includes(b.avatar_source as AvatarSource))
+    bad(`avatar_source must be one of ${AVATAR_SOURCES.join(', ')}`, 'avatar_source');
+  return { avatar_source: b.avatar_source as AvatarSource };
 }

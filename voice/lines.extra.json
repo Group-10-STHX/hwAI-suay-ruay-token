@@ -1,0 +1,168 @@
+{
+  "lines": [
+    {
+      "id": "p5-demanding-1",
+      "persona": "p5",
+      "state": "DEMANDING",
+      "text": "ไหว้ก่อนเด้อ มนุษย์",
+      "recorder": 0
+    },
+    {
+      "id": "p5-retry-1",
+      "persona": "p5",
+      "state": "RETRY",
+      "text": "บ่ใช่เด้อ ไหว้ใหม่",
+      "recorder": 0
+    },
+    {
+      "id": "p5-passed-1",
+      "persona": "p5",
+      "state": "PASSED",
+      "text": "แซ่บหลาย ผ่านแล้วเด้อ",
+      "recorder": 0
+    },
+    {
+      "id": "p5-rage_quit-1",
+      "persona": "p5",
+      "state": "RAGE_QUIT",
+      "text": "เหลือทนแล้วเด้อ บ่เอาแล้ว",
+      "recorder": 0
+    },
+    {
+      "id": "p6-demanding-1",
+      "persona": "p6",
+      "state": "DEMANDING",
+      "text": "ไหว้ก่อนเน้อ มนุษย์",
+      "recorder": 0
+    },
+    {
+      "id": "p6-retry-1",
+      "persona": "p6",
+      "state": "RETRY",
+      "text": "ยะใหม่เน้อ ยังบ่ผ่าน",
+      "recorder": 0
+    },
+    {
+      "id": "p6-passed-1",
+      "persona": "p6",
+      "state": "PASSED",
+      "text": "ดีหลายเน้อ ผ่านแล้ว",
+      "recorder": 0
+    },
+    {
+      "id": "p6-sulking-1",
+      "persona": "p6",
+      "state": "SULKING",
+      "text": "พี่งอนแล้วเน้อ",
+      "recorder": 0
+    },
+    {
+      "id": "p7-demanding-1",
+      "persona": "p7",
+      "state": "DEMANDING",
+      "text": "ไหว้เดี๋ยวนี้ มนุษย์",
+      "emotion": "angry",
+      "recorder": 0
+    },
+    {
+      "id": "p7-retry-1",
+      "persona": "p7",
+      "state": "RETRY",
+      "text": "ไหว้ใหม่ ให้มันดี ๆ",
+      "emotion": "shouting",
+      "recorder": 0
+    },
+    {
+      "id": "p7-annoyed-1",
+      "persona": "p7",
+      "state": "ANNOYED",
+      "text": "กูบอกกี่รอบแล้ววะ",
+      "emotion": "furious:0.8",
+      "recorder": 0
+    },
+    {
+      "id": "p7-sulking-1",
+      "persona": "p7",
+      "state": "SULKING",
+      "text": "ผิดหวังนะ มนุษย์",
+      "emotion": "disappointed",
+      "recorder": 0
+    },
+    {
+      "id": "p7-rage_quit-1",
+      "persona": "p7",
+      "state": "RAGE_QUIT",
+      "text": "พอแล้ว กูเลิก",
+      "emotion": "furious",
+      "recorder": 0
+    },
+    {
+      "id": "p7-forgive-1",
+      "persona": "p7",
+      "state": "FORGIVE",
+      "text": "ครั้งนี้กูยอมให้",
+      "emotionText": "[calm] ครั้งนี้ [annoyed:0.5] กูยอมให้",
+      "recorder": 0
+    },
+    {
+      "id": "p7-passed-1",
+      "persona": "p7",
+      "state": "PASSED",
+      "text": "ก็ได้ ผ่านไปก่อน",
+      "emotionText": "[calm] ก็ได้ [annoyed:0.5] ผ่านไปก่อน",
+      "recorder": 0
+    },
+    {
+      "id": "p8-demanding-1",
+      "persona": "p8",
+      "state": "DEMANDING",
+      "text": "ไหว้เลยมนุษย์ ตื่นเต้นมาก",
+      "emotion": "excited",
+      "recorder": 0
+    },
+    {
+      "id": "p8-retry-1",
+      "persona": "p8",
+      "state": "RETRY",
+      "text": "ฮ่า ๆ ไม่ใช่ ไหว้ใหม่",
+      "emotionText": "[laughing] ฮ่า ๆ ไม่ใช่ [excited] ไหว้ใหม่",
+      "recorder": 0
+    },
+    {
+      "id": "p8-sulking-1",
+      "persona": "p8",
+      "state": "SULKING",
+      "text": "เสียใจอ่ะ ไม่รักกันเลย",
+      "emotion": "sad:0.8",
+      "recorder": 0
+    },
+    {
+      "id": "p8-passed-1",
+      "persona": "p8",
+      "state": "PASSED",
+      "text": "ผ่านนน ปังมากมนุษย์",
+      "emotion": "excited",
+      "speed": 1.1,
+      "recorder": 0
+    },
+    {
+      "id": "p8-rage_quit-1",
+      "persona": "p8",
+      "state": "RAGE_QUIT",
+      "text": "พอแล้ว ลาก่อนโลก",
+      "emotion": "crying",
+      "recorder": 0
+    }
+  ],
+  "defaults": {
+    "DEMANDING": "ไหว้ก่อน มนุษย์",
+    "WATCHING": "กำลังดูอยู่",
+    "PASSED": "ผ่านแล้ว",
+    "RETRY": "ไหว้ใหม่",
+    "ANNOYED": "ไหว้ให้ดีกว่านี้",
+    "SULKING": "งอนแล้วนะ",
+    "RAGE_QUIT": "ไม่เล่นด้วยแล้ว",
+    "FORGIVE": "ก็ได้ ให้อภัย",
+    "IDLE": "พร้อมแล้ว"
+  }
+}

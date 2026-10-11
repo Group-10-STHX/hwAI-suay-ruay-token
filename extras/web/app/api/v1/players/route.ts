@@ -11,5 +11,5 @@ export const POST = route(async (req: Request) => {
   const body = validateRegister(await readJson(req));
   const { player, install_key } = await getStore().register(body.handle, body.display_name);
   const { id, handle, display_name, avatar_hue } = player;
-  return privateJson({ player: { id, handle, display_name, avatar_hue }, install_key }, 201);
+  return privateJson({ player: { id, handle, display_name, avatar_hue, avatar_url: null, avatar_kind: 'generated' }, install_key }, 201);
 });

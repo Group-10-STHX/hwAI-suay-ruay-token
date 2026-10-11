@@ -182,6 +182,11 @@ button { font: inherit; color: inherit; }
   background: hsl(var(--h) 45% 32%);
   clip-path: polygon(25% 0, 75% 0, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0 75%, 0 25%);
 }
+.av-img { background: var(--red); }
+.av-img img { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); object-fit: cover; object-position: center;
+  clip-path: inherit; background: hsl(var(--h) 45% 24%); }
+.av-sticker img { object-position: top; }  /* head area of a full-body cut-out */
+.stk { display: block; width: 34px; height: 34px; object-fit: contain; object-position: bottom; }
 .av-s { --s: 28px; } .av-l { --s: 60px; } .av-xl { --s: 116px; }
 .lv { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); padding: 2px 8px; border: 1px solid var(--line); white-space: nowrap; }
 .lv i { width: 8px; height: 8px; background: var(--c); }
@@ -217,11 +222,13 @@ button { font: inherit; color: inherit; }
   display: grid; grid-template-columns: 2.4em 36px minmax(0, 1fr) auto 5em 3.4em; align-items: center; gap: 10px;
   height: 100%; padding: 0 6px; text-decoration: none;
 }
+.stk-col .row { grid-template-columns: 2.4em 36px minmax(0, 1fr) 34px auto 5em 3.4em; }
 .row:hover { background: var(--panel-2); }
 .rank { font-family: var(--font-mono); font-size: 16px; color: var(--red-2); text-align: center; }
 .who { min-width: 0; line-height: 1.25; }
 .who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .who span { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.who > span:not(.meter) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* handle ยาวไม่ตกบรรทัดบนมือถือ */
 .val { text-align: right; font-weight: 700; font-size: 17px; }
 .val small { display: block; margin: 0; font-size: 11px; color: var(--muted); }
 .meter { height: 4px; background: rgba(255, 255, 255, .06); margin-top: 4px; }
@@ -255,6 +262,12 @@ button { font: inherit; color: inherit; }
 .rec-who { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 6px; min-width: 0; }
 .rec-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rec-date { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.rec-hero { grid-template-columns: 96px auto minmax(0, 1fr); }
+.rec-hero .rec-icon { grid-column: 2; }
+.rec-hero .rec-title, .rec-hero .rec-value { grid-column: 3; }
+.rec-img { grid-column: 1; grid-row: 1 / span 2; width: 96px; height: 96px; display: grid; place-items: end center;
+  background: radial-gradient(circle at 50% 80%, rgba(255, 207, 90, .22), transparent 70%); }
+.rec-img .stk { width: 96px; height: 96px; }
 .rec-shame { border-color: rgba(255, 43, 43, .5); background: repeating-linear-gradient(135deg, rgba(255, 43, 43, .1) 0 8px, transparent 8px 16px); }
 .sub-title { font-size: 15px; font-weight: 700; margin: 22px 0 10px; }
 .champs { list-style: none; margin: 0; padding: 0 0 4px; display: flex; gap: 10px; width: max-content; }
@@ -301,6 +314,30 @@ button { font: inherit; color: inherit; }
 .mini span { display: block; font-size: 11px; color: var(--ink-2); }
 .mini b { font-size: 22px; }
 .mini small { font-size: 11px; color: var(--muted); }
+
+/* ---------- sticker wall (player page) ---------- */
+.wall { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.wall button {
+  display: block; width: 100%; padding: 6px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer;
+  background-image: radial-gradient(circle at 50% 85%, rgba(255, 43, 43, .16), transparent 70%); color: var(--ink);
+}
+.wall button:hover, .wall button:focus-visible { border-color: var(--red); }
+.wall .stk { width: 100%; height: 104px; }
+.wall small { display: block; font: 11px var(--font-mono); color: var(--ink-2); margin-top: 4px; text-align: center; }
+.howto { margin-top: 14px; border: 1px dashed var(--line-2); padding: 10px 12px; font-size: 13px; color: var(--ink-2); }
+.howto code { display: block; font-family: var(--font-mono); font-size: 12px; color: var(--ink); background: rgba(0, 0, 0, .4); padding: 4px 8px; margin: 6px 0; overflow-x: auto; white-space: pre; }
+.zoom { position: fixed; inset: 0; z-index: 70; background: rgba(0, 0, 0, .86); display: grid; place-items: center; padding: 16px; }
+.zoom figure { margin: 0; max-width: min(520px, 100%); text-align: center; }
+.zoom img { max-width: 100%; max-height: 70vh; width: auto; height: auto; background: radial-gradient(circle at 50% 80%, rgba(255, 43, 43, .2), transparent 70%); }
+.zoom figcaption { font: 13px var(--font-mono); color: var(--ink-2); margin: 8px 0; }
+.tv-pop {
+  position: fixed; right: 24px; bottom: 24px; z-index: 40; width: 220px; padding: 10px; text-align: center;
+  background: var(--panel-solid); border: 1px solid var(--red); box-shadow: var(--glow); animation: pop .5s cubic-bezier(.2, 1.4, .4, 1);
+}
+.tv-pop img { width: 200px; height: 200px; object-fit: contain; object-position: bottom; }
+.tv-pop b { display: block; font-size: 18px; }
+.tv-pop span { font: 12px var(--font-mono); color: var(--ink-2); }
+@keyframes pop { from { opacity: 0; transform: translateY(24px) scale(.7); } }
 
 /* ---------- charts ---------- */
 .chart { position: relative; }
@@ -366,6 +403,11 @@ details td, details th { padding: 2px 12px 2px 0; text-align: left; font-weight:
   .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tile-value { font-size: 26px; }
   .row { grid-template-columns: 2em 36px minmax(0, 1fr) 4.6em 3em; gap: 8px; }
+  .stk-col .row { grid-template-columns: 2em 36px minmax(0, 1fr) 34px 4.6em 3em; }
+  .rec-hero { grid-template-columns: 72px minmax(0, 1fr); }
+  .rec-hero .rec-icon { display: none; }
+  .rec-hero .rec-title, .rec-hero .rec-value { grid-column: 2; }
+  .rec-img, .rec-img .stk { width: 72px; height: 72px; }
   .row .lv { display: none; }
   .pod { min-height: 180px; padding: 14px 4px; }
   .pod-1 { min-height: 200px; }

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sticker Looks</title>
+<style>
+  :root { --bg: #0a0a0c; --surface: #15151a; --hud: #ff2a2a; --hud-dim: #7a1414; --gold: #ffd54a; --text: #f2f2f2; --dim: #9a9aa5; --paper: #f2efe8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, 'IBM Plex Sans Thai', sans-serif; }
+  main { max-width: 1480px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font: 600 22px/1.2 ui-monospace, 'JetBrains Mono', monospace; letter-spacing: 1px; margin: 0 0 4px; }
+  h1 b { color: var(--hud); }
+  .lede { color: var(--dim); margin: 0 0 16px; max-width: 80ch; }
+  code { font-family: ui-monospace, 'JetBrains Mono', monospace; font-size: 0.92em; }
+  .sources { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .sources figure { margin: 0; }
+  .sources img { display: block; height: 96px; width: auto; border: 1px solid var(--hud-dim); border-radius: 4px; }
+  .sources figcaption { color: var(--dim); font-size: 12px; }
+  .callout { border-left: 3px solid var(--gold); padding: 6px 10px; color: var(--dim); background: var(--surface); border-radius: 0 4px 4px 0; max-width: 100ch; }
+  nav { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 20px; }
+  nav a { color: var(--text); text-decoration: none; border: 1px solid var(--hud-dim); border-radius: 4px; padding: 2px 10px; font: 13px ui-monospace, monospace; }
+  nav a:hover { border-color: var(--hud); color: var(--hud); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid #26262e; border-radius: 10px; padding: 14px; min-width: 0; }
+  .card header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .card h2 { margin: 0; font: 600 18px/1.2 ui-monospace, monospace; }
+  .card h2 code { color: var(--hud); }
+  .card h2 span { color: var(--text); font: 500 15px ui-sans-serif, system-ui, sans-serif; margin-left: 6px; }
+  .meta { margin: 0; color: var(--dim); font: 11px/1.4 ui-monospace, monospace; text-align: right; }
+  .note { margin: 6px 0 10px; color: var(--dim); font-size: 13px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tile { margin: 0; height: 232px; display: flex; align-items: center; justify-content: center; border-radius: 6px; overflow: hidden; padding: 8px; }
+  .tile img { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }
+  @media (max-width: 560px) { .tile { height: 160px; } }
+  #pixel .tile img, #pixel .thumb { image-rendering: pixelated; }
+  .tile.dark { background: var(--bg); background-image: linear-gradient(rgba(255,42,42,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,42,42,.07) 1px, transparent 1px); background-size: 16px 16px; }
+  .tile.light { background: var(--paper); }
+  .strip { display: flex; align-items: center; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
+  .strip span { color: var(--dim); font: 11px ui-monospace, monospace; margin-right: 4px; }
+  .thumb { height: 48px; width: 48px; object-fit: contain; background: var(--surface); border: 1px solid var(--hud-dim); border-radius: 4px; }
+  .thumb.on-light { background: var(--paper); border-color: #d8d2c4; }
+  .real { margin-top: 8px; }
+  footer { color: var(--dim); font-size: 13px; margin-top: 28px; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --surface: #1b1b21; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>hwAI <b>ไหว้กูซะ</b> · sticker looks</h1>
+  <p class="lede">ทุกสไตล์ที่ <code>vision/worker/sticker.js</code> ทำได้ วาดจากคนสังเคราะห์ (รูปทรงล้วน ไม่มีรูปถ่ายจริง) แต่ละใบโชว์บนพื้นมืด (HUD) และพื้นสว่าง แถว 48px คือขนาดจริงในแถบสติ๊กเกอร์ของหน้าหลัก · ตั้งค่า: <code>config.json → sticker_style</code> หรือ select ในหน้าหลัก · ค่าเริ่มต้น <code>photo</code></p>
+  <div class="sources">
+    <figure><img src="source-a.png" alt=""><figcaption>subject A · ผมสั้น เสื้อเขียว · เฟรม</figcaption></figure><figure><img src="mask-a.png" alt=""><figcaption>mask</figcaption></figure><figure><img src="source-b.png" alt=""><figcaption>subject B · ผมยาว แว่น เสื้อมัสตาร์ด · เฟรม</figcaption></figure><figure><img src="mask-b.png" alt=""><figcaption>mask</figcaption></figure>
+  </div>
+  <p class="callout">ไม่พบสติ๊กเกอร์จริงใน <code>~/.waikusa/stickers/</code> ตอนสร้างหน้านี้ · ไหว้ผ่านสักครั้งแล้วรัน <code>node scripts/sticker-preview.mjs</code> อีกรอบ จะมีแถวตัวอย่างจริงเพิ่ม (ผลเก็บใน <code>~/.waikusa/sticker-preview/</code> นอก repo)</p>
+  <nav><a href="#photo">photo</a><a href="#cartoon">cartoon</a><a href="#comic">comic</a><a href="#pixel">pixel</a><a href="#neon">neon</a><a href="#kawaii">kawaii</a></nav>
+  <div class="grid">
+    <section class="card" id="photo">
+      <header>
+        <h2><code>photo</code> <span>รูปถ่าย</span></h2>
+        <p class="meta">pad 14px<br>236×240 · 47 KB · 26 ms<br>236×240 · 50 KB · 11 ms</p>
+      </header>
+      <p class="note">ของเดิม: ภาพจริง + ขอบขาว 6px + เงา</p>
+      <div class="pair"><figure class="tile dark"><img src="photo-a.png" width="236" height="240" alt="" loading="lazy"></figure><figure class="tile light"><img src="photo-a.png" width="236" height="240" alt="" loading="lazy"></figure><figure class="tile dark"><img src="photo-b.png" width="236" height="240" alt="" loading="lazy"></figure><figure class="tile light"><img src="photo-b.png" width="236" height="240" alt="" loading="lazy"></figure></div>
+      <div class="strip" title="ขนาดจริงใน StickerStrip ของหน้าหลัก (48px บนพื้น surface)">
+        <span>48px</span><img class="thumb" src="photo-a.png" alt=""><img class="thumb" src="photo-b.png" alt="">
+        <img class="thumb on-light" src="photo-a.png" alt=""><img class="thumb on-light" src="photo-b.png" alt="">
+      </div>
+      
+    </section>
+    <section class="card" id="cartoon">
+      <header>
+        <h2><code>cartoon</code> <span>การ์ตูน</span></h2>
+        <p class="meta">pad 14px<br>236×240 · 9 KB · 34 ms<br>236×240 · 8 KB · 25 ms</p>
+      </header>
+      <p class="note">ของเดิม: เบลอ + posterize 5 ระดับ + เส้นหมึกตามขอบ</p>
+      <div class="pair"><figure class="tile dark"><img src="cartoon-a.png" width="236" height="240" alt="" loading="lazy"></figure><figure class="tile light"><img src="cartoon-a.png" width="236" height="240" alt="" loading="lazy"></figure><figure class="tile dark"><img src="cartoon-b.png" width="236" height="240" alt="" loading="lazy"></figure><figure class="tile light"><img src="cartoon-b.png" width="236" height="240" alt="" loading="lazy"></figure></div>
+      <div class="strip" title="ขนาดจริงใน StickerStrip ของหน้าหลัก (48px บนพื้น surface)">
+        <span>48px</span><img class="thumb" src="cartoon-a.png" alt=""><img class="thumb" src="cartoon-b.png" alt="">
+        <img class="thumb on-light" src="cartoon-a.png" alt=""><img class="thumb on-light" src="cartoon-b.png" alt="">
+      </div>
+      
+    </section>
+    <section class="card" id="comic">
+      <header>
+        <h2><code>comic</code> <span>คอมิก</span></h2>
+        <p class="meta">pad 18px<br>244×248 · 24 KB · 86 ms<br>244×248 · 23 KB · 48 ms</p>
+      </header>
+      <p class="note">สีอุ่นอิ่มตัว, เงาเป็นเม็ด halftone, เส้นหมึกดำหนา + ขอบสติ๊กเกอร์ขาว</p>
+      <div class="pair"><figure class="tile dark"><img src="comic-a.png" width="244" height="248" alt="" loading="lazy"></figure><figure class="tile light"><img src="comic-a.png" width="244" height="248" alt="" loading="lazy"></figure><figure class="tile dark"><img src="comic-b.png" width="244" height="248" alt="" loading="lazy"></figure><figure class="tile light"><img src="comic-b.png" width="244" height="248" alt="" loading="lazy"></figure></div>
+      <div class="strip" title="ขนาดจริงใน StickerStrip ของหน้าหลัก (48px บนพื้น surface)">
+        <span>48px</span><img class="thumb" src="comic-a.png" alt=""><img class="thumb" src="comic-b.png" alt="">
+        <img class="thumb on-light" src="comic-a.png" alt=""><img class="thumb on-light" src="comic-b.png" alt="">
+      </div>
+      
+    </section>
+    <section class="card" id="pixel">
+      <header>
+        <h2><code>pixel</code> <span>พิกเซล</span></h2>
+        <p class="meta">pad 24px<br>228×231 · 3 KB · 16 ms<br>228×231 · 3 KB · 6 ms</p>
+      </header>
+      <p class="note">ย่อเหลือ ~64px, palette 13 สี + หมึก + ขาว, ขยายแบบ nearest, ขอบเข้ม 1 พิกเซล</p>
+      <div class="pair"><figure class="tile dark"><img src="pixel-a.png" width="228" height="231" alt="" loading="lazy"></figure><figure class="tile light"><img src="pixel-a.png" width="228" height="231" alt="" loading="lazy"></figure><figure class="tile dark"><img src="pixel-b.png" width="228" height="231" alt="" loading="lazy"></figure><figure class="tile light"><img src="pixel-b.png" width="228" height="231" alt="" loading="lazy"></figure></div>
+      <div class="strip" title="ขนาดจริงใน StickerStrip ของหน้าหลัก (48px บนพื้น surface)">
+        <span>48px</span><img class="thumb" src="pixel-a.png" alt=""><img class="thumb" src="pixel-b.png" alt="">
+        <img class="thumb on-light" src="pixel-a.png" alt=""><img class="thumb on-light" src="pixel-b.png" alt="">
+      </div>
+      
+    </section>
+    <section class="card" id="neon">
+      <header>
+        <h2><code>neon</code> <span>นีออน</span></h2>
+        <p class="meta">pad 24px<br>256×260 · 43 KB · 28 ms<br>256×260 · 44 KB · 13 ms</p>
+      </header>
+      <p class="note">duotone มืด→แดง hud→ทอง blessed, scanline, ฐานดำ + หลอดนีออนแดงเรือง (สีส่งเป็นพารามิเตอร์)</p>
+      <div class="pair"><figure class="tile dark"><img src="neon-a.png" width="256" height="260" alt="" loading="lazy"></figure><figure class="tile light"><img src="neon-a.png" width="256" height="260" alt="" loading="lazy"></figure><figure class="tile dark"><img src="neon-b.png" width="256" height="260" alt="" loading="lazy"></figure><figure class="tile light"><img src="neon-b.png" width="256" height="260" alt="" loading="lazy"></figure></div>
+      <div class="strip" title="ขนาดจริงใน StickerStrip ของหน้าหลัก (48px บนพื้น surface)">
+        <span>48px</span><img class="thumb" src="neon-a.png" alt=""><img class="thumb" src="neon-b.png" alt="">
+        <img class="thumb on-light" src="neon-a.png" alt=""><img class="thumb on-light" src="neon-b.png" alt="">
+      </div>
+      
+    </section>
+    <section class="card" id="kawaii">
+      <header>
+        <h2><code>kawaii</code> <span>คาวาอี้</span></h2>
+        <p class="meta">pad 30px<br>268×272 · 38 KB · 51 ms<br>268×272 · 38 KB · 41 ms</p>
+      </header>
+      <p class="note">พาสเทลนุ่ม, ขอบขาวมนใหญ่แบบไดคัท, ดาววิบวับตาม seed (waiId), หน้าสว่างขึ้นเมื่อรู้ตำแหน่งหน้า</p>
+      <div class="pair"><figure class="tile dark"><img src="kawaii-a.png" width="268" height="272" alt="" loading="lazy"></figure><figure class="tile light"><img src="kawaii-a.png" width="268" height="272" alt="" loading="lazy"></figure><figure class="tile dark"><img src="kawaii-b.png" width="268" height="272" alt="" loading="lazy"></figure><figure class="tile light"><img src="kawaii-b.png" width="268" height="272" alt="" loading="lazy"></figure></div>
+      <div class="strip" title="ขนาดจริงใน StickerStrip ของหน้าหลัก (48px บนพื้น surface)">
+        <span>48px</span><img class="thumb" src="kawaii-a.png" alt=""><img class="thumb" src="kawaii-b.png" alt="">
+        <img class="thumb on-light" src="kawaii-a.png" alt=""><img class="thumb on-light" src="kawaii-b.png" alt="">
+      </div>
+      
+    </section></div>
+  <footer>สร้างโดย <code>node scripts/sticker-preview.mjs</code> · 2026-10-10 18:40 · เวลา (ms) วัดบน node เครื่องนี้ รวม segment-free pipeline เท่านั้น</footer>
+</main>
+</body>
+</html>

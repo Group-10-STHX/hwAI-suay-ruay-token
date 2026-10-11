@@ -1,0 +1,165 @@
+/* ตัวละครของผู้ใช้ (PNG): ขยับด้วย transform/filter บน <img> เท่านั้น ห้ามวาดใหม่หรือเปลี่ยนสีรูป (FRONT_RULES "ตัวละคร")
+   วนต่อได้เฉพาะตอนมี .is-active ที่ parent และไม่ใช่ .av--still · สีมาจาก token (var(--x)) เท่านั้น */
+
+.av {
+  position: relative;
+  display: block;
+  flex: none;
+}
+.av-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 90%;
+}
+.av-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 50% 100%;
+}
+.av--robot .av-body {
+  overflow: hidden;
+  border-radius: var(--av-radius, 10px);
+}
+.av--robot .av-img {
+  object-fit: cover;
+}
+/* bob เป็นเส้นปากกาดำบนโปร่งใส: ขอบสว่างบางๆ ให้อ่านออกบนจอมืด (ไม่เปลี่ยนสีเส้น) */
+.av--bob .av-body {
+  filter: drop-shadow(0 0 1px var(--text)) drop-shadow(0 0 1px var(--text));
+}
+
+/* ชั้นเสริม: ปกติซ่อน แสดงเฉพาะตอน active */
+.av-glow,
+.av-scan,
+.av-tint {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+}
+.av-glow {
+  inset: -8%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--blessed) 50%, transparent), transparent);
+}
+.av-scan,
+.av-tint {
+  inset: 0;
+}
+.av-scan {
+  background-image:
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--hud) 30%, transparent) 0 1px, transparent 1px 4px),
+    linear-gradient(to bottom, transparent, color-mix(in srgb, var(--hud) 45%, transparent), transparent);
+  background-size: 100% 4px, 100% 28%;
+  background-repeat: repeat, no-repeat;
+  background-position: 0 0, 0 -30%;
+}
+.av-tint {
+  background: color-mix(in srgb, var(--danger) 38%, transparent);
+}
+
+.is-active .av--robot:not(.av--still) .av-scan {
+  opacity: 1;
+  animation: av-scan 3.2s linear infinite;
+}
+.is-active .av--robot.av-mood--angry:not(.av--still) .av-tint {
+  opacity: 1;
+  animation: av-tint 0.8s steps(2, jump-none) infinite;
+}
+.is-active .av-mood--forgive:not(.av--still) .av-glow {
+  opacity: 0.8;
+  animation: av-glow 1.2s ease-in-out infinite;
+}
+
+/* mood พื้นฐาน (ทุกตัว) */
+.is-active .av:not(.av--still) .av-body {
+  animation: av-bob 2.4s ease-in-out infinite;
+}
+.is-active .av.av-mood--sad:not(.av--still) .av-body {
+  animation: av-droop 4.5s ease-in-out infinite;
+}
+.is-active .av.av-mood--forgive:not(.av--still) .av-body {
+  animation: av-hop 1.2s ease-out infinite;
+}
+/* angry: ใช้ .fx-shake จาก effects.css (ใส่ class ใน Mascot.tsx) */
+.is-active .av.av-mood--angry:not(.av--still) .av-body {
+  animation: fx-shake 0.35s linear infinite;
+}
+
+/* ลายเฉพาะตัว: ใช้กับ confused/default (ท่านิ่งของตัวละคร) */
+.is-active .av--miku.av-mood--confused:not(.av--still) .av-body,
+.is-active .av--miku.av-mood--default:not(.av--still) .av-body {
+  animation: av-sway 3.2s ease-in-out infinite;
+}
+.is-active .av--miku:not(.av--still) .av-img {
+  animation: av-breathe 3.6s ease-in-out infinite;
+}
+.is-active .av--teto.av-mood--confused:not(.av--still) .av-body,
+.is-active .av--teto.av-mood--default:not(.av--still) .av-body {
+  animation: av-bounce 1.1s ease-in-out infinite;
+}
+.is-active .av--robot.av-mood--confused:not(.av--still) .av-img,
+.is-active .av--robot.av-mood--default:not(.av--still) .av-img {
+  animation: av-turn 5s ease-in-out infinite;
+}
+/* bob: line boil (ฟิลเตอร์ #wai-boil อยู่ใน AvatarFigure) */
+.is-active .av--bob:not(.av--still) .av-img {
+  filter: url(#wai-boil);
+}
+
+@keyframes av-bob {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-4px) rotate(1.5deg); }
+}
+@keyframes av-droop {
+  0%, 100% { transform: translateY(3px) rotate(-2.5deg) scale(1, 0.97); }
+  50% { transform: translateY(5px) rotate(2.5deg) scale(1, 0.96); }
+}
+@keyframes av-hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  20% { transform: translateY(0) scale(1.05, 0.94); }
+  45% { transform: translateY(-12px) scale(0.97, 1.04); }
+  70% { transform: translateY(0) scale(1.04, 0.96); }
+}
+@keyframes av-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes av-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+@keyframes av-bounce {
+  0%, 50%, 100% { transform: translateY(0) scale(1.04, 0.95) skewX(0deg); }
+  25% { transform: translateY(-9px) scale(0.97, 1.03) skewX(-2.5deg); }
+  75% { transform: translateY(-9px) scale(0.97, 1.03) skewX(2.5deg); }
+}
+@keyframes av-turn {
+  0%, 100% { transform: translateX(-3px) scale(1); }
+  50% { transform: translateX(3px) scale(1.04); }
+}
+@keyframes av-scan {
+  from { background-position: 0 0, 0 -30%; }
+  to { background-position: 0 0, 0 130%; }
+}
+@keyframes av-tint {
+  50% { opacity: 0.35; }
+}
+@keyframes av-glow {
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-active .av .av-body,
+  .is-active .av .av-img,
+  .is-active .av .av-glow,
+  .is-active .av .av-scan,
+  .is-active .av .av-tint {
+    animation: none;
+  }
+  .is-active .av--bob:not(.av--still) .av-img {
+    filter: none;
+  }
+}

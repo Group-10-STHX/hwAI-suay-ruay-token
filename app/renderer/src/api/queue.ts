@@ -13,9 +13,9 @@ type RawQueueItem = {
 }
 type RawQueue =
   | RawQueueItem[]
-  | { items: RawQueueItem[]; state?: SessionState; fail_count?: number; bypass?: boolean }
+  | { items: RawQueueItem[]; state?: SessionState; fail_count?: number; bypass?: boolean; monitor?: boolean; avatar?: string }
 
-const KNOWN_SOURCES: Source[] = ['claude-code', 'codex', 'chatgpt', 'test', 'terminal']
+const KNOWN_SOURCES: Source[] = ['claude-code', 'codex', 'chatgpt', 'claude-web', 'gemini-web', 'test', 'terminal']
 
 // ถ้า daemon ไม่ส่ง created_at มา ใช้เวลาที่เห็นการ์ดครั้งแรกแทน
 // (ห้ามใช้ Date.now() ตรงๆ ไม่งั้นนับถอยหลังรีเซ็ตทุก poll)
@@ -43,6 +43,8 @@ export function toSnapshot(raw: RawQueue): QueueSnapshot {
     state: 'state' in obj && obj.state ? obj.state : items.length > 0 ? 'DEMANDING' : 'IDLE',
     failCount: ('fail_count' in obj && obj.fail_count) || 0,
     bypass: ('bypass' in obj && obj.bypass) || false,
+    monitor: 'monitor' in obj && obj.monitor === true,
+    avatar: 'avatar' in obj && typeof obj.avatar === 'string' ? obj.avatar : undefined,
   }
 }
 

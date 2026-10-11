@@ -19,7 +19,7 @@ export type SessionState =
 export type WaiLevel = 0 | 1 | 2 | 3
 
 // codex = hook ของ Codex CLI · test = ปุ่ม "ลองไหว้" ในหน้าหลัก · terminal = source อื่นที่ไม่รู้จัก
-export type Source = 'claude-code' | 'codex' | 'chatgpt' | 'test' | 'terminal'
+export type Source = 'claude-code' | 'codex' | 'chatgpt' | 'claude-web' | 'gemini-web' | 'test' | 'terminal'
 
 export type QueueItem = {
   id: string
@@ -35,7 +35,22 @@ export type QueueSnapshot = {
   state: SessionState // รอยืนยันกับ #1
   failCount: number // รอยืนยันกับ #1
   bypass: boolean // WAI_BYPASS=1 ต้องมีป้ายบอก (§7) รอยืนยันกับ #1
+  monitor?: boolean // โหมดสังเกต: การ์ดนี้แค่จับได้ ไม่ต้องไหว้ (ไม่ส่ง = false)
+  avatar?: string // ชื่อน้องที่เลือกอยู่ (ไม่ส่ง = jason) ดู FRONT_RULES "ตัวละคร"
 }
+
+/** mood ของรูปตัวละครของผู้ใช้ (ชื่อไฟล์ใน ~/.waikusa/avatars/<name>/) */
+export type AvatarMood = 'angry' | 'sad' | 'confused' | 'forgive' | 'default'
+
+export type AvatarItem = {
+  name: string
+  label: string
+  kind: 'builtin' | 'user'
+  moods: AvatarMood[] // builtin (jason) เป็น [] เพราะวาดจาก SVG ใน renderer
+}
+
+/** GET /wai/avatars */
+export type AvatarList = { current: string; items: AvatarItem[] }
 
 export type WaiReason =
   | 'NO_PERSON' // ไม่เห็นคน
@@ -92,4 +107,14 @@ export type AppStatus = {
     bestScore?: number
   }
   lastSeen: Partial<Record<string, number>> // source → epoch ms ที่เห็นคำขอล่าสุด
+  avatar?: string // ชื่อน้องที่เลือกอยู่ (ไม่ส่ง = jason)
+  monitor?: boolean // โหมดสังเกตเปิดอยู่ (ไม่ส่ง = false)
 }
+
+/** สติ๊กเกอร์ตอนไหว้ผ่าน: GET /wai/stickers (ใหม่สุดก่อน) */
+/** ลำดับ = ลำดับในตัวเลือกของหน้าหลัก · ต้องตรงกับ vision/worker/sticker.js และ spikes/popup-hook/stickers.mjs */
+export const STICKER_STYLES = ['photo', 'cartoon', 'comic', 'pixel', 'neon', 'kawaii'] as const
+export type StickerStyle = (typeof STICKER_STYLES)[number]
+export const isStickerStyle = (s: unknown): s is StickerStyle => (STICKER_STYLES as readonly unknown[]).includes(s)
+export type StickerItem = { id: string; file: string; at: string; score: number; level: number }
+export type StickerList = { items: StickerItem[]; style: StickerStyle }

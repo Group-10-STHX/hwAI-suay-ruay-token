@@ -44,6 +44,41 @@ export async function readJson(req: Request, maxBytes = 64 * 1024): Promise<unkn
   }
 }
 
+/** Read a raw body of at most `max` bytes. Rejects on Content-Length first and aborts mid-stream, never buffering more than max. */
+export async function readBytes(req: Request, max: number): Promise<Uint8Array> {
+  const declared = Number(req.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > max) throw new ApiError(413, 'too_large', `body larger than ${max} bytes`);
+  if (!req.body) throw new ApiError(400, 'invalid_body', 'empty body');
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.length;
+    if (n > max) { reader.cancel().catch(() => {}); throw new ApiError(413, 'too_large', `body larger than ${max} bytes`); }
+    chunks.push(value);
+  }
+  if (!n) throw new ApiError(400, 'invalid_body', 'empty body');
+  const out = new Uint8Array(n);
+  let o = 0;
+  for (const c of chunks) { out.set(c, o); o += c.length; }
+  return out;
+}
+
+/** Media type of the request without parameters, lower-cased. */
+export const contentType = (req: Request) => (req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+
+/** Public image response (sticker / avatar). */
+export function imageResponse(bytes: Uint8Array, mime: string) {
+  return new Response(bytes as unknown as BodyInit, {
+    headers: {
+      ...CORS, 'Content-Type': mime, 'Content-Length': String(bytes.length), 'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'public, max-age=3600, immutable', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    },
+  });
+}
+
 export function bearer(req: Request): string {
   const h = req.headers.get('authorization') || '';
   const m = /^Bearer\s+(wai_sk_[0-9a-f]{48})$/.exec(h.trim());

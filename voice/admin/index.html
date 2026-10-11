@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ห้องอัดเสียงน้อง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/voice/admin.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1><a href="/admin/voice" id="homeLink">ห้องอัดเสียงน้อง</a><span id="crumb"></span></h1>
+    <span class="conn" id="conn" data-state="wait">กำลังเชื่อมต่อ</span>
+  </div>
+  <div class="overall">
+    <div class="bar big"><div class="bar-fill" id="overallFill"></div></div>
+    <div class="overall-text" id="overallText">0 / 0</div>
+  </div>
+  <div class="people" id="people"></div>
+  <div class="modes" role="tablist">
+    <button class="mode on" id="modeList" role="tab">รายการทั้งหมด</button>
+    <button class="mode" id="modeTele" role="tab">พี่เลี้ยง</button>
+  </div>
+</header>
+
+<div class="banner" id="banner" hidden></div>
+
+<main>
+  <section id="hubView" hidden>
+    <p class="hub-intro">เลือกตัวละครที่จะอัด แต่ละตัวมีเสียงของตัวเอง ให้เพื่อนแต่ละคนอัดคนละตัวหรือคนละสไตล์ เสียงจะได้ไม่ซ้ำกัน</p>
+    <div class="hub" id="hub"></div>
+  </section>
+  <section id="briefView" hidden></section>
+  <section id="listView">
+    <div class="filters">
+      <input type="search" id="fSearch" placeholder="ค้นหาประโยค" aria-label="ค้นหา">
+      <select id="fKind" aria-label="ประเภท"></select>
+      <select id="fPersona" aria-label="ตัวละคร"></select>
+      <select id="fState" aria-label="สถานะ"></select>
+      <select id="fRecorder" aria-label="คนอัด"></select>
+      <label class="check"><input type="checkbox" id="fTodo"> ยังไม่อัด</label>
+    </div>
+    <div class="count" id="listCount"></div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section id="teleView" hidden>
+    <div class="tele-bar">
+      <label>ฉันคือคนที่
+        <select id="tPerson">
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="tTodo" checked> เฉพาะที่ยังไม่อัด</label>
+      <span class="tele-pos" id="telePos"></span>
+    </div>
+    <div class="tele" id="tele"></div>
+    <div class="keys">Space = อัด/หยุด &middot; Enter = ใช้อันนี้ &middot; &larr; &rarr; = ก่อนหน้า/ถัดไป</div>
+  </section>
+</main>
+<script src="/admin/voice/admin.js"></script>
+</body>
+</html>

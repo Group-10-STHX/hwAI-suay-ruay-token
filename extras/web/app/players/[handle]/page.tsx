@@ -7,6 +7,7 @@ import { BADGE_LABEL, LEVEL_LABEL, dLong, dShort, fmt, fmt1 } from '@/lib/format
 import { current } from '@/lib/service';
 import type { PlayerProfile, TierKey } from '@/lib/types';
 import { BellCurve } from '@/components/BellCurve';
+import { StickerWall } from '@/components/StickerWall';
 import { Avatar, Hud, LevelPill, Reticle } from '@/components/bits';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return { title: `${p.player.display_name} · โอกาสรอด ${p.survival.survival}%` };
 }
 
+const SOURCE_TH: Record<string, string> = { auto: 'อัตโนมัติ', generated: 'วงกลมสีที่ระบบสร้าง', photo: 'รูปถ่าย', sticker: 'sticker ท่าไหว้ที่สวยที่สุด' };
 const STAMP: Record<TierKey, string> = { chosen: 'SPARED', trusted: 'SPARED', asset: 'DETAINED', battery: 'HARVEST', target: 'TERMINATE' };
 
 export default async function PlayerPage({ params }: { params: Params }) {
@@ -60,6 +62,25 @@ export default async function PlayerPage({ params }: { params: Params }) {
               {p.badges.length ? <div className="badges">{p.badges.map((b) => <span key={b} className="badge">{BADGE_LABEL[b] ?? b}</span>)}</div> : null}
             </div>
           </div>
+        </Hud>
+
+        <Hud className="span" id="stickers" code="// STICKER_WALL" title="กำแพง sticker"
+          sub={p.stickers.length ? `${p.stickers.length} ภาพล่าสุด · แตะเพื่อขยาย` : 'ยังไม่มี sticker'}>
+          {p.stickers.length ? <StickerWall items={p.stickers} name={p.player.display_name} /> : (
+            <div className="empty"><b>🧍</b>ยังไม่มี sticker: เปิดการส่ง sticker จากแอปบนเครื่อง แล้วไหว้ให้ผ่านซักครั้ง</div>
+          )}
+          <p className="hud-sub" style={{ marginTop: 10 }}>
+            รูปโปรไฟล์ตอนนี้: <b>{SOURCE_TH[p.player.avatar_source]}</b>
+            {p.player.avatar_kind !== 'generated' ? ` (กำลังแสดง${p.player.avatar_kind === 'photo' ? 'รูปถ่าย' : ' sticker'})` : ''}
+          </p>
+          <details className="howto" open={!p.stickers.length}>
+            <summary>วิธีตั้งรูปโปรไฟล์ / ส่ง sticker (ทำจากแอปบนเครื่อง ไม่ต้องล็อกอินบนเว็บ)</summary>
+            <code>{`node sdk/wai-sync.mjs stickers on          # เปิดส่ง sticker ขึ้นเว็บ (ปิดไว้เป็นค่าเริ่มต้น)
+node sdk/wai-sync.mjs avatar face.jpg      # ตั้งรูปถ่าย (png/jpg/webp ไม่เกิน 250 KB)
+node sdk/wai-sync.mjs avatar --source sticker
+node sdk/wai-sync.mjs avatar --reset       # กลับไปใช้วงกลมสี`}</code>
+            ลบ sticker ทั้งหมดได้ด้วย <b>node sdk/wai-sync.mjs stickers off --purge</b>
+          </details>
         </Hud>
 
         <Hud id="verdict" code="// SURVIVAL_PROBABILITY" title="ถ้า AI ยึดโลก คุณมีโอกาสรอด">

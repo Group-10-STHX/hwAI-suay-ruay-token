@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ไหว้กูซะ · ร่างหน้าหลัก A / B / C</title>
+<style>
+  :root { --page: #1b1b20; --line: #34343c; --text: #ececf0; --dim: #9a9aa5; --hud: #FF2A2A; --blessed: #FFD54A; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 15px/1.6 "IBM Plex Sans Thai", system-ui, sans-serif; padding: 0 16px; }
+  main { max-width: 1320px; margin: 0 auto; padding: 32px 0 80px; }
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(26px, 4vw, 36px); }
+  h2 { font-size: 22px; margin-top: 48px; }
+  .lede { color: var(--dim); max-width: 78ch; margin: 8px 0 0; }
+  .tag { font: 600 11px ui-monospace, monospace; letter-spacing: .08em; color: var(--blessed); }
+  .row { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 20px; align-items: start; }
+  figure { margin: 0; display: grid; gap: 8px; min-width: 0; }
+  figure img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 18px 40px rgba(0,0,0,.45); background: #0A0A0C; }
+  figcaption { font-size: 13px; color: var(--dim); }
+  figcaption b { color: var(--text); font-size: 15px; display: block; }
+  code { font: 13px ui-monospace, monospace; background: #0f0f12; padding: 1px 6px; border-radius: 4px; }
+  .states { display: flex; gap: 10px; flex-wrap: wrap; }
+  .states a { color: var(--blessed); font-size: 13px; }
+  .live { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); margin-top: 16px; }
+  .live iframe { width: 400px; height: 620px; border: 1px solid var(--line); border-radius: 12px; background: #0A0A0C; display: block; }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .bar input { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: #0f0f12; color: var(--text); width: 240px; }
+  .bar button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--hud); background: transparent; color: var(--text); cursor: pointer; }
+  ul { padding-left: 20px; color: var(--dim); }
+  li b { color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <p class="tag">ไหว้กูซะ · HOME VARIANTS</p>
+  <h1>หน้าหลัก 3 ร่าง ให้เลือก 1</h1>
+  <p class="lede">ทั้งสามร่างกว้าง 400 สูงไม่เกิน 620 ไม่ scroll ใช้สี/ฟอนต์จาก <code>tokens.ts</code> เท่านั้น ภาพถ่ายจาก <code>app/renderer/scripts/shoot-home-variants.mjs</code> ด้วย daemon ปลอมในเบราว์เซอร์ (ตัวเลขสถิติเป็นตัวอย่าง รูปน้องเป็นของจริงจาก <code>~/.waikusa/avatars</code> ส่วนสติ๊กเกอร์ใช้รูป mood ของน้องแทนไปก่อน) ถ่ายด้วย reduced-motion เพื่อให้เห็นครบ ของจริงมี CRT/scanline ตามเดิม</p>
+
+  <h2>ภาพนิ่ง</h2>
+  <div class="row">
+    <figure>
+      <img src="a.png" alt="ร่าง A Compact HUD">
+      <figcaption><b>A · Compact HUD (509px)</b>ภาษาเดิม บีบให้พอดี: สถิติแถวเดียว ตัวละครแถวเดียวตัวที่เลือกขยาย เสียง/โหมดสังเกตอยู่ในลิ้นชัก "ตั้งค่าเร็ว"
+        <div class="states"><a href="a-drawer.png">เปิดลิ้นชัก (608px)</a><a href="a-off.png">ปิดสวิตช์</a></div></figcaption>
+    </figure>
+    <figure>
+      <img src="b.png" alt="ร่าง B Mascot-first">
+      <figcaption><b>B · Mascot-first (579px)</b>น้องเป็นพระเอก (mood ตามสวิตช์/คิว จิ้มได้) คันโยกเปิด/ปิดใต้ตัว สถิติเป็น ticker บาง สติ๊กเกอร์เป็นกอง polaroid
+        <div class="states"><a href="b-poke.png">จิ้มน้อง</a><a href="b-off.png">ปิดสวิตช์ (น้องงอน)</a></div></figcaption>
+    </figure>
+    <figure>
+      <img src="c.png" alt="ร่าง C Dashboard">
+      <figcaption><b>C · Dashboard (593px)</b>ตำแหน่ง/level จาก token รวม สตรีค (เครื่องนี้) คะแนนดีสุด โอกาสรอด (คิดเล่นๆ) กำแพงสติ๊กเกอร์วันนี้
+        <div class="states"><a href="c-off.png">ปิดสวิตช์</a></div></figcaption>
+    </figure>
+    <figure>
+      <img src="default.png" alt="ร่างเดิม">
+      <figcaption><b>ร่างเดิม (เทียบ · ~700px ที่ window 680)</b>ตอนมีตัวละคร 5 ตัว + สติ๊กเกอร์ เนื้อหาสูงกว่า window แถวสวิตช์กับแถบสติ๊กเกอร์โดนบีบ (บั๊กเดิม ไม่ได้แตะ)</figcaption>
+    </figure>
+  </div>
+
+  <h2>เปิดดูของจริง</h2>
+  <p class="lede">ร่างเลือกตอนรันด้วย <code>?variant=a|b|c</code> ค่าจะถูกจำไว้ใน localStorage (<code>wai-home-variant</code>) ของ origin นั้น ดังนั้นถ้าเปิดลิงก์ด้วยพอร์ตเดียวกับที่แอป Electron โหลด (ปกติ 5173) หน้าหลักในแอปจะเปลี่ยนตามตอนเปิดครั้งถัดไป ในร่างมีชิป <code>ร่าง A</code> มุมขวาบน กดแล้ววน A → B → C → ร่างเดิม หรือเปิด <code>?variant=default</code> เพื่อล้าง</p>
+  <ul>
+    <li><b>กับ daemon จริง</b> (เห็นน้องกับสติ๊กเกอร์ของจริง): <code>cd app/renderer &amp;&amp; npx vite --port 5191</code> แล้วใส่ <code>http://localhost:5191</code> ด้านล่าง (ตอนถ่ายภาพชุดนี้ server นี้เปิดทิ้งไว้ให้แล้ว)</li>
+    <li><b>mock</b> (ไม่ต้องมี daemon): <code>npm run dev:mock -- --port 5191</code> · mock จะขึ้น onboarding ก่อน กด "ต่อไป" 3 ครั้งแล้ว "เริ่มใช้งาน"</li>
+  </ul>
+  <div class="bar">
+    <label>vite URL <input id="base" value="http://localhost:5191"></label>
+    <button id="load">โหลด</button>
+    <span style="color:var(--dim);font-size:13px">iframe 400×620 ทั้งสามร่าง</span>
+  </div>
+  <div class="live" id="live"></div>
+
+  <script>
+    const live = document.getElementById('live')
+    const load = () => {
+      const base = document.getElementById('base').value.replace(/\/$/, '')
+      live.innerHTML = ''
+      for (const [v, name] of [['a', 'A · Compact HUD'], ['b', 'B · Mascot-first'], ['c', 'C · Dashboard']]) {
+        const fig = document.createElement('figure')
+        const cap = document.createElement('figcaption')
+        cap.innerHTML = `<b>${name}</b><a style="color:var(--blessed)" href="${base}/home.html?variant=${v}" target="_blank">เปิดเต็มหน้า ↗</a>`
+        const f = document.createElement('iframe')
+        f.src = `${base}/home.html?variant=${v}`
+        f.title = name
+        fig.append(f, cap)
+        live.append(fig)
+      }
+    }
+    document.getElementById('load').addEventListener('click', load)
+    load()
+  </script>
+</main>
+</body>
+</html>

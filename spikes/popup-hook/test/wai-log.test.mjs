@@ -94,3 +94,28 @@ test('record does not throw when folder is unwritable', () => {
   assert.equal(log.stats().total.wais, 1);
   log.stop();
 });
+
+test('attachSticker appends a patch line, survives reload, old readers skip it', () => {
+  const home = tmp();
+  const log = createWaiLog({ home, sync: false, logger: quiet });
+  const rec = log.record({ ...base, passed: true, level: 2, score: 77, style: 'normal' });
+  assert.equal(log.attachSticker('nope', 'x.png'), false);
+  assert.equal(log.attachSticker(rec.id, '../evil.png'), false);
+  assert.equal(log.attachSticker(rec.id, `${rec.id}.png`), true);
+  assert.equal(log.lookup(rec.id).sticker, `${rec.id}.png`);
+  const lines = readFileSync(join(home, 'wais.jsonl'), 'utf8').trim().split('\n');
+  assert.equal(lines.length, 2);
+  assert.ok(!('at' in JSON.parse(lines[1]))); // stats loaders that need `at` ignore it
+  const again = createWaiLog({ home, sync: false, logger: quiet });
+  assert.equal(again.stats().total.wais, 1);
+  assert.equal(again.lookup(rec.id).sticker, `${rec.id}.png`);
+  assert.equal(again.lookup(rec.id).score, 77);
+});
+
+test('uploadSticker is off by default and never throws', () => {
+  const home = tmp();
+  const log = createWaiLog({ home, sync: false, logger: quiet });
+  assert.equal(log.uploadSticker('a', '/tmp/a.png'), false);
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ web: { upload_stickers: true } }));
+  assert.equal(log.uploadSticker('a', '/tmp/a.png'), false); // no sync instance / no recordSticker yet
+});

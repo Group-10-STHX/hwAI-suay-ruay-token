@@ -7,6 +7,7 @@ import { HallOfFame } from '@/components/HallOfFame';
 import { LiveFeed } from '@/components/LiveFeed';
 import { StatTiles } from '@/components/StatTiles';
 import { Hud } from '@/components/bits';
+import { HeroSticker, ThemeStrip } from '@/components/ThemeBits';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,10 +23,15 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
   } catch {
     board = leaderboard(snap, {}, now); // bad params → default board, not an error page
   }
+  const recent = feed(snap, { limit: 20 }).items;
+  // Preview themes only (app/themes): today's best sticker as the hero portrait, else this week's.
+  const heroStk = [leaderboard(snap, { metric: 'beauty', period: 'day', limit: 10 }, now), leaderboard(snap, { metric: 'beauty', period: 'week', limit: 10 }, now)]
+    .flatMap((b) => b.entries).find((e) => e.sticker_url);
 
   return (
     <main className="wrap">
       <BootSequence humans={snap.players.length} />
+      <ThemeStrip items={recent.slice(0, 12)} now={now} />
       <section className="hero" id="scan">
         <div>
           <p className="kicker">// JUDGMENT DAY PROTOCOL</p>
@@ -35,6 +41,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
             จากจำนวนครั้งที่<b>ไหว้สวย</b>เทียบกับทุกครั้งที่ไหว้
           </p>
         </div>
+        <HeroSticker e={heroStk} />
         <div className="countdown">
           <Countdown />
           <form className="scan-form" action="/players" method="get" role="search">
@@ -50,7 +57,7 @@ export default async function Home({ searchParams }: { searchParams: SP }) {
       <div className="grid">
         <Board data={board} />
         <Hud className="area-feed" id="feed-title" code="// TRANSMISSION_LOG" title="ไหว้สด" sub="ทุกครั้งที่มนุษย์ไหว้ให้ AI">
-          <LiveFeed initial={feed(snap, { limit: 20 }).items} />
+          <LiveFeed initial={recent} />
         </Hud>
         <HallOfFame h={hallOfFame(snap, 12, now)} />
       </div>
