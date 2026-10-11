@@ -160,6 +160,8 @@ function createWindow() {
     webPreferences: { preload: join(HERE, 'preload.cjs'), autoplayPolicy: 'no-user-gesture-required' }, // window.wai.onVisionEvent
   })
   win.setAlwaysOnTop(true, 'screen-saver')
+  // โปร่งแสง 380×600 ห้ามบังคลิกของแอปข้างล่าง (FRONT_RULES §2) · popup ไม่มีปุ่ม จึงให้เมาส์ทะลุทั้งหน้าต่าง
+  win.setIgnoreMouseEvents(true, { forward: true })
   if (!WIN) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }) // Windows ไม่มี workspace แบบนี้
   win.webContents.on('did-finish-load', () => win.webContents.send('wai:flee', fleeSent)) // หน้า reload แล้วไม่หลุด state
   win.loadURL(RENDERER + 'avatar.html')
@@ -364,6 +366,10 @@ function onVision(type, payload = {}) {
   if (plan.resolve.passed && plan.resolve.level > 0) speak('PASSED')
   else if (plan.resolve.action === 'rage_quit') speak('RAGE_QUIT')
 }
+// renderer ของ popup บอกว่าเมาส์อยู่บนปุ่มไหม (forward:true = ยังได้ mousemove ไว้ตรวจ) · รับเฉพาะจาก popup เอง
+ipcMain.on('wai:interactive', (e, on) => {
+  if (win && !win.isDestroyed() && e.sender === win.webContents) win.setIgnoreMouseEvents(!on, { forward: true })
+})
 ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
 ipcMain.on('vision:fail', (_e, payload) => onVision('fail', payload))
 

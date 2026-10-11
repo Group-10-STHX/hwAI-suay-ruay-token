@@ -15,6 +15,7 @@ declare global {
       setup?: import('./setup').SetupBridge
       /** หนีเมาส์ (ANNOYED): IPC wai:flee จาก main ส่งเมื่อค่าเปลี่ยน ไม่มี = ไม่หนี (api/flee.ts) */
       onFlee?: (cb: (raw: Partial<FleeState>) => void) => () => void
+      setInteractive?: (on: boolean) => void
     }
   }
 }

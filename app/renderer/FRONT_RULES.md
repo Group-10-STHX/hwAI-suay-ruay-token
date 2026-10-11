@@ -25,6 +25,7 @@
 
 - Window ทั้งหมดยกเว้นหน้าหลักเป็น transparent, frameless และ alwaysOnTop
 - พื้นที่โปร่งใสต้องคลิกทะลุได้ ห้ามบังงานของผู้ใช้
+  - ทำจริงที่ main: `setIgnoreMouseEvents(true, {forward:true})` · เมาส์ขึ้นบนองค์ประกอบที่มี class `interactive` (เช่นปุ่มข้าม) renderer เรียก `window.wai.setInteractive(true)` ขอรับคลิก ออกแล้วคืน · ปุ่มใหม่ในหน้านี้ต้องใส่ `interactive` ไม่งั้นกดไม่ติด
 - Webcam window เป็นของทีม Vision (MediaPipe รันอยู่ในนั้น) ทีมเราห้ามไปปิดหรือซ่อนมันเอง ให้ส่งคำขอผ่าน main
 
 

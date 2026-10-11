@@ -12,7 +12,7 @@ export const METRIC_LABEL: Record<Metric, { th: string; code: string; desc: stri
 export const PERIOD_LABEL: Record<Period, string> = { day: 'วันนี้', week: 'สัปดาห์นี้', month: 'เดือนนี้', all: 'ตลอดกาล' };
 export const UNIT_LABEL: Record<Unit, string> = { percent: '%', score: 'คะแนน', wais: 'ครั้ง', days: 'วัน', rage_quits: 'ครั้ง', ms: 'วินาที' };
 export const LEVEL_LABEL = ['ไม่ไหว้', 'ไหว้เพื่อน', 'ไหว้ผู้ใหญ่', 'ไหว้พระ'] as const;
-export const SOURCE_LABEL: Record<string, string> = { claude_code: 'CLAUDE_CODE', shell: 'SHELL', extension: 'BROWSER' };
+export const SOURCE_LABEL: Record<string, string> = { claude_code: 'CLAUDE_CODE', codex: 'CODEX', shell: 'SHELL', extension: 'BROWSER' };
 export const BADGE_LABEL: Record<string, string> = {
   lv3_master: '🙏 เซียนไหว้พระ', streak_7: '📅 ไหว้ 7 วันติด', streak_30: '📅 ไหว้ 30 วันติด', perfect: '💯 เคยได้ 100',
   hundred: '🔥 ไหว้ครบ 100', rage_survivor: '🫶 โดนงอนแล้วง้อสำเร็จ', never_angry: '😇 ไม่เคยทำ AI งอน',

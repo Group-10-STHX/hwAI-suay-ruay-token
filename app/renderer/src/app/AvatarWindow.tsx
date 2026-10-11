@@ -25,6 +25,19 @@ export function AvatarWindow() {
   // main หนีเฉพาะ ANNOYED อยู่แล้ว เช็กซ้ำเพราะ IPC กับ poll คิวมาไม่พร้อมกัน (กันท่าหนีค้างตอน state เปลี่ยน)
   const fleeOn = flee.active && queue.state === 'ANNOYED'
 
+  // popup เป็นหน้าต่างโปร่งใหญ่ main ให้เมาส์ทะลุ · ถึงปุ่ม (.interactive) ค่อยขอรับคลิก ไม่งั้นปุ่มข้ามกดไม่ได้
+  useEffect(() => {
+    let on = false
+    const move = (e: MouseEvent) => {
+      const next = e.target instanceof Element && e.target.closest('.interactive') !== null
+      if (next === on) return
+      on = next
+      window.wai?.setInteractive?.(on)
+    }
+    document.addEventListener('mousemove', move)
+    return () => document.removeEventListener('mousemove', move)
+  }, [])
+
   return (
     <div
       className={active ? 'is-active' : undefined}

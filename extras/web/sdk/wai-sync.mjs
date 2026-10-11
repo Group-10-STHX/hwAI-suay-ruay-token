@@ -41,7 +41,7 @@ export function sniffImage(b) {
 
 const SOURCE_ALIASES = {
   claude_code: 'claude_code', 'claude-code': 'claude_code', hook: 'claude_code', claudecode: 'claude_code',
-  shell: 'shell', wrapper: 'shell', claude: 'shell', codex: 'shell', gemini: 'shell', cli: 'shell',
+  codex: 'codex', shell: 'shell', wrapper: 'shell', claude: 'shell', gemini: 'shell', cli: 'shell',
   extension: 'extension', browser: 'extension', chatgpt: 'extension', 'claude.ai': 'extension', web: 'extension',
 };
 

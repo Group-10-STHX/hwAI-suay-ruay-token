@@ -97,7 +97,7 @@ Find the place where the daemon turns a vision event plus the session's anger st
 ```js
 webSync.record({
   session_id: req.session_id,        // from POST /wai/request; the SDK hashes it
-  source: req.source,                // 'claude_code' | 'shell' | 'extension' (aliases OK, see table)
+  source: req.source,                // 'claude_code' | 'codex' | 'shell' | 'extension' (aliases OK, see table)
   kind: req.kind,                    // 'prompt' | 'subagent'
   passed: result.passed,
   level: result.level,               // 0–3 from vision

@@ -18,7 +18,7 @@ export function validateWai(body: unknown, now = Date.now()): WaiSubmission {
   for (const k of Object.keys(b)) if (!KEYS.includes(k)) bad(`unknown field "${k}"`, k);
   if (typeof b.id !== 'string' || !UUID.test(b.id)) bad('id must be a uuid', 'id');
   if (typeof b.session_id !== 'string' || !b.session_id || b.session_id.length > 64) bad('session_id must be 1–64 chars', 'session_id');
-  if (!['claude_code', 'shell', 'extension'].includes(b.source as string)) bad('source must be claude_code | shell | extension', 'source');
+  if (!['claude_code', 'codex', 'shell', 'extension'].includes(b.source as string)) bad('source must be claude_code | codex | shell | extension', 'source');
   if (!['prompt', 'subagent'].includes(b.kind as string)) bad('kind must be prompt | subagent', 'kind');
   if (!isInt(b.level, 0, 3)) bad('level must be an integer 0–3', 'level');
   if (!isInt(b.score, 0, 100)) bad('score must be an integer 0–100', 'score');

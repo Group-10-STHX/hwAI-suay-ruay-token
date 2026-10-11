@@ -33,6 +33,8 @@ export const CLOSEST_STATES = Object.freeze({
 const GENERIC_TEXT = 'ไหว้ก่อน มนุษย์';
 
 // ---- emotions: bracket tags only for voices that read them (others ignore but still bill them) ----
+// ชื่อเสียงของระบบ (macOS `say -v`): ตัวอักษร/ตัวเลข/เว้นวรรค/ขีด/วงเล็บเท่านั้น กันถูกแทรกเป็น option
+const SAFE_SYSTEM_VOICE = /^[A-Za-z0-9][A-Za-z0-9 ()_-]{0,40}$/;
 export const TAG_VOICES = Object.freeze(new Set(['khanomchan', 'kaprao']));
 export const EMOTION_TAGS = Object.freeze(new Set([
   'neutral', 'calm', 'normal', 'plain',
@@ -341,16 +343,20 @@ export function createVoice({
         return { ok: true, source: 'recording', persona, lineId, state, text };
       }
     }
+    // engine:'system' = บุคลิกที่ตั้งใจใช้เสียงของระบบ (เช่น หุ่นเย็นชา แบบ Siri) ไม่ผ่าน Paxa เลย
+    const systemOnly = p.engine === 'system';
     const file = cachePath(p.voice, synth, speed);
     let source = null;
-    if (existsSync(file)) source = 'cache';
-    else if (await synthesize(synth, p.voice, file, speed)) source = 'paxa';
+    if (!systemOnly) {
+      if (existsSync(file)) source = 'cache';
+      else if (await synthesize(synth, p.voice, file, speed)) source = 'paxa';
+    }
     if (mySeq !== seq) return { ok: false, skipped: 'superseded' };
     if (source) {
       const h = startPlay({ kind: 'file', path: file });
       if (h) return { ok: true, source, persona, lineId, state, text };
     }
-    const h = startPlay({ kind: 'say', text, voice: 'Kanya', rate: p.rate || 170 });
+    const h = startPlay({ kind: 'say', text, voice: SAFE_SYSTEM_VOICE.test(p.systemVoice || '') ? p.systemVoice : 'Kanya', rate: p.rate || 170 });
     if (h) return { ok: true, source: 'say', persona, lineId, state, text };
     return { ok: false, source: 'silent', persona, lineId, state, text };
   }
@@ -401,7 +407,7 @@ export function createVoice({
   }
 
   async function prewarm(personaIds) {
-    const ids = (personaIds && personaIds.length ? personaIds : personas.map((p) => p.id)).filter((id) => personaById.has(id));
+    const ids = (personaIds && personaIds.length ? personaIds : personas.map((p) => p.id)).filter((id) => personaById.has(id) && personaById.get(id).engine !== 'system');
     const out = { fetched: 0, cached: 0, recorded: 0, skipped: 0 };
     try {
       for (const id of ids) {
@@ -420,7 +426,7 @@ export function createVoice({
 
   function list() {
     return personas.map((p) => ({
-      id: p.id, name: p.name, description: p.description, voice: p.voice,
+      id: p.id, name: p.name, description: p.description, voice: p.voice, engine: p.engine === 'system' ? 'system' : 'paxa',
       supportsTags: TAG_VOICES.has(p.voice),
       example: lines.find((l) => l.persona === p.id)?.text || defaults.DEMANDING || GENERIC_TEXT,
       lines: lines.filter((l) => l.persona === p.id).length,

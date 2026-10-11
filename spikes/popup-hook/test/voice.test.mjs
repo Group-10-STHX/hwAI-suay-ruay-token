@@ -57,17 +57,17 @@ test('source priority: recording > cache > paxa > say > silent', async () => {
 
 test('cache file lives at cache/<voice>/<sha1(text)>.mp3', async () => {
   const s = setup();
-  const r = await s.voice.say('ทดสอบ', { persona: 'p4' });
+  const r = await s.voice.say('ทดสอบ', { persona: 'p2' });
   assert.equal(r.source, 'paxa');
-  assert.ok(existsSync(join(s.home, 'voice', 'cache', 'yoyo', `${sha1('ทดสอบ')}.mp3`)));
+  assert.ok(existsSync(join(s.home, 'voice', 'cache', 'nomyen', `${sha1('ทดสอบ')}.mp3`)));
   assert.equal(s.calls[0].init.headers.Authorization, `Bearer ${FAKE_KEY}`);
 });
 
 test('budget cap stops fetching and falls back to say', async () => {
   const s = setup({ budgetChars: 10 });
-  let r = await s.voice.say('ทดสอบ', { persona: 'p4' }); // 5 chars
+  let r = await s.voice.say('ทดสอบ', { persona: 'p2' }); // 5 chars
   assert.equal(r.source, 'paxa');
-  r = await s.voice.say('ข้อความที่ยาวกว่างบ', { persona: 'p4' }); // > remaining 5
+  r = await s.voice.say('ข้อความที่ยาวกว่างบ', { persona: 'p2' }); // > remaining 5
   assert.equal(r.source, 'say');
   assert.equal(s.calls.length, 1);
   const b = JSON.parse(readFileSync(join(s.home, 'voice', 'budget.json'), 'utf8'));
@@ -77,9 +77,9 @@ test('budget cap stops fetching and falls back to say', async () => {
 
 test('401 disables Paxa for the session', async () => {
   const s = setup({ status: 401 });
-  let r = await s.voice.say('หนึ่ง', { persona: 'p4' });
+  let r = await s.voice.say('หนึ่ง', { persona: 'p2' });
   assert.equal(r.source, 'say');
-  r = await s.voice.say('สอง', { persona: 'p4' });
+  r = await s.voice.say('สอง', { persona: 'p2' });
   assert.equal(r.source, 'say');
   assert.equal(s.calls.length, 1);
   assert.equal(s.voice.status().paxa.enabled, false);
@@ -89,25 +89,25 @@ function readJsonOrNull(p) { try { return JSON.parse(readFileSync(p, 'utf8')); }
 
 test('429 backs off for 60s then retries', async () => {
   const s = setup({ status: 429 });
-  await s.voice.say('หนึ่ง', { persona: 'p4' });
+  await s.voice.say('หนึ่ง', { persona: 'p2' });
   s.clock.t += 30_000;
-  const r = await s.voice.say('สอง', { persona: 'p4' });
+  const r = await s.voice.say('สอง', { persona: 'p2' });
   assert.equal(r.source, 'say');
   assert.equal(s.calls.length, 1);
   s.clock.t += 31_000;
-  await s.voice.say('สาม', { persona: 'p4' });
+  await s.voice.say('สาม', { persona: 'p2' });
   assert.equal(s.calls.length, 2);
 });
 
 test('5xx and network errors back off too', async () => {
   const s = setup({ fetchImpl: async () => { throw new Error('boom'); } });
-  const r = await s.voice.say('หนึ่ง', { persona: 'p4' });
+  const r = await s.voice.say('หนึ่ง', { persona: 'p2' });
   assert.equal(r.source, 'say');
-  await s.voice.say('สอง', { persona: 'p4' });
+  await s.voice.say('สอง', { persona: 'p2' });
   assert.equal(s.calls.length, 1);
   const s2 = setup({ status: 503 });
-  await s2.voice.say('หนึ่ง', { persona: 'p4' });
-  await s2.voice.say('สอง', { persona: 'p4' });
+  await s2.voice.say('หนึ่ง', { persona: 'p2' });
+  await s2.voice.say('สอง', { persona: 'p2' });
   assert.equal(s2.calls.length, 1);
 });
 
@@ -127,13 +127,13 @@ test('say fallback passes persona rate; silent when playImpl yields nothing', as
 
 test('one at a time: new speak cancels previous playback', async () => {
   const s = setup();
-  await s.voice.say('หนึ่ง', { persona: 'p4' });
-  await s.voice.say('สอง', { persona: 'p4' });
+  await s.voice.say('หนึ่ง', { persona: 'p2' });
+  await s.voice.say('สอง', { persona: 'p2' });
   assert.equal(s.plays[0].cancelled, true);
   assert.equal(s.plays[1].cancelled, false);
   s.voice.setMuted(true);
   assert.equal(s.plays[1].cancelled, true);
-  assert.equal((await s.voice.say('สาม', { persona: 'p4' })).skipped, 'muted');
+  assert.equal((await s.voice.say('สาม', { persona: 'p2' })).skipped, 'muted');
 });
 
 test('a stale in-flight synth does not play over a newer utterance', async () => {
@@ -141,8 +141,8 @@ test('a stale in-flight synth does not play over a newer utterance', async () =>
   const gate = new Promise((r) => { release = r; });
   let n = 0;
   const s = setup({ fetchImpl: async () => { if (n++ === 0) await gate; return mkRes(200); } });
-  const first = s.voice.say('ช้า', { persona: 'p4' });
-  const second = await s.voice.say('เร็ว', { persona: 'p4' });
+  const first = s.voice.say('ช้า', { persona: 'p2' });
+  const second = await s.voice.say('เร็ว', { persona: 'p2' });
   release();
   const r1 = await first;
   assert.equal(second.ok, true);
@@ -198,10 +198,10 @@ test('path safety: persona and lineId validated', async () => {
 
 test('key never appears in logs, status or list', async () => {
   const s = setup({ fetchImpl: async () => { throw new Error(`failed with ${FAKE_KEY}`); } });
-  await s.voice.say('ทดสอบ', { persona: 'p4' });
+  await s.voice.say('ทดสอบ', { persona: 'p2' });
   await s.voice.speak({ state: 'RETRY', persona: 'p1' });
   const s2 = setup({ status: 401 });
-  await s2.voice.say('ทดสอบ', { persona: 'p4' });
+  await s2.voice.say('ทดสอบ', { persona: 'p2' });
   for (const x of [s, s2]) {
     const blob = JSON.stringify([x.logs, x.voice.status(), x.voice.list()]);
     assert.equal(blob.includes(FAKE_KEY), false);
@@ -214,11 +214,11 @@ test('list(), prewarm() uses cache and respects budget', async () => {
   const l = s.voice.list();
   assert.equal(l.length, 8);
   assert.equal(l.find((p) => p.id === 'p1').voice, 'thongek');
-  const r = await s.voice.prewarm(['p4']);
+  const r = await s.voice.prewarm(['p2']);
   assert.ok(r.fetched >= 1 && r.fetched <= 5);
   assert.ok(s.voice.status().budget.used <= 100);
   const before = s.calls.length;
-  const r2 = await s.voice.prewarm(['p4']);
+  const r2 = await s.voice.prewarm(['p2']);
   assert.equal(r2.fetched, 0);
   assert.equal(s.calls.length, before);
 });
@@ -300,4 +300,17 @@ test('fallback say and recordings use plain text; cache key differs by tags and 
   assert.notEqual(files(a), files(b));
   assert.equal(files(a), join(a.home, 'voice', 'cache', 'kaprao', `${sha1('[angry] ไหว้')}.mp3`));
   assert.notEqual(files(a), undefined);
+});
+
+test('engine:system persona (p4 Siri-style) never calls Paxa and prewarm skips it', async () => {
+  const s = setup();
+  const r = await s.voice.say('ทดสอบ', { persona: 'p4' });
+  assert.equal(r.source, 'say');
+  assert.equal(s.calls.length, 0);
+  const spec = s.plays.at(-1).spec;
+  assert.deepEqual([spec.kind, spec.voice], ['say', 'Kanya']);
+  const w = await s.voice.prewarm(['p4']);
+  assert.equal(s.calls.length, 0);
+  assert.equal(w.fetched, 0);
+  assert.equal(s.voice.list().find((p) => p.id === 'p4').engine, 'system');
 });

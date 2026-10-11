@@ -4,7 +4,7 @@ export type Level = 0 | 1 | 2 | 3;
 export type Metric = 'survival' | 'beauty' | 'count' | 'lv3' | 'streak' | 'shame';
 export type Period = 'day' | 'week' | 'month' | 'all';
 export type Action = 'allow' | 'retry' | 'deny' | 'rage_quit';
-export type Source = 'claude_code' | 'shell' | 'extension';
+export type Source = 'claude_code' | 'codex' | 'shell' | 'extension';
 export type Kind = 'prompt' | 'subagent';
 export type Unit = 'percent' | 'score' | 'wais' | 'days' | 'rage_quits' | 'ms';
 

@@ -52,6 +52,10 @@
 @keyframes fx-blink {
   50% { filter: drop-shadow(0 0 12px var(--danger)); }
 }
+/* ใช้คู่กัน (ANNOYED): animation ซ้อนกันต้องประกาศรวม ไม่งั้นตัวหลังทับตัวแรก สั่นไม่เคยทำงาน */
+.fx-shake.fx-blink-danger {
+  animation: fx-shake 0.35s linear infinite, fx-blink 0.8s steps(2, jump-none) infinite;
+}
 
 /* ANNOYED หนีเมาส์ (states/FleeFx.tsx) main เป็นคนขยับ window ที่นี่แค่ท่าของน้อง
    .fx-flee = โหมดหนีเปิด: เอนหลบ ย่อตัวพร้อมวิ่ง (ท่านิ่ง ไม่ใช่ animation)
@@ -233,6 +237,7 @@
 @media (prefers-reduced-motion: reduce) {
   .fx-shake,
   .fx-blink-danger,
+  .fx-shake.fx-blink-danger,
   .is-active .fx-pulse,
   .is-active .fx-scanline::after,
   .fx-render,

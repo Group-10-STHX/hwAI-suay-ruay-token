@@ -24,9 +24,11 @@
     {
       "id": "p4",
       "name": "หุ่นเย็นชา",
-      "description": "หุ่นยนต์เสียงเรียบ ไร้อารมณ์",
+      "description": "ผู้ช่วยเสียงเรียบแบบ Siri ไร้อารมณ์ (ใช้เสียงของระบบ ไม่ใช้ Paxa)",
+      "engine": "system",
+      "systemVoice": "Kanya",
       "voice": "yoyo",
-      "rate": 150
+      "rate": 160
     },
     {
       "id": "p5",
