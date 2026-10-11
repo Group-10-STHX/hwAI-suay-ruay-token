@@ -67,7 +67,7 @@ export async function setEnabled(enabled: boolean): Promise<void> {
   })
 }
 
-/** แท็บกล้องของหน้าหลัก: ขอให้ daemon เปิดกล้องวิเคราะห์ไว้ (ยิงซ้ำทุก ~5 วิ หมดอายุเองที่ 12 วิ) */
+/** หน้าต่างกล้อง: ขอให้ daemon เปิดกล้องวิเคราะห์ไว้ (ยิงซ้ำทุก ~5 วิ หมดอายุเองที่ 12 วิ) */
 export async function setCameraPreview(on: boolean): Promise<void> {
   await fetch(`${DAEMON_URL}/wai/camera-preview`, {
     method: 'POST',
@@ -86,6 +86,15 @@ export async function sendTestRequest(): Promise<void> {
 }
 
 /** เปิด Terminal ให้ trust hook ของ Codex (ผ่าน IPC ของ Electron ไม่ใช่ HTTP กันเว็บอื่นสั่ง) */
+/** เปิดหน้าต่างกล้อง: ในแอปผ่าน IPC · browser/mock เปิด camera-view.html ในแท็บใหม่ */
+export async function openCameraView(): Promise<void> {
+  if (window.wai?.openCameraView) {
+    await window.wai.openCameraView()
+    return
+  }
+  window.open(new URL('camera-view.html', window.location.href).toString(), '_blank')
+}
+
 export async function openCodexHooks(): Promise<{ ok: boolean; error?: string }> {
   if (!window.wai?.openCodexHooks) return { ok: false, error: 'ต้องเปิดในแอป (ไม่ใช่ browser)' }
   return window.wai.openCodexHooks()

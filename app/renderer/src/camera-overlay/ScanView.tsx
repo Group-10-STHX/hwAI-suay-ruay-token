@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { WaiLevel } from '../api/types'
 import { font, fontSize, radius, space, v } from '../theme/tokens'
 
-// มุมมองกล้องแบบ viewfinder ของหน้าหลัก (แท็บ "กล้อง"): ภาพสดซ้าย กล่อง level 3→0 ขวา วงค้างท่ามุมล่างซ้าย
+// มุมมองกล้องแบบ viewfinder ของหน้าต่างกล้อง: ภาพสดซ้าย กล่อง level 3→0 ขวา วงค้างท่ามุมล่างซ้าย
 // props เท่านั้น (FRONT_RULES §ห้าม import api/store) · ไม่มี animation ที่วนไม่จบ
 
 export type ScanViewProps = {

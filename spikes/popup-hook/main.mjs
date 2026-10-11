@@ -110,6 +110,7 @@ const waiters = new Map()
 
 let win = null
 let home = null
+let cameraView = null
 let vision = null
 let tray = null
 // สถิติให้หน้าหลัก (หายเมื่อปิดแอป)
@@ -202,7 +203,7 @@ function openHome() {
     if (!home || home.isDestroyed()) return clearInterval(fit)
     try {
       const h = await home.webContents.executeJavaScript(
-        // เนื้อหาในแท็บ (ลูกของ [data-wai-scroll]) + แถบแท็บ [data-wai-chrome] · ไม่มีแท็บ = หน้าเดียวแบบเดิม
+        // เนื้อหาของหน้า (#root > div) + แถบ [data-wai-chrome] ถ้ามี (ตอนนี้ไม่มี)
         "(() => { const p = document.querySelector('[data-wai-scroll] > div') ?? document.querySelector('#root > div'); const c = document.querySelector('[data-wai-chrome]'); return p ? p.scrollHeight + (c ? c.offsetHeight : 0) : 0 })()",
       )
       if (typeof h !== 'number' || h <= 0) return
@@ -219,6 +220,35 @@ function openHome() {
     app.dock?.hide()
   })
 }
+
+/** หน้าต่างกล้อง (viewfinder SCAN มนุษย์): window ปกติ ไม่โปร่ง ไม่ alwaysOnTop · ปิด = กล้องดับ + heartbeat preview หยุด · ไม่เปิดเองตอนเริ่มแอป */
+function openCameraView() {
+  if (cameraView && !cameraView.isDestroyed()) {
+    if (cameraView.isMinimized()) cameraView.restore()
+    cameraView.show()
+    return cameraView.focus()
+  }
+  cameraView = new BrowserWindow({
+    icon: ICON,
+    width: 460,
+    height: 420,
+    useContentSize: true,
+    title: 'ไหว้กูซะ · กล้อง',
+    backgroundColor: '#0A0A0C',
+    ...(MAC ? { titleBarStyle: 'hiddenInset' } : { autoHideMenuBar: true, icon: join(HERE, 'assets', 'icon.ico') }),
+    resizable: false,
+    webPreferences: { preload: join(HERE, 'preload.cjs'), backgroundThrottling: true },
+  })
+  if (!MAC) cameraView.removeMenu()
+  cameraView.loadURL(RENDERER + 'camera-view.html')
+  cameraView.on('closed', () => {
+    cameraView = null
+  })
+}
+ipcMain.handle('wai:open-camera-view', () => {
+  openCameraView()
+  return { ok: true }
+})
 
 // ---------- กล้อง: เปิดเฉพาะตอนมีคนรอไหว้ ----------
 function createVision() {
@@ -246,8 +276,8 @@ function clipFileName({ at, outcome, level, score }) {
 
 const devRecord = () => process.env.WAI_DEV_RECORD === '1' || readConfig().devRecord === true
 
-// พรีวิวกล้องจากแท็บ "กล้อง" ของหน้าหลัก: renderer ยิง POST /wai/camera-preview ซ้ำทุก ~5 วิ
-// หมดอายุเอง 12 วิ (หน้าหลักปิด/ค้าง = กล้องดับเอง ไม่ต้องรอใครสั่งปิด) · ไม่นับเป็นการไหว้ ไม่ลง wais.jsonl
+// พรีวิวกล้องจากหน้าต่างกล้อง (camera-view.html): renderer ยิง POST /wai/camera-preview ซ้ำทุก ~5 วิ
+// หมดอายุเอง 12 วิ (หน้าต่างกล้องปิด/ค้าง = กล้องดับเอง ไม่ต้องรอใครสั่งปิด) · ไม่นับเป็นการไหว้ ไม่ลง wais.jsonl
 const PREVIEW_TTL_MS = 12_000
 let previewUntil = 0
 let previewTimer = null
@@ -517,14 +547,18 @@ function fleeTick() {
 
 // ไหว้ผ่านแล้วน้องอยู่คุยต่ออีกนิด (ไม่หายทันที) · มีผลเฉพาะตอนคิวหมดและเป็นการไหว้จริง (level > 0, ไม่ใช่โหมดสังเกต)
 // ใบใหม่เข้าคิว = เลิกคุย ขึ้นการ์ดใหม่ทันที · มีเวลาจำกัด ไม่มี timer วนหลังจากนั้น
+// คิวว่าง = คุยต่อยาว (LINGER_MS) · ยังมีคิวต่อ = ให้น้องรีแอคสั้นๆ (REACT_MS) ก่อนขึ้นการ์ดใบถัดไป
 const LINGER_MS = 10_000
+const REACT_MS = 2500
 let lingerUntil = 0
+let lingerLong = false
 let lingerTimer = null
-const lingerMsLeft = () => (queue.length === 0 ? Math.max(0, lingerUntil - Date.now()) : 0)
-function startLinger() {
-  lingerUntil = Date.now() + LINGER_MS
+const lingerMsLeft = () => Math.max(0, lingerUntil - Date.now())
+function startLinger(ms, long) {
+  lingerUntil = Date.now() + ms
+  lingerLong = long
   clearTimeout(lingerTimer)
-  lingerTimer = setTimeout(syncWindow, LINGER_MS + 50)
+  lingerTimer = setTimeout(syncWindow, ms + 50)
 }
 
 function resolve(id, result) {
@@ -532,7 +566,7 @@ function resolve(id, result) {
   const wasMonitor = queue.find((q) => q.id === id)?.monitor
   if (queue.some((q) => q.id === id) && result.passed) result.level > 0 ? stats.passed++ : stats.bypassed++
   queue = queue.filter((q) => q.id !== id)
-  if (queue.length === 0 && result.passed && result.level > 0 && !wasMonitor && enabled) startLinger()
+  if (result.passed && result.level > 0 && !wasMonitor && enabled) queue.length === 0 ? startLinger(LINGER_MS, true) : startLinger(REACT_MS, false)
   results.set(id, result)
   for (const res of waiters.get(id) ?? []) send(res, 200, result)
   waiters.delete(id)
@@ -600,6 +634,7 @@ const server = http.createServer(async (req, res) => {
       syncWindow()
       return send(res, 200, { id: item.id })
     }
+    if (lingerLong) lingerUntil = 0 // คำขอใหม่ระหว่างคุยต่อยาว = เลิกคุย ขึ้นการ์ดใหม่ทันที
     queue.push(item)
     console.log('[wai] request', item.id, item.agent_label)
     syncWindow()
@@ -624,10 +659,10 @@ const server = http.createServer(async (req, res) => {
   // GET /wai/queue → คิว + state/fail_count จริงของ session หัวคิว (contract §4) · ไม่มีคิว = IDLE
   if (req.method === 'GET' && route === 'queue') {
     const top = queue[0] ? sessions.get(queue[0].session_id) : null
-    const lingering = !top && lingerMsLeft() > 0
+    const lingering = lingerMsLeft() > 0
     return send(res, 200, {
       items: queue,
-      state: top ? top.state : lingering ? 'PASSED' : 'IDLE',
+      state: lingering ? 'PASSED' : top ? top.state : 'IDLE',
       ...(lingering ? { linger_ms: lingerMsLeft() } : {}),
       fail_count: top ? top.fails : 0,
       bypass: !enabled,
@@ -888,6 +923,7 @@ function updateTray() {
       { label: 'โหมดสังเกต (จับได้ไหม ไม่บังคับไหว้)', type: 'checkbox', checked: monitor, click: (i) => setMonitor(i.checked) },
       { label: 'หนีเมาส์', type: 'checkbox', checked: fleeOn, click: (i) => setFlee(i.checked) },
       { label: 'เปิดหน้าหลัก', click: openHome },
+      { label: 'เปิดหน้ากล้อง', click: openCameraView },
       { label: 'โชว์ popup', click: () => livePopup().showInactive() },
       { type: 'separator' },
       { label: 'ออก', role: 'quit' },

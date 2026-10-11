@@ -21,12 +21,13 @@
 | Avatar | ขอบขวาของจอ | **คงที่ ไม่เปลี่ยนตาม state** | น้องหุ่น, ข้อความ, กองการ์ด ลอยอยู่บนจอ **ไม่มีกรอบของ island** มีแค่เงาบางๆ ขยับขึ้นลงได้แบบ Dynamic Island · **ตัวน้องมีแผ่นพื้นหลังทึบ ~88% พร้อม padding รอบตัว** (ผู้ใช้แจ้งว่าโปร่งเกินไปมองยากบนพื้นจอที่ลาย) พื้นนอกแผ่นยังโปร่งและคลิกทะลุ |
 | Webcam | กลางจอ | คงที่ | ภาพกล้องของทีม Vision เราวาด overlay ทับ เช่น แถบ level, วงค้างท่า, กรอบสแกน |
 | Debug panel | ที่ไหนก็ได้ (dev เท่านั้น) | - | ปุ่มสลับ state ปลอม |
-| หน้าหลัก (Home) | กลางจอ เปิดตอนเริ่มแอป | คงที่ | **หน้าเดียวเลื่อนได้ + แถบแท็บ `หน้าหลัก | กล้อง` ด้านบนเป็นทางลัดเลื่อน (ไฮไลต์ตามตำแหน่ง)** · ลำดับ: สวิตช์ → ตัวละคร → เสียง → โหมดสังเกต → **กล้องสด** (`camera-overlay/ScanView` props-only: `SCAN มนุษย์` + กล่อง level 3→0 + วงค้างท่า; ภาพจาก getUserMedia ของหน้านี้, level/คะแนนจาก vision:event ผ่าน `POST /wai/camera-preview` ยิงซ้ำทุก 5 วิ หมดอายุเอง 12 วิ, ไม่อัด ไม่ทำสติ๊กเกอร์ ไม่ลง wais.jsonl) → สถิติวันนี้ → ลองไหว้ → **กราฟแท่ง 7 วัน** (`meter/DayChart` จาก `stats.days`) · window ปกติ (มีพื้นหลัง) สวิตช์เปิด/ปิด, (ไม่มีรายการ Claude Code/Codex และปุ่ม trust hook ของ Codex ในหน้าหลัก: อยู่ในหน้า ⚙ ตั้งค่า) สถิติวันนี้, ปุ่มลองไหว้ ปิดแล้วแอปยังอยู่บน menu bar |
+| หน้าหลัก (Home) | กลางจอ เปิดตอนเริ่มแอป | คงที่ (window พอดีเนื้อหา) | หน้าเดียว ไม่มีแท็บ · ลำดับ: สวิตช์ → ตัวละคร → เสียง → โหมดสังเกต → ปุ่ม **📷 เปิดหน้าต่างกล้อง** (เรียก `window.wai.openCameraView()`; ไม่มี bridge = เปิด `camera-view.html` ในแท็บใหม่) → สติ๊กเกอร์ → สถิติวันนี้ → ลองไหว้ → **กราฟแท่ง 7 วัน** (`meter/DayChart` จาก `stats.days`) · window ปกติ (มีพื้นหลัง) สวิตช์เปิด/ปิด, (ไม่มีรายการ Claude Code/Codex และปุ่ม trust hook ของ Codex ในหน้าหลัก: อยู่ในหน้า ⚙ ตั้งค่า) ปิดแล้วแอปยังอยู่บน menu bar |
+| หน้าต่างกล้อง (Camera view) | กลางจอ เปิดเองไม่ได้ ผู้ใช้สั่งเปิดจากปุ่มในหน้าหลัก หรือ tray เมนู "เปิดหน้ากล้อง" | 460×420 ไม่ resize | `camera-view.html` (`CameraViewWindow`): `camera-overlay/ScanView` props-only เต็มหน้าต่าง: `SCAN มนุษย์` + กล่อง level 3→0 + วงค้างท่า · window ปกติ ไม่โปร่ง ไม่ alwaysOnTop (mac `hiddenInset` + แถบลาก 32px) เปิดได้ทีละหน้าต่าง (เปิดซ้ำ = โฟกัสอันเดิม) · logic อยู่ใน hook `useCameraPreview()`: ภาพจาก getUserMedia ของหน้าต่างนี้, level/คะแนนจาก vision:event, ยิง `POST /wai/camera-preview` ทุก 5 วิ (daemon หมดอายุเอง 12 วิ) ปิดหน้าต่าง/ซ่อน = กล้องดับ + heartbeat หยุด · ไม่อัด ไม่ทำสติ๊กเกอร์ ไม่ลง wais.jsonl |
 
-- Window ทั้งหมดยกเว้นหน้าหลักเป็น transparent, frameless และ alwaysOnTop
+- Window ทั้งหมดยกเว้นหน้าหลักและหน้าต่างกล้องเป็น transparent, frameless และ alwaysOnTop
 - พื้นที่โปร่งใสต้องคลิกทะลุได้ ห้ามบังงานของผู้ใช้
   - ทำจริงที่ main: `setIgnoreMouseEvents(true, {forward:true})` · เมาส์ขึ้นบนองค์ประกอบที่มี class `interactive` (เช่นปุ่มข้าม) renderer เรียก `window.wai.setInteractive(true)` ขอรับคลิก ออกแล้วคืน · ปุ่มใหม่ในหน้านี้ต้องใส่ `interactive` ไม่งั้นกดไม่ติด
-- ไหว้ผ่านแล้วน้อง **ไม่หายทันที**: ถ้าคิวว่าง daemon ให้ `state: PASSED` + `linger_ms` (~10 วิ ปรับที่ `LINGER_MS` ใน main.mjs) · AvatarWindow พิมพ์ `LINGER_LINES` ทีละบรรทัดทีละตัวอักษร (`SpeechBubble typing`) แล้วหายเอง · ใบใหม่เข้าคิว = เลิกคุยทันที · โหมดสังเกต/level 0 ไม่คุยต่อ
+- ไหว้ผ่านแล้วน้อง **ไม่หายทันที**: ถ้าคิวว่าง daemon ให้ `state: PASSED` + `linger_ms` (~10 วิ ปรับที่ `LINGER_MS` ใน main.mjs) · AvatarWindow พิมพ์ `LINGER_LINES` ทีละบรรทัดทีละตัวอักษร (`SpeechBubble typing`) แล้วหายเอง · ยังมีคิวต่อ = น้องรีแอค PASSED ~2.5 วิ ก่อนขึ้นการ์ดใบถัดไป · คิวว่างแล้วมีใบใหม่เข้า = เลิกคุยทันที · โหมดสังเกต/level 0 ไม่คุยต่อ
 - Webcam window เป็นของทีม Vision (MediaPipe รันอยู่ในนั้น) ทีมเราห้ามไปปิดหรือซ่อนมันเอง ให้ส่งคำขอผ่าน main
 
 
@@ -216,6 +217,7 @@ app/renderer/
     │   ├── main-debug.tsx          mount DebugPanel
 │   ├── main-home.tsx           mount HomeWindow
 │   ├── HomeWindow.tsx          หน้าหลัก (สวิตช์, สถานะการต่อ, สถิติ)
+│   ├── CameraViewWindow.tsx    หน้าต่างกล้อง (main-camera-view.tsx, camera-view.html, useCameraPreview.ts)
     │   ├── AvatarWindow.tsx        ประกอบ Island + CardStack
     │   ├── CameraOverlayWindow.tsx ประกอบ ScanFrame + LevelMeter + HoldRing + ReasonChip
     │   ├── DebugPanel.tsx          ปุ่มสลับ scenario

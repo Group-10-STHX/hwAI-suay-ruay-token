@@ -37,7 +37,7 @@ export type QueueSnapshot = {
   bypass: boolean // WAI_BYPASS=1 ต้องมีป้ายบอก (§7) รอยืนยันกับ #1
   monitor?: boolean // โหมดสังเกต: การ์ดนี้แค่จับได้ ไม่ต้องไหว้ (ไม่ส่ง = false)
   avatar?: string // ชื่อน้องที่เลือกอยู่ (ไม่ส่ง = jason) ดู FRONT_RULES "ตัวละคร"
-  lingerMs?: number // ไหว้ผ่านแล้วคิวว่าง: น้องอยู่คุยต่ออีกกี่ ms (state = PASSED, items ว่าง) ไม่ส่ง = ไม่คุยต่อ
+  lingerMs?: number // ไหว้ผ่านแล้ว: น้องรีแอค/คุยต่ออีกกี่ ms (state = PASSED แม้ items ยังมี) ไม่ส่ง = ไม่คุยต่อ
 }
 
 /** mood ของรูปตัวละครของผู้ใช้ (ชื่อไฟล์ใน ~/.waikusa/avatars/<name>/) */

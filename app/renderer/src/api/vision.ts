@@ -16,6 +16,8 @@ declare global {
       /** หนีเมาส์ (ANNOYED): IPC wai:flee จาก main ส่งเมื่อค่าเปลี่ยน ไม่มี = ไม่หนี (api/flee.ts) */
       onFlee?: (cb: (raw: Partial<FleeState>) => void) => () => void
       setInteractive?: (on: boolean) => void
+      /** หน้าหลัก: เปิด/โฟกัสหน้าต่างกล้อง (IPC wai:open-camera-view) */
+      openCameraView?: () => Promise<{ ok: boolean }>
     }
   }
 }

@@ -1,27 +1,22 @@
 import { useEffect, useState } from 'react'
 import { setCameraPreview, subscribeVision } from '../api'
 import type { VisionEvent } from '../api/types'
-import { ScanView } from '../camera-overlay'
-import { fontSize, space, v } from '../theme/tokens'
 
-export const CAMERA_ANCHOR = 'wai-camera'
-import { HOLD_TARGET_MS } from './derive'
-
-// ส่วน "กล้อง" ของหน้าหลัก (อยู่ใต้โหมดสังเกต ก่อนสถิติ): เปิดกล้องให้ผู้ใช้เห็นว่ากล้องทำงาน + level/คะแนนสด
-// - ภาพ: getUserMedia ของหน้านี้เอง (แยกจากกล้องของ vision worker ใช้กล้องตัวเดียวกันได้)
+// hook ของหน้าต่างกล้อง (CameraViewWindow): เปิดกล้องให้ผู้ใช้เห็น + level/คะแนนสด
+// - ภาพ: getUserMedia ของหน้าต่างนี้เอง (แยกจากกล้องของ vision worker ใช้กล้องตัวเดียวกันได้)
 // - level/คะแนน: vision:event ที่ daemon ส่งมา · daemon ต้องเปิดกล้องวิเคราะห์ให้ จึงยิง /wai/camera-preview ซ้ำทุก 5 วิ
-// - เปิดเฉพาะตอนหน้านี้ถูก mount + หน้าต่างมองเห็น ย่อ/ซ่อนแล้วกล้องดับ (ไม่มี timer ค้าง)
+// - เปิดเฉพาะตอน mount + หน้าต่างมองเห็น ย่อ/ซ่อน/ปิดแล้วกล้องดับ heartbeat หยุด (daemon หมดอายุเองที่ 12 วิ)
 
 const PREVIEW_PING_MS = 5000
 const STALE_MS = 1500
 
-const IDLE: VisionEvent = { isWai: false, level: 0, score: 0, holdMs: 0, reasons: [], facePresent: false }
+export const IDLE_EVENT: VisionEvent = { isWai: false, level: 0, score: 0, holdMs: 0, reasons: [], facePresent: false }
 
-export function CameraSection() {
+export function useCameraPreview() {
   const [visible, setVisible] = useState(() => !document.hidden)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [error, setError] = useState<string | undefined>()
-  const [ev, setEv] = useState<VisionEvent>(IDLE)
+  const [ev, setEv] = useState<VisionEvent>(IDLE_EVENT)
   const [analysing, setAnalysing] = useState(false)
 
   useEffect(() => {
@@ -69,7 +64,7 @@ export function CameraSection() {
     const stale = setInterval(() => {
       const fresh = Date.now() - last < STALE_MS
       setAnalysing(fresh)
-      if (!fresh) setEv(IDLE)
+      if (!fresh) setEv(IDLE_EVENT)
     }, 500)
     return () => {
       clearInterval(t)
@@ -79,22 +74,5 @@ export function CameraSection() {
     }
   }, [visible])
 
-  return (
-    <section id={CAMERA_ANCHOR} style={{ display: 'grid', gap: space.sm, userSelect: 'none' }}>
-      <ScanView
-        stream={stream}
-        error={error}
-        analysing={analysing}
-        level={ev.level}
-        score={ev.score}
-        holdMs={ev.holdMs}
-        holdTargetMs={HOLD_TARGET_MS}
-        isWai={ev.isWai}
-        facePresent={ev.facePresent}
-      />
-      <div style={{ color: v('textDim'), fontSize: fontSize.small }}>
-        {analysing ? 'กำลังอ่านท่าไหว้จากกล้อง · ภาพไม่ออกจากเครื่อง' : 'ภาพจากกล้องแสดงในหน้านี้เท่านั้น ไม่อัด ไม่ส่งออก'}
-      </div>
-    </section>
-  )
+  return { stream, error, analysing, ev }
 }

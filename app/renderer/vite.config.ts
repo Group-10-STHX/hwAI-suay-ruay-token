@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         avatar: page('./avatar.html'),
         camera: page('./camera-overlay.html'),
+        cameraView: page('./camera-view.html'),
         debug: page('./debug.html'),
         home: page('./home.html'),
       },

@@ -22,8 +22,8 @@ export function AvatarWindow() {
   const { top, waiting, shown, hidden } = splitQueue(queue.items, MAX_VISIBLE_CARDS)
   const accent = top ? providerAccent[top.source] : undefined
   const active = queue.state !== 'IDLE'
-  // ไหว้ผ่านแล้วคิวว่าง: น้องยังอยู่คุยต่อ ~5 วิ ก่อนหาย
-  const lingering = queue.items.length === 0 && queue.state === 'PASSED' && (queue.lingerMs ?? 0) > 0
+  // ไหว้ผ่านแล้ว: น้องรีแอค ~2.5 วิ (ยังมีคิวต่อ) หรืออยู่คุยต่อ ~10 วิ (คิวว่าง) ก่อนไปต่อ/หาย
+  const lingering = queue.state === 'PASSED' && (queue.lingerMs ?? 0) > 0
   const chat = useLingerChat(lingering, vision.score)
   // main หนีเฉพาะ ANNOYED อยู่แล้ว เช็กซ้ำเพราะ IPC กับ poll คิวมาไม่พร้อมกัน (กันท่าหนีค้างตอน state เปลี่ยน)
   const fleeOn = flee.active && queue.state === 'ANNOYED'

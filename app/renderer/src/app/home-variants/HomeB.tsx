@@ -108,7 +108,7 @@ export function HomeB(p: HomeProps) {
       <TestButton className="fx-render" css={at(4)} enabled={on} onTest={p.onTest} />
 
       <Footer onSettings={p.onSettings} />
-    {p.cameraSlot}
+    {p.cameraLink}
       {p.graphSlot}
     </Shell>
   )

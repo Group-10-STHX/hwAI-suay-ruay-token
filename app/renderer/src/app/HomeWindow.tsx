@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import { avatarUrl, listStickers, sendTestRequest, setEnabled, setMonitor, setStickerStyle, setup, stickerUrl, subscribeStatus, USE_MOCK, type AppStatus, type StickerItem, type StickerStyle } from '../api'
-import { v } from '../theme/tokens'
+import { useEffect, useState } from 'react'
+import { avatarUrl, listStickers, openCameraView, sendTestRequest, setEnabled, setMonitor, setStickerStyle, setup, stickerUrl, subscribeStatus, USE_MOCK, type AppStatus, type StickerItem, type StickerStyle } from '../api'
+import { fontSize } from '../theme/tokens'
 import { useSfxLevel } from '../sfx/store'
 import { Onboarding } from './Onboarding'
 import { useAvatars } from './useAvatars'
-import { CAMERA_ANCHOR, CameraSection } from './CameraTab'
 import { DayChart } from '../meter'
-import { HomeTabs, type HomeTab } from './HomeTabs'
+import { ghostButton } from './homeStyles'
 import { HomeA } from './home-variants/HomeA'
 import { HomeB } from './home-variants/HomeB'
 import { HomeC } from './home-variants/HomeC'
@@ -19,28 +18,6 @@ import { nextVariant, resolveVariant, setVariant, type Variant } from './home-va
 // ร่างเลือกจาก ?variant=a|b|c (จำใน localStorage) ไม่มี = ร่างเดิม (HomeDefault)
 
 export function HomeWindow() {
-  // แท็บเป็นทางลัดเลื่อนหน้า (หน้าเดียวยาว): "กล้อง" เลื่อนไปส่วนกล้อง · "หน้าหลัก" กลับบนสุด · ไฮไลต์ตามตำแหน่งที่เลื่อนอยู่
-  const holder = useRef<HTMLDivElement>(null)
-  const [tab, setTab] = useState<HomeTab>('home')
-  useEffect(() => {
-    const scroller = () => holder.current?.firstElementChild as HTMLElement | null
-    const sync = () => {
-      const s = scroller()
-      const cam = s?.querySelector<HTMLElement>(`#${CAMERA_ANCHOR}`)
-      if (!s || !cam) return
-      // ส่วนกล้องขึ้นมาอยู่ครึ่งบนของจอ = แท็บกล้อง
-      setTab(cam.getBoundingClientRect().top < s.getBoundingClientRect().top + s.clientHeight * 0.5 && s.scrollTop > 8 ? 'camera' : 'home')
-    }
-    const s = scroller()
-    s?.addEventListener('scroll', sync, { passive: true })
-    return () => s?.removeEventListener('scroll', sync)
-  })
-  const goTab = (t: HomeTab) => {
-    const s = holder.current?.firstElementChild as HTMLElement | null
-    if (!s) return
-    if (t === 'home') return s.scrollTo({ top: 0, behavior: 'smooth' })
-    s.querySelector<HTMLElement>(`#${CAMERA_ANCHOR}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
   const [variant, setVariantState] = useState<Variant | null>(() => resolveVariant())
   const [status, setStatus] = useState<AppStatus | null>(null)
   const [offline, setOffline] = useState(false)
@@ -127,7 +104,11 @@ export function HomeWindow() {
       sendTestRequest()
     },
     onSettings: () => setOnboarding(true),
-    cameraSlot: <CameraSection />,
+    cameraLink: (
+      <button className="fx-render" onClick={() => openCameraView().catch(() => {})} style={{ ...ghostButton, fontSize: fontSize.small }}>
+        📷 เปิดหน้าต่างกล้อง
+      </button>
+    ),
     graphSlot: status?.stats.days?.length ? <DayChart days={status.stats.days} /> : undefined,
     variant: variant ?? undefined,
     onCycleVariant: variant ? cycleVariant : undefined,
@@ -146,14 +127,5 @@ export function HomeWindow() {
     }
   })()
 
-  // แท็บ 1 = กล้อง (เปิดแอปมาเจอหน้านี้) · แท็บ 2 = หน้าหลักเดิม
-  // data-wai-chrome / data-wai-scroll: main วัดความสูงให้หน้าต่างพอดีเนื้อหาของแท็บที่เปิดอยู่
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: v('bg') }}>
-      <HomeTabs tab={tab} onTab={goTab} />
-      <div ref={holder} data-wai-scroll style={{ flex: 1, minHeight: 0 }}>
-        {body}
-      </div>
-    </div>
-  )
+  return body
 }

@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('wai', {
   },
   // popup ปกติให้เมาส์ทะลุ (main ตั้ง ignore) · เมาส์อยู่บนปุ่ม (.interactive) ค่อยขอรับคลิก
   setInteractive: (on) => ipcRenderer.send('wai:interactive', Boolean(on)),
+  // หน้าหลัก: เปิด/โฟกัสหน้าต่างกล้อง (หน้าต่างเดียว)
+  openCameraView: () => ipcRenderer.invoke('wai:open-camera-view'),
   openCodexHooks: () => ipcRenderer.invoke('wai:open-codex-hooks'),
   setup: {
     status: () => ipcRenderer.invoke('wai:setup-status'),
