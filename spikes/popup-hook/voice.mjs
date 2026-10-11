@@ -33,6 +33,12 @@ export const CLOSEST_STATES = Object.freeze({
 });
 const GENERIC_TEXT = 'ไหว้ก่อน มนุษย์';
 
+// อารมณ์เริ่มต้นตาม state ของน้อง (ใช้กับเสียงที่อ่านแท็กได้ตอนพูดข้อความหน้าจอ) · บุคลิกใส่ `emotions` ใน personas.json ทับรายตัวได้
+export const DEFAULT_STATE_EMOTION = Object.freeze({
+  IDLE: 'calm', DEMANDING: 'annoyed', WATCHING: 'calm', RETRY: 'frustrated', ANNOYED: 'angry',
+  SULKING: 'sad', RAGE_QUIT: 'furious', PASSED: 'excited', FORGIVE: 'calm',
+});
+
 // ---- emotions: bracket tags only for voices that read them (others ignore but still bill them) ----
 // ชื่อเสียงของระบบ (macOS `say -v`): ตัวอักษร/ตัวเลข/เว้นวรรค/ขีด/วงเล็บเท่านั้น กันถูกแทรกเป็น option
 const SAFE_SYSTEM_VOICE = /^[A-Za-z0-9][A-Za-z0-9 ()_-]{0,40}$/;
@@ -473,7 +479,7 @@ export function createVoice({
     }
   }
 
-  function say(text, { persona, copyId } = {}) {
+  function say(text, { persona, copyId, state } = {}) {
     return run(async () => {
       if (narrating) return { ok: false, skipped: 'narrating' };
       const pid = persona ?? current;
@@ -490,7 +496,10 @@ export function createVoice({
           if (existsSync(f)) { startPlay({ kind: 'file', path: f }); return { ok: true, source: 'recording', persona: pid, lineId: copyId, state: null, text: clean }; }
         }
       }
-      return resolveAndPlay({ persona: pid, lineId: null, line: { text: clean, emotionText: clean }, state: null, useRecording: false }, mySeq);
+      // เสียงอ่านแท็กได้: ใส่อารมณ์ตาม state (บุคลิกทับได้) ให้ข้อความหน้าจอไม่แบน
+      const pp = personaById.get(pid);
+      const tag = state && TAG_VOICES.has(pp.voice) ? normalizeTag((pp.emotions && pp.emotions[state]) || DEFAULT_STATE_EMOTION[state]) : null;
+      return resolveAndPlay({ persona: pid, lineId: null, line: { text: clean, emotionText: tag ? `${tag} ${clean}` : clean }, state: null, useRecording: false }, mySeq);
     });
   }
 

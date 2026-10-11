@@ -775,7 +775,9 @@ ipcMain.on('wai:say-copy', (e, text) => {
   const t = String(text ?? '').trim().slice(0, 160)
   if (!t || (t === lastCopy.text && Date.now() - lastCopy.t < 1500)) return
   lastCopy = { text: t, t: Date.now() }
-  voice.say(t, { copyId: copyIds.get(t) })
+  // state ของน้องตอนนี้ (หัวคิว / คุยต่อหลังไหว้ผ่าน) ไว้เลือกอารมณ์ของเสียง
+  const st = queue[0] ? sessions.get(queue[0].session_id).state : lingerMsLeft() > 0 ? 'PASSED' : 'IDLE'
+  voice.say(t, { copyId: copyIds.get(t), state: st })
 })
 ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
 ipcMain.on('vision:fail', (_e, payload) => onVision('fail', payload))

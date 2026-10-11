@@ -120,3 +120,7 @@ API (โมดูล `spikes/popup-hook/voice-admin.mjs`):
 ## อีสเตอร์เอ้ก 67 ("Six Seven")
 
 ตอนเกมท่า 6-7 เริ่ม น้องร้องเป็นภาษาอังกฤษ "Six Seven" เป็นท่อนๆ ด้วยบุคลิก p8 (เสียง `khanomchan` ที่อ่านแท็กอารมณ์ได้): `[excited] Siiix... Seven!` → `[shouting] Six! Seven! Six! Seven!` (เร็ว 1.15) → `[laughing] Six Seven! Do it now!` ทำท่าสำเร็จได้ `[excited:1] Six Seven! Six Seven! Yeah!` · ท่อนละอารมณ์/ความเร็ว (ค่าอยู่ใน `main.mjs` `SIXSEVEN_CALL` / `SIXSEVEN_WIN`) · ไม่มี Paxa ใช้เสียงระบบ Samantha · เสียงดังกว่าปกติ 2.2 เท่า
+
+## เสียงอดีตเบต้าเทสเตอร์ (p9) และอารมณ์ตาม state
+
+p9 ใช้เสียง `khanomchan` (กวน ประชด เล่นใหญ่ได้) เร็ว 1.08 · ทุกบทมีแท็กอารมณ์กลางประโยค เช่น `[annoyed] เจอบั๊กเดิมซ้ำสามรอบ [angry:0.9] ผมจะรีวิวหนึ่งดาว!` · ตอนพูดข้อความหน้าจอ เสียงที่อ่านแท็กได้ (khanomchan/kaprao) จะใส่อารมณ์ตาม state ให้อัตโนมัติ (`DEFAULT_STATE_EMOTION` ใน `voice.mjs`) บุคลิกทับรายตัวได้ด้วย `emotions` ใน `personas.json` (p9: DEMANDING=annoyed, ANNOYED=angry:0.8, SULKING=disappointed, RAGE_QUIT=furious, PASSED=laughing, FORGIVE=happy)

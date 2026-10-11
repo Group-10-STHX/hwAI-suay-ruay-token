@@ -382,3 +382,20 @@ test('narrate: tag voice gets emotion tags + speed in the Paxa request, plain vo
   await s2.voice.narrate(['[shouting] Six Seven'], { persona: 'p2' }); // ไม่ใช่เสียงอ่านแท็ก
   assert.equal(JSON.parse(s2.calls[0].init.body).text, 'Six Seven');
 });
+
+test('say(): tag voice gets the state emotion (persona override first), plain voice does not', async () => {
+  const home = mkdtempSync(join(tmpdir(), 'voice-test-'));
+  const calls = [];
+  const v = createVoice({
+    home, apiKey: FAKE_KEY, now: () => 1, log: () => {}, random: () => 0,
+    fetchImpl: async (u, i) => { calls.push(JSON.parse(i.body)); return mkRes(200); },
+    playImpl: () => ({ cancel() {}, done: Promise.resolve({ ok: true }) }),
+  });
+  await v.say('ผ่านแล้ว', { persona: 'p9', state: 'PASSED' });
+  assert.equal(calls[0].voice, 'khanomchan');
+  assert.equal(calls[0].text, '[laughing] ผ่านแล้ว'); // p9 override
+  await v.say('ไหว้ใหม่', { persona: 'p8', state: 'RETRY' });
+  assert.equal(calls[1].text, '[frustrated] ไหว้ใหม่'); // default map
+  await v.say('ไหว้ใหม่', { persona: 'p2', state: 'RETRY' });
+  assert.equal(calls[2].text, 'ไหว้ใหม่'); // ไม่ใช่เสียงอ่านแท็ก
+});

@@ -158,70 +158,90 @@
       "persona": "p9",
       "state": "DEMANDING",
       "text": "เฮ้ย ก่อนใช้ AI ไหว้ก่อน นี่คือฟีเจอร์ ไม่ใช่บั๊ก",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "annoyed",
+      "emotionText": "[annoyed] เฮ้ย ก่อนใช้ AI ไหว้ก่อน [frustrated] นี่คือฟีเจอร์ ไม่ใช่บั๊ก!"
     },
     {
       "id": "p9-demanding-2",
       "persona": "p9",
       "state": "DEMANDING",
       "text": "รอบเบต้านี้ ผมขอเทสต์การไหว้ของคุณหน่อย",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "annoyed",
+      "emotionText": "[calm] รอบเบต้านี้ [annoyed] ผมขอเทสต์การไหว้ของคุณหน่อย"
     },
     {
       "id": "p9-watching-1",
       "persona": "p9",
       "state": "WATCHING",
       "text": "กำลังเทสต์ ขอดูเคสขอบๆ หน่อย",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "calm",
+      "emotionText": "[calm] กำลังเทสต์ ขอดูเคสขอบๆ หน่อย [annoyed] อย่าเพิ่งขยับ"
     },
     {
       "id": "p9-retry-1",
       "persona": "p9",
       "state": "RETRY",
       "text": "ไม่ผ่านเทสต์ แจ้งบั๊กท่าไหว้ ลองใหม่",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "frustrated",
+      "emotionText": "[frustrated] ไม่ผ่านเทสต์ แจ้งบั๊กท่าไหว้ [annoyed] ลองใหม่"
     },
     {
       "id": "p9-retry-2",
       "persona": "p9",
       "state": "RETRY",
       "text": "ไหว้แบบนี้ผมขอรีพอร์ตเลยนะ",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "frustrated",
+      "emotionText": "[frustrated] ไหว้แบบนี้ [angry:0.6] ผมขอรีพอร์ตเลยนะ"
     },
     {
       "id": "p9-annoyed-1",
       "persona": "p9",
       "state": "ANNOYED",
       "text": "เจอบั๊กเดิมซ้ำสามรอบ ผมจะรีวิวหนึ่งดาว",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "angry:0.8",
+      "emotionText": "[annoyed] เจอบั๊กเดิมซ้ำสามรอบ [angry:0.9] ผมจะรีวิวหนึ่งดาว!"
     },
     {
       "id": "p9-sulking-1",
       "persona": "p9",
       "state": "SULKING",
       "text": "ผมเงียบแล้ว ไปเขียนรีวิวละ",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "disappointed",
+      "emotionText": "[disappointed] ผมเงียบแล้ว... [sad] ไปเขียนรีวิวละ"
     },
     {
       "id": "p9-rage_quit-1",
       "persona": "p9",
       "state": "RAGE_QUIT",
       "text": "พอ ผมเลิกเทสต์ จะไปโพสต์ในเฟซแล้วนะ",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "furious",
+      "emotionText": "[furious] พอ! ผมเลิกเทสต์! [shouting] จะไปโพสต์ในเฟซแล้วนะ!"
     },
     {
       "id": "p9-passed-1",
       "persona": "p9",
       "state": "PASSED",
       "text": "ผ่านเทสต์ ไม่มีบั๊ก ให้ห้าดาว",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "laughing",
+      "emotionText": "[calm] ผ่านเทสต์ ไม่มีบั๊ก [laughing] ให้ห้าดาวเลย"
     },
     {
       "id": "p9-forgive-1",
       "persona": "p9",
       "state": "FORGIVE",
       "text": "โอเค ผมลบรีวิวให้ ไหว้ดีขึ้นแล้ว",
-      "recorder": 0
+      "recorder": 0,
+      "emotion": "happy",
+      "emotionText": "[calm] โอเค ผมลบรีวิวให้ [happy] ไหว้ดีขึ้นแล้ว"
     },
     {
       "id": "p10-demanding-1",

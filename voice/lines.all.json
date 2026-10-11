@@ -558,7 +558,8 @@
    "kind": "extra",
    "state": "DEMANDING",
    "persona": "p9",
-   "recorder": 3
+   "recorder": 3,
+   "emotion": "annoyed"
   },
   {
    "id": "p9-demanding-2",
@@ -567,7 +568,8 @@
    "kind": "extra",
    "state": "DEMANDING",
    "persona": "p9",
-   "recorder": 4
+   "recorder": 4,
+   "emotion": "annoyed"
   },
   {
    "id": "p9-watching-1",
@@ -576,7 +578,8 @@
    "kind": "extra",
    "state": "WATCHING",
    "persona": "p9",
-   "recorder": 1
+   "recorder": 1,
+   "emotion": "calm"
   },
   {
    "id": "p9-retry-1",
@@ -585,7 +588,8 @@
    "kind": "extra",
    "state": "RETRY",
    "persona": "p9",
-   "recorder": 2
+   "recorder": 2,
+   "emotion": "frustrated"
   },
   {
    "id": "p9-retry-2",
@@ -594,7 +598,8 @@
    "kind": "extra",
    "state": "RETRY",
    "persona": "p9",
-   "recorder": 3
+   "recorder": 3,
+   "emotion": "frustrated"
   },
   {
    "id": "p9-annoyed-1",
@@ -603,7 +608,8 @@
    "kind": "extra",
    "state": "ANNOYED",
    "persona": "p9",
-   "recorder": 4
+   "recorder": 4,
+   "emotion": "angry:0.8"
   },
   {
    "id": "p9-sulking-1",
@@ -612,7 +618,8 @@
    "kind": "extra",
    "state": "SULKING",
    "persona": "p9",
-   "recorder": 1
+   "recorder": 1,
+   "emotion": "disappointed"
   },
   {
    "id": "p9-rage_quit-1",
@@ -621,7 +628,8 @@
    "kind": "extra",
    "state": "RAGE_QUIT",
    "persona": "p9",
-   "recorder": 2
+   "recorder": 2,
+   "emotion": "furious"
   },
   {
    "id": "p9-passed-1",
@@ -630,7 +638,8 @@
    "kind": "extra",
    "state": "PASSED",
    "persona": "p9",
-   "recorder": 3
+   "recorder": 3,
+   "emotion": "laughing"
   },
   {
    "id": "p9-forgive-1",
@@ -639,7 +648,8 @@
    "kind": "extra",
    "state": "FORGIVE",
    "persona": "p9",
-   "recorder": 4
+   "recorder": 4,
+   "emotion": "happy"
   },
   {
    "id": "p10-demanding-1",

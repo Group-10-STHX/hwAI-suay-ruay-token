@@ -61,9 +61,20 @@
     {
       "id": "p9",
       "name": "อดีตเบต้าเทสเตอร์",
-      "description": "อดีตเบต้าเทสเตอร์สายรีวิวสุดดราม่า เทสต์ท่าไหว้ ขู่รีพอร์ตบั๊ก ให้ดาวตามฟีล (ล้อเลียนแนวกว้างๆ ไม่ใช่บุคคลจริง)",
-      "voice": "kaprao",
-      "rate": 185
+      "description": "อดีตเบต้าเทสเตอร์สายรีวิวสุดดราม่า บ่นบั๊ก ขู่ให้ดาวเดียว เสียงกวนประชดแบบรีวิวเวอร์ (ล้อเลียนแนวกว้างๆ ไม่ใช่บุคคลจริง)",
+      "voice": "khanomchan",
+      "rate": 190,
+      "speed": 1.08,
+      "emotions": {
+        "DEMANDING": "annoyed",
+        "WATCHING": "calm",
+        "RETRY": "frustrated",
+        "ANNOYED": "angry:0.8",
+        "SULKING": "disappointed",
+        "RAGE_QUIT": "furious",
+        "PASSED": "laughing",
+        "FORGIVE": "happy"
+      }
     },
     {
       "id": "p10",
