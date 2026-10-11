@@ -411,8 +411,8 @@ bridge.onControl(({ run, requiredLevel: level, devRecord: rec, stickerStyle: st,
   stickerPalette = pal && typeof pal === "object" ? pal : null; // sticker.js validates each colour, bad ones = default
   stickersOn = stickers !== false;
   if (!stickersOn) {
+    if (gifPending) finishGif(); // ไหว้ผ่านแล้วคิวว่าง stickers=false มาพร้อม run=false: ส่งเท่าที่มีก่อนล้าง
     gifBuf = [];
-    gifPending = null;
   }
   if (typeof level === "number") requiredLevel = Math.max(1, Math.min(3, level));
   devRecord = Boolean(rec);
