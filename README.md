@@ -82,7 +82,8 @@ hook ทำ 2 อย่าง: UserPromptSubmit (prompt) และ PreToolUse �
 (หรือเรียกตรง: `node spikes/popup-hook/install-hooks.mjs install global claude`)
 
 - ถ้า daemon ไม่ได้เปิด hook ปล่อยผ่านเสมอ (fail-open) งานคุณไม่พัง
-- hook รันด้วย `node` ที่หาเจอใน PATH ตอนติดตั้ง ถ้าไม่มี node ใช้ Electron ผ่าน `hook-run.cjs`
+- hook ชี้ไปที่ shim path คงที่ `~/.waikusa/hook.sh` (Windows: `hook.cmd`) ที่เรียก Electron แบบ node ให้ จึงไม่ต้องมี node ในเครื่อง และแอปย้ายที่/อัปเดตแล้ว Codex ไม่ต้อง trust ใหม่
+- สถานะ/งานค้างของแต่ละบทบาท ดู [HANDOFF.md](HANDOFF.md)
 - Codex: ต้อง trust โปรเจกต์และอนุมัติ hook (พิมพ์ `/hooks` ใน Codex) ก่อน hook จะทำงาน แอปไม่ trust แทนคุณ
 - ติดตั้งผ่านหน้า onboarding ในแอปก็ได้ (scope ตอน dev = sandbox, `WAI_HOOK_SCOPE=global` บังคับ global)
 

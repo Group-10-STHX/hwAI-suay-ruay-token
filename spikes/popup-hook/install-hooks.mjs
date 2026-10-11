@@ -4,19 +4,20 @@
 // scope:
 //   sandbox = ~/wai-sandbox เท่านั้น (ตอน dev ห้ามติด global ไม่งั้น Claude Code ของทีมพัง)
 //   global  = ~/.claude/settings.json + ~/.codex/hooks.json (เฉพาะแอปที่ package แล้ว + ผู้ใช้ติ๊กเอง)
-//   <โฟลเดอร์ absolute> = เฉพาะโปรเจกต์นั้น (.claude/settings.local.json · .codex/hooks.json ในโฟลเดอร์นั้น) ใช้ทดสอบกับงานจริงโดยไม่ติด global
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+//
+// คำสั่งใน settings ชี้ไปที่ shim ที่ path คงที่ ~/.waikusa/hook.sh (mac/Linux) หรือ hook.cmd (Windows)
+// shim ตั้ง ELECTRON_RUN_AS_NODE=1 แล้วเรียก Electron + hook.mjs (เครื่องผู้ใช้ไม่ต้องมี node)
+// → แอปย้ายที่/อัปเดตเวอร์ชัน คำสั่งใน settings ไม่เปลี่ยน → Codex ไม่ต้อง trust ใหม่ (trust ผูกกับ hash ของคำสั่ง)
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, delimiter, dirname, isAbsolute, join, win32 } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const DIR = dirname(fileURLToPath(import.meta.url))
-const HOOK = join(DIR, 'hook.mjs')
-const WRAPPER = join(DIR, 'hook-run.cjs') // ใช้เมื่อไม่มี node ในเครื่อง: รันด้วย Electron แล้ว spawn ตัวเองพร้อม ELECTRON_RUN_AS_NODE=1
-// marker หา entry ของเราตอนถอด: รุ่นใหม่เป็น argument ท้ายคำสั่ง (ไม่ต้องใช้ env prefix แบบ POSIX) · รุ่นเก่า WAI_HOOK=1 นำหน้า ยังรู้จักไว้ถอด/แทนที่
-const MARKER = '--wai-hook'
-const OLD_MARKER = 'WAI_HOOK=1'
+const HOOK = join(dirname(fileURLToPath(import.meta.url)), 'hook.mjs')
+const MARKER = 'WAI_HOOK=1' // ใช้หา entry ของเราตอนถอด (mac/Linux) · Windows หาจาก path ของ shim แทน
+const SHIM_RE = /[\\/]\.waikusa[\\/]hook\.(cmd|sh)\b/
 export const SANDBOX = join(homedir(), 'wai-sandbox')
+export const shimPath = (platform = process.platform) => join(homedir(), '.waikusa', platform === 'win32' ? 'hook.cmd' : 'hook.sh')
 
 /** scope ที่ไม่ใช่ 'global': absolute path ของโปรเจกต์ ถ้าไม่ใช่ path (เช่น 'sandbox') ใช้ ~/wai-sandbox */
 function scopeDir(scope) {
@@ -36,48 +37,90 @@ export const TOOLS = {
   },
 }
 
-/** quote สำหรับคำสั่งที่ Claude Code/Codex จะรัน: win32 = "..." (ใช้ / แทน \ กัน escape พังใน Git Bash) · อื่นๆ = '...' */
-export function quotePath(s, platform = process.platform) {
-  if (platform === 'win32') return `"${String(s).replaceAll('\\', '/').replaceAll('"', '')}"`
-  return `'${String(s).replaceAll("'", "'\\''")}'`
-}
+/** quote สำหรับ sh: 'a b' (ใส่ ' ข้างในเป็น '\'') */
+export const shQuote = (s) => `'${s.replaceAll("'", "'\\''")}'`
 
-/** สร้างคำสั่ง hook ที่ไม่ต้องพึ่ง env prefix: <runtime> <script> <source> --wai-hook */
-export function buildHookCommand({ platform = process.platform, runtime, hookPath = HOOK, source }) {
-  return `${quotePath(runtime, platform)} ${quotePath(hookPath, platform)} ${source} ${MARKER}`
-}
-
-/** หา executable จาก PATH (ไม่ใช้ shell) · win32 ลองตาม PATHEXT */
-export function findOnPath(name, { platform = process.platform, env = process.env, exists = existsSync, winExts = ['.exe'] } = {}) {
-  const win = platform === 'win32'
-  const sep = win ? ';' : delimiter
-  const exts = win ? winExts : ['']
-  for (const dir of (env.PATH ?? env.Path ?? '').split(sep)) {
-    if (!dir) continue
-    for (const ext of exts) {
-      // ค่าเริ่มต้นรับเฉพาะ .exe บน Windows (.cmd รันตรงๆ จาก hook ไม่ได้ในทุก shell)
-      const file = (win ? win32 : { join }).join(dir, name + ext)
-      if (exists(file)) return file
-    }
-  }
-  return null
+/** shim ของ mac/Linux · exec = exit code ของ hook (0/2) เป็นของ shim ตรงๆ */
+export function shShim(runtime, hook = HOOK) {
+  return `#!/bin/sh\n# ไหว้กูซะ: hook shim (สร้างอัตโนมัติ ห้ามแก้) ลบได้ถ้าถอด hook แล้ว\nELECTRON_RUN_AS_NODE=1 exec ${shQuote(runtime)} ${shQuote(hook)} "$@"\n`
 }
 
 /**
- * เลือก runtime ของ hook: ใช้ node จริงเสมอถ้ามี (ไม่ต้องตั้ง env) · ไม่มี → Electron + hook-run.cjs
- * (ตั้ง ELECTRON_RUN_AS_NODE หลัง process เริ่มแล้วสายเกินไป wrapper จึง spawn ตัวเองพร้อม env นั้น)
+ * path ใน .cmd: cmd อ่านไฟล์ batch ด้วย code page OEM (ไทย = 874) ไม่ใช่ UTF-8 → path ไทยเพี้ยน
+ * เลยแทนส่วนต้นด้วย env (%LOCALAPPDATA% ฯลฯ ซึ่ง cmd ขยายเป็น Unicode ถูกเสมอ) ที่เหลือ escape % เป็น %%
  */
-export function pickRuntime({ platform = process.platform, execPath = process.execPath, which = (n) => findOnPath(n, { platform }), hookPath = HOOK, wrapperPath = WRAPPER } = {}) {
-  const base = basename(execPath.replaceAll('\\', '/')).toLowerCase()
-  if (base === 'node' || base === 'node.exe') return { runtime: execPath, script: hookPath, kind: 'node' }
-  const node = which('node')
-  if (node) return { runtime: node, script: hookPath, kind: 'node' }
-  return { runtime: execPath, script: wrapperPath, kind: 'electron' }
+export function cmdPath(p, env = process.env) {
+  const vars = ['LOCALAPPDATA', 'APPDATA', 'USERPROFILE']
+    .map((name) => [name, env[name]])
+    .filter(([, v]) => v)
+    .sort((a, b) => b[1].length - a[1].length) // ยาวสุดก่อน (LOCALAPPDATA อยู่ใต้ USERPROFILE)
+  for (const [name, value] of vars) {
+    const v = value.replace(/[\\/]+$/, '')
+    if (p.toLowerCase().startsWith(v.toLowerCase() + '\\') || p.toLowerCase() === v.toLowerCase())
+      return `%${name}%` + p.slice(v.length).replaceAll('%', '%%')
+  }
+  return p.replaceAll('%', '%%')
 }
 
-function command(source, runtimeHint) {
-  const r = pickRuntime({ execPath: runtimeHint })
-  return buildHookCommand({ runtime: r.runtime, hookPath: r.script, source })
+/**
+ * shim ของ Windows (แบบเดียวกับ code.cmd ของ VS Code: set ELECTRON_RUN_AS_NODE=1 แล้วเรียก Code.exe + cli.js)
+ * - CRLF, ไม่มี BOM (BOM ทำบรรทัดแรกพัง)
+ * - ใช้ %1 ไม่ใช่ %* เพราะคำสั่งของ Codex ต่อท้าย "; exit $LASTEXITCODE" (ไว้ให้ PowerShell) ถ้าโดน cmd รันจะติดมาเป็น arg
+ * - ถ้า path ยังมีตัวอักษรนอก ASCII (เช่น repo อยู่ D:\โปรเจกต์) สลับ chcp 65001 ชั่วคราวแล้วคืนค่าเดิม (console ใช้ร่วมกับ terminal ของผู้ใช้)
+ * - cmd รอ electron.exe (GUI subsystem) จบเสมอเมื่ออยู่ใน batch → %ERRORLEVEL% = exit code ของ hook.mjs (2 = บล็อก)
+ */
+export function cmdShim(runtime, hook = HOOK, env = process.env) {
+  const e = cmdPath(runtime, env)
+  const h = cmdPath(hook, env)
+  const unicode = /[^\x00-\x7f]/.test(e + h)
+  const lines = [
+    '@echo off',
+    'rem waikusa hook shim (generated, do not edit; safe to delete after removing hooks)', // ASCII ล้วน: cmd อ่านเป็น OEM
+    'setlocal DisableDelayedExpansion',
+    'set "ELECTRON_RUN_AS_NODE=1"',
+    ...(unicode
+      ? [
+          'set "WAI_CP="',
+          'for /f "tokens=2 delims=:." %%a in (\'chcp\') do set /a WAI_CP=%%a >nul 2>&1',
+          'chcp 65001 >nul 2>&1',
+          `set "WAI_E=${e}"`,
+          `set "WAI_H=${h}"`,
+          'if defined WAI_CP chcp %WAI_CP% >nul 2>&1',
+        ]
+      : [`set "WAI_E=${e}"`, `set "WAI_H=${h}"`]),
+    '"%WAI_E%" "%WAI_H%" %1',
+    'exit /b %ERRORLEVEL%',
+  ]
+  return lines.join('\r\n') + '\r\n'
+}
+
+/** เขียน shim ที่ path คงที่ (เขียนทับทุกครั้ง เผื่อแอปย้ายที่) */
+function writeShim(runtime, platform) {
+  const file = shimPath(platform)
+  mkdirSync(dirname(file), { recursive: true })
+  if (platform === 'win32') writeFileSync(file, cmdShim(runtime), 'utf8')
+  else {
+    writeFileSync(file, shShim(runtime))
+    chmodSync(file, 0o755)
+  }
+  return file
+}
+
+/** hook หนึ่งตัวใน settings ตาม tool + OS */
+export function hookEntry(tool, platform = process.platform, shim = shimPath(platform), env = process.env) {
+  const source = TOOLS[tool].source
+  const timeout = 300 // default ของ UserPromptSubmit แค่ 30 วิ
+  if (platform !== 'win32') return { type: 'command', command: `${MARKER} ${shQuote(shim)} ${source}`, timeout }
+  if (tool === 'claude') {
+    // Claude Code บน Windows รัน command ผ่าน Git Bash หรือ PowerShell แล้วแต่เครื่อง → ไม่มีสตริงไหน quote ถูกทั้งคู่
+    // ใช้ exec form (args) spawn cmd.exe ตรงๆ ไม่ผ่าน shell · "call" กัน cmd /c ตัด quote ของ path ที่มีเว้นวรรค
+    return { type: 'command', command: env.ComSpec || 'C:\\Windows\\System32\\cmd.exe', args: ['/d', '/c', 'call', shim, source], timeout }
+  }
+  // Codex บน Windows ไม่มี exec form · commandWindows รันผ่าน PowerShell ของ session (หรือ cmd.exe /c ถ้าไม่มี)
+  // → ต้อง parse ได้ทั้งสองแบบ: ตัวโปรแกรมไม่มี quote, quote แค่ path (double quote ใช้ได้ทั้งคู่)
+  // "; exit $LASTEXITCODE" ไม่งั้น PowerShell -Command แปลง exit 2 เป็น 1 (= ไม่บล็อก) · ถ้าโดน cmd รัน ส่วนนี้กลายเป็น arg ที่ shim ไม่อ่าน
+  const cmd = `cmd.exe /d /c call "${shim}" ${source}; exit $LASTEXITCODE`
+  return { type: 'command', command: cmd, commandWindows: cmd, timeout }
 }
 
 function readJson(file) {
@@ -87,13 +130,13 @@ function readJson(file) {
   return JSON.parse(raw) // JSON เสียอยู่แล้ว → throw ห้ามเขียนทับ
 }
 
-// รวม hook รุ่นเก่าจาก setup-sandbox.sh ที่ยังไม่มี marker (ชี้ไป hook.mjs ตัวเดียวกัน) กันติดซ้อน 2 ตัว
-export const isOurCommand = (c) =>
-  typeof c === 'string' &&
-  [MARKER, OLD_MARKER, HOOK, HOOK.replaceAll('\\', '/'), WRAPPER, WRAPPER.replaceAll('\\', '/')].some((m) => c.includes(m))
-
+// รุ่นกลาง (ไม่ได้ปล่อย) ใช้ `<node> <hook> <source> --wai-hook` / hook-run.cjs · ยังรู้จักไว้ถอด/แทนที่
+const OLD_MARKERS = ['--wai-hook', 'hook-run.cjs']
+const mentionsUs = (s) =>
+  typeof s === 'string' && (s.includes(MARKER) || s.includes(HOOK) || SHIM_RE.test(s) || OLD_MARKERS.some((m) => s.includes(m)))
+// รวม hook รุ่นเก่า (setup-sandbox.sh ไม่มี marker, รุ่นก่อน shim ที่ชี้ hook.mjs ตรง) กันติดซ้อน 2 ตัว
 const isOurs = (entry) =>
-  entry?.hooks?.some((h) => isOurCommand(h.command))
+  entry?.hooks?.some((h) => [h.command, h.commandWindows, ...(Array.isArray(h.args) ? h.args : [])].some(mentionsUs))
 
 function withoutOurs(json) {
   const hooks = { ...(json.hooks ?? {}) }
@@ -111,11 +154,13 @@ function write(file, json) {
   writeFileSync(file, JSON.stringify(json, null, 2) + '\n')
 }
 
-export function install(tool, scope, runtime) {
+/** runtime = path ของ Electron (process.execPath) · opts.platform ไว้ทดสอบฝั่ง Windows บน mac */
+export function install(tool, scope, runtime, { platform = process.platform } = {}) {
   const t = TOOLS[tool]
   const file = t.file(scope)
-  const json = withoutOurs(readJson(file))
-  const hook = { type: 'command', command: command(t.source, runtime), timeout: 300 } // default ของ UserPromptSubmit แค่ 30 วิ
+  const json = withoutOurs(readJson(file)) // อ่านก่อน: JSON เสีย = throw ก่อนเขียนอะไรทั้งนั้น
+  const shim = writeShim(runtime, platform)
+  const hook = hookEntry(tool, platform, shim)
   json.hooks.UserPromptSubmit = [...(json.hooks.UserPromptSubmit ?? []), { hooks: [hook] }]
   json.hooks.PreToolUse = [...(json.hooks.PreToolUse ?? []), { matcher: t.subagentMatcher, hooks: [hook] }]
   write(file, json)
@@ -141,13 +186,14 @@ export function installed(tool, scope) {
 /**
  * Codex ไม่รัน hook ที่ยังไม่ trust · trust เก็บใน ~/.codex/config.toml [hooks.state."<file>:<event>:..."]
  * อ่านอย่างเดียว ห้ามเขียน trust แทนผู้ใช้ (ผูกกับ hash ถ้าคำสั่งเปลี่ยนต้อง trust ใหม่ เลยบอกได้แค่ว่า "เคย trust ไฟล์นี้")
+ * Windows: path ใน TOML basic string มี \ ถูก escape เป็น \\ → เช็กทั้งสองแบบ
  */
 export function codexTrusted(scope) {
   const cfg = join(homedir(), '.codex', 'config.toml')
   if (!existsSync(cfg)) return false
   const file = TOOLS.codex.file(scope)
   const toml = readFileSync(cfg, 'utf8')
-  return toml.includes(`[hooks.state."${file}:user_prompt_submit:`)
+  return [file, file.replaceAll('\\', '\\\\')].some((f) => toml.includes(`[hooks.state."${f}:user_prompt_submit:`))
 }
 
 // CLI ข้ามแพลตฟอร์ม (แทน setup-sandbox.sh ที่ต้องมี bash): node install-hooks.mjs <install|uninstall|status> [sandbox|global|<โฟลเดอร์>] [claude|codex|both]

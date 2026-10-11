@@ -2,11 +2,11 @@
 // ของจริงเป็นงานของ #1 (/app/main) อันนี้แค่พิสูจน์ว่า hook → popup → ปลด ทำงานได้
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, systemPreferences, Tray } from 'electron'
 import { execFile } from 'node:child_process'
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { codexTrusted, findOnPath, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
+import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { createSessions, planVision } from './session-state.mjs' // state machine ต่อ session (contract §4)
 import { createAvatars, handleAvatarRoute } from './avatars.mjs' // เลือก/เสิร์ฟตัวละคร (~/.waikusa/avatars)
 import { createVoice, defaultPlayImpl } from './voice.mjs'
@@ -25,9 +25,16 @@ const DEV_DIR = join(tmpdir(), 'wai-dev-instance')
 if (DEV_INSTANCE) app.setPath('userData', join(DEV_DIR, 'userData'))
 // ตอน dev ติด hook แค่ใน ~/wai-sandbox · แอปที่ package แล้วค่อย global (ผู้ใช้ติ๊กเองใน onboarding)
 const SCOPE = process.env.WAI_HOOK_SCOPE ?? (app.isPackaged ? 'global' : 'sandbox')
-const IS_MAC = process.platform === 'darwin'
-const IS_WIN = process.platform === 'win32'
-const SHORTCUT = join(homedir(), 'Applications', 'ไหว้กูซะ.app') // mac เท่านั้น (install-shortcut.sh)
+const WIN = process.platform === 'win32'
+const MAC = process.platform === 'darwin'
+// shortcut ตอน dev · mac: install-shortcut.sh · Windows: install-shortcut.ps1 (Start Menu .lnk → wscript launch.vbs)
+const SHORTCUT = WIN
+  ? join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'ไหว้กูซะ.lnk')
+  : join(homedir(), 'Applications', 'ไหว้กูซะ.app')
+const WIN_LAUNCHER = join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'waikusa', 'launch.vbs')
+const WSCRIPT = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'wscript.exe')
+const IS_MAC = MAC
+const IS_WIN = WIN
 const WAI_HOME = process.env.WAI_HOME ?? (DEV_INSTANCE ? join(DEV_DIR, 'waikusa') : join(homedir(), '.waikusa')) // โฟลเดอร์ของ daemon: config.json, wais.jsonl
 const CONFIG = join(WAI_HOME, 'config.json')
 // โหมด dev: เก็บคลิปคุณภาพต่ำ (เหมือนกล้องวงจรปิด) ต่อการไหว้ 1 ครั้ง ไว้ในเครื่องเท่านั้น
@@ -51,18 +58,44 @@ function saveConfig(patch) {
   mkdirSync(dirname(CONFIG), { recursive: true })
   writeFileSync(CONFIG, JSON.stringify({ ...readConfig(), ...patch }, null, 2))
 }
-/** Codex CLI: WAI_CODEX_CLI > แอป ChatGPT บน mac > `codex` ใน PATH · ไม่เจอ = null (ไม่ crash) */
-function codexCli() {
-  const env = process.env.WAI_CODEX_CLI
-  if (env && existsSync(env)) return env
-  const mac = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex'
-  if (IS_MAC && existsSync(mac)) return mac
-  return findOnPath('codex', { winExts: ['.exe', '.cmd'] })
+const MAC_CODEX_CLI = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex' // มากับแอป ChatGPT/Codex
+
+/** ไฟล์มีอยู่และเป็นไฟล์ (ไม่ใช่โฟลเดอร์) */
+const isFile = (p) => {
+  try {
+    return statSync(p).isFile()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * หา Codex CLI · mac: ตัวที่มากับแอป ChatGPT · Windows (ยังไม่ได้ทดสอบบนเครื่องจริง):
+ * 1) CODEX_CLI_PATH (env ที่แอป Codex เองก็อ่าน) 2) %LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe (จากรายงานผู้ใช้ ไม่ใช่ docs)
+ * 3) %APPDATA%\npm\codex.cmd (npm i -g @openai/codex) 4) ไล่ PATH × PATHEXT เอง (ไม่ parse `where` เพราะ output เป็น OEM ทำ path ไทยเพี้ยน)
+ * ตัวที่อยู่ใน WindowsApps (แอปจาก Store) เข้าถึงไม่ได้ ข้าม
+ */
+function findCodexCli() {
+  const forced = process.env.WAI_CODEX_CLI
+  if (forced && isFile(forced)) return forced
+  if (!WIN) return isFile(MAC_CODEX_CLI) ? MAC_CODEX_CLI : null
+  const env = process.env
+  const candidates = [
+    env.CODEX_CLI_PATH,
+    env.LOCALAPPDATA && join(env.LOCALAPPDATA, 'Programs', 'OpenAI', 'Codex', 'bin', 'codex.exe'),
+    env.APPDATA && join(env.APPDATA, 'npm', 'codex.cmd'),
+  ]
+  const exts = (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
+  for (const dir of (env.PATH ?? env.Path ?? '').split(delimiter).filter(Boolean))
+    for (const ext of exts) candidates.push(join(dir.replace(/^"|"$/g, ''), 'codex' + ext.toLowerCase()))
+  return candidates.find((p) => p && !p.includes('WindowsApps') && isFile(p)) ?? null
 }
 const PORT = Number(process.env.WAI_PORT) || 7777
 // dev: vite (:5173) · แอปจาก shortcut: ไฟล์ที่ build แล้ว (WAI_RENDERER_URL=file://.../dist/)
+// --renderer=<url> = ทางเลือกแทน env (login item ของ Windows ตั้ง env ไม่ได้ ส่งได้แค่ args) · env มาก่อนเสมอ
+const RENDERER_ARG = process.argv.find((a) => a.startsWith('--renderer='))?.slice('--renderer='.length)
 // ต้องลงท้ายด้วย / (Windows file URL: file:///C:/path/to/dist/)
-const RENDERER = (process.env.WAI_RENDERER_URL ?? 'http://localhost:5173/').replace(/\/?$/, '/')
+const RENDERER = (process.env.WAI_RENDERER_URL || RENDERER_ARG || 'http://localhost:5173/').replace(/\/?$/, '/')
 const WAIT_MS = 55_000 // long-poll รอบละไม่เกิน 60 วิ ตาม contract
 const EXPIRE_MS = 300_000 // hook timeout
 // หน้าต่างกล้องที่ซ่อนอยู่ ใช้ heuristic ของ Vision (vision/wai-heuristic.js)
@@ -127,7 +160,7 @@ function createWindow() {
     webPreferences: { preload: join(HERE, 'preload.cjs'), autoplayPolicy: 'no-user-gesture-required' }, // window.wai.onVisionEvent
   })
   win.setAlwaysOnTop(true, 'screen-saver')
-  if (!IS_WIN) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }) // เรื่อง Spaces ของ mac/linux ไม่มีบน Windows
+  if (!WIN) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }) // Windows ไม่มี workspace แบบนี้
   win.webContents.on('did-finish-load', () => win.webContents.send('wai:flee', fleeSent)) // หน้า reload แล้วไม่หลุด state
   win.loadURL(RENDERER + 'avatar.html')
   // ผู้ใช้ปิด popup เอง (หรือ OS ปิดให้) → อย่าถือ window ที่ตายแล้วไว้ ไม่งั้น syncWindow พัง "Object has been destroyed"
@@ -144,17 +177,23 @@ function livePopup() {
 
 /** หน้าหลัก: เปิดตอนเริ่มแอป ปิดแล้วแอปยังอยู่บน menu bar */
 function openHome() {
-  if (home) return home.show()
+  if (home) {
+    if (home.isMinimized()) home.restore()
+    home.show()
+    return home.focus()
+  }
   home = new BrowserWindow({
     icon: ICON,
     width: 400,
     height: 680,
     title: 'ไหว้กูซะ',
     backgroundColor: '#0A0A0C',
-    ...(IS_MAC ? { titleBarStyle: 'hiddenInset' } : { autoHideMenuBar: true }), // Windows/Linux ใช้กรอบปกติ ไม่มีเมนูบาร์
+    // mac: ซ่อน title bar (ปุ่มไฟจราจรลอยบนแถบลาก 32px ของ renderer) · Windows: title bar ปกติ (มีปุ่มปิด/ย่อ) ไม่มีเมนู
+    ...(MAC ? { titleBarStyle: 'hiddenInset' } : { autoHideMenuBar: true, icon: join(HERE, 'assets', 'icon.ico') }),
     resizable: false,
     webPreferences: { preload: join(HERE, 'preload.cjs') },
   })
+  if (!MAC) home.removeMenu()
   home.loadURL(RENDERER + 'home.html')
   // ขนาดพอดีเนื้อหา ไม่ต้องเลื่อน: วัดความสูงจริงของหน้าแล้วปรับหน้าต่าง (จำกัด 360–900)
   const fit = setInterval(async () => {
@@ -651,39 +690,62 @@ setInterval(() => {
 
 // ปุ่มในหน้าหลัก: ติด hook ใน sandbox แล้วเปิด Terminal รัน Codex CLI ให้ผู้ใช้พิมพ์ /hooks กด trust เอง
 ipcMain.handle('wai:open-codex-hooks', async () => {
-  const cli = codexCli()
-  if (!cli) return { ok: false, error: 'ไม่เจอ Codex CLI (ติดตั้ง Codex ให้มีคำสั่ง codex ใน PATH หรือตั้ง WAI_CODEX_CLI=<path>) แล้วเปิด Codex ในโฟลเดอร์นั้นเอง' }
-  install('codex', SCOPE, process.execPath)
-  const dir = SCOPE === 'global' ? homedir() : SANDBOX
-  if (IS_MAC) {
-    const cmd = `cd '${dir}' && '${cli}'`
-    await new Promise((ok, fail) =>
-      execFile(
-        'osascript',
-        ['-e', `tell application "Terminal" to do script "${cmd}"`, '-e', 'tell application "Terminal" to activate'],
-        (e) => (e ? fail(e) : ok()),
-      ),
-    )
-  } else if (IS_WIN) {
-    // เปิดหน้าต่าง cmd ใหม่ในโฟลเดอร์นั้น: start "<title>" /D <dir> cmd /k <codex> (ไม่ผ่าน shell string)
-    await new Promise((ok, fail) => execFile('cmd.exe', ['/c', 'start', 'Codex', '/D', dir, 'cmd.exe', '/k', cli], { windowsHide: true }, (e) => (e ? fail(e) : ok())))
-  } else {
-    return { ok: false, error: `ติด hook แล้ว เปิดเทอร์มินัลที่ ${dir} แล้วรัน codex เอง จากนั้นพิมพ์ /hooks เพื่อ trust` }
+  const cli = findCodexCli()
+  if (!cli)
+    return {
+      ok: false,
+      error: WIN ? 'ไม่เจอ Codex CLI (ลง npm i -g @openai/codex หรือตั้ง CODEX_CLI_PATH)' : 'ไม่เจอ Codex CLI ในแอป ChatGPT',
+    }
+  try {
+    install('codex', SCOPE, process.execPath)
+  } catch (e) {
+    return { ok: false, error: `อ่าน hooks.json ไม่ได้ (JSON เสีย?) ไม่ได้แก้อะไร: ${e.message}` }
+  }
+  const folder = SCOPE === 'global' ? homedir() : SANDBOX
+  mkdirSync(folder, { recursive: true })
+  try {
+    if (WIN) await openConsoleWin(cli, folder)
+    else {
+      const cmd = `cd '${folder}' && '${cli}'`
+      await run('osascript', ['-e', `tell application "Terminal" to do script "${cmd}"`, '-e', 'tell application "Terminal" to activate'])
+    }
+  } catch (e) {
+    return { ok: false, error: e.message }
   }
   return { ok: true }
 })
 
+/**
+ * Windows: เปิดหน้าต่าง console ใหม่ใน folder แล้วรัน codex (ยังไม่ได้ทดสอบบนเครื่องจริง)
+ * ให้ `start` สร้าง console จริง (spawn detached + stdio ignore = TUI ไม่มี terminal)
+ * cmd /d /c start "" /D <cwd> <cli> · "" = ชื่อหน้าต่าง · Node quote path ที่มีเว้นวรรคให้เอง
+ * ข้อความหลัง /c ขึ้นต้นด้วย start (ไม่ใช่ ") cmd เลยไม่ตัด quote · .cmd ของ npm start เปิดผ่าน cmd /k ให้เอง
+ */
+export const winConsoleArgs = (cli, cwd) => ['/d', '/c', 'start', '', '/D', cwd, cli]
+const openConsoleWin = (cli, cwd) => run(process.env.ComSpec || 'cmd.exe', winConsoleArgs(cli, cwd))
+
 // ---------- onboarding ----------
 const run = (bin, args) => new Promise((ok, fail) => execFile(bin, args, (e, out) => (e ? fail(e) : ok(out))))
 
-/** mac/Windows อ่านสิทธิ์กล้องจาก OS ได้ · Windows ถ้าไม่ได้ตอบ 'granted' แล้วให้ OS ถามตอนใช้กล้องครั้งแรก */
 function cameraStatus() {
-  if (!IS_MAC && !IS_WIN) return 'granted'
+  if (!MAC && !WIN) return 'granted'
   try {
-    return systemPreferences.getMediaAccessStatus('camera')
+    return systemPreferences.getMediaAccessStatus('camera') // mac + Windows 10 1809+
   } catch {
     return 'granted'
   }
+}
+
+/**
+ * login item ของ Windows (ยังไม่ได้ทดสอบบนเครื่องจริง) · ตอนปิดต้องส่ง path+args ชุดเดิม ไม่งั้นลบ entry ไม่เจอ
+ * package แล้ว: ตัวแอปเอง · dev: launch.vbs จาก install-shortcut.ps1 (build renderer + ซ่อนหน้าต่าง)
+ * ไม่มี launcher แต่เปิดจากไฟล์ build อยู่ (file://): Electron + โฟลเดอร์ spike + --renderer=... (login item ตั้ง env ไม่ได้)
+ */
+function winLoginTarget() {
+  if (app.isPackaged) return { path: process.execPath, args: [] }
+  if (existsSync(WIN_LAUNCHER)) return { path: WSCRIPT, args: [WIN_LAUNCHER] }
+  if (RENDERER.startsWith('file:')) return { path: process.execPath, args: [HERE, `--renderer=${RENDERER}`] }
+  return null
 }
 
 ipcMain.handle('wai:setup-status', () => {
@@ -694,9 +756,9 @@ ipcMain.handle('wai:setup-status', () => {
     onboarded: Boolean(cfg.onboarded),
     camera: cameraStatus(),
     claude: { installed: installed('claude', SCOPE) },
-    codex: { installed: installed('codex', SCOPE), trusted: codexTrusted(SCOPE), cli: Boolean(codexCli()) },
+    codex: { installed: installed('codex', SCOPE), trusted: codexTrusted(SCOPE), cli: Boolean(findCodexCli()) },
     loginItem: Boolean(cfg.loginItem),
-    canLoginItem: app.isPackaged || IS_WIN || (IS_MAC && existsSync(SHORTCUT)),
+    canLoginItem: WIN ? Boolean(winLoginTarget()) : app.isPackaged || existsSync(SHORTCUT),
   }
 })
 
@@ -711,16 +773,18 @@ ipcMain.handle('wai:hooks', (_e, tool, on) => {
 })
 
 ipcMain.handle('wai:camera', async () => {
-  if (!IS_MAC) return { ok: true } // Windows: OS ถามเองตอนกล้องถูกใช้ครั้งแรก (askForMediaAccess มีเฉพาะ mac)
+  if (!MAC) return { ok: cameraStatus() !== 'denied' } // Windows ไม่มี API ขอสิทธิ์ ถูกบล็อก = ให้ผู้ใช้ไปเปิดใน Settings > Privacy > Camera
   return { ok: await systemPreferences.askForMediaAccess('camera') }
 })
 
 // เปิดตอนเข้าเครื่อง: แอปจริงใช้ API ของ Electron · ตอน dev ชี้ไปที่ shortcut (ไม่งั้นจะเปิด Electron เปล่า)
 ipcMain.handle('wai:login-item', async (_e, on) => {
   try {
-    if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: on })
-    else if (IS_WIN) app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, args: [HERE] }) // dev บน Windows: electron.exe + โฟลเดอร์แอป
-    else if (!IS_MAC) return { ok: false, error: 'เปิดตอนเข้าเครื่องรองรับเฉพาะ macOS และ Windows' }
+    if (WIN) {
+      const target = winLoginTarget()
+      if (!target) return { ok: false, error: 'ติดตั้ง shortcut ก่อน (install-shortcut.ps1)' }
+      app.setLoginItemSettings({ openAtLogin: on, path: target.path, args: target.args })
+    } else if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: on })
     else if (!existsSync(SHORTCUT)) return { ok: false, error: 'ติดตั้ง shortcut ก่อน (install-shortcut.sh)' }
     else if (on) await run('osascript', ['-e', `tell application "System Events" to make login item at end with properties {path:"${SHORTCUT}", hidden:true}`])
     else await run('osascript', ['-e', 'tell application "System Events" to delete (every login item whose name is "ไหว้กูซะ")'])
@@ -758,8 +822,16 @@ function setFlee(on) {
   updateTray()
 }
 
+/** ไอคอน tray: mac ใช้ emoji เป็น title (รูปว่าง) · Windows/Linux ต้องมีรูปจริง ไม่งั้นไม่เห็นอะไรเลย */
+function trayImage() {
+  if (MAC) return nativeImage.createEmpty()
+  const file = WIN ? (enabled ? 'icon.ico' : 'tray-off.ico') : enabled ? 'tray.png' : 'tray-off.png'
+  return nativeImage.createFromPath(join(HERE, 'assets', file))
+}
+
 function updateTray() {
-  if (IS_MAC) tray.setTitle(enabled ? ' 🙏' : ' 💤') // setTitle มีเฉพาะ mac (แสดงเป็นตัวหนังสือบน menu bar)
+  if (MAC) tray.setTitle(enabled ? ' 🙏' : ' 💤') // mac แสดงเป็นตัวหนังสือบน menu bar
+  else tray.setImage(trayImage())
   tray.setToolTip(enabled ? 'ไหว้กูซะ: เปิดอยู่' : 'ไหว้กูซะ: ปิดอยู่ (bypass)')
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -783,10 +855,9 @@ app.on('second-instance', () => openHome())
 
 app.whenReady().then(() => {
   app.dock?.hide() // เป็นแอป menu bar ไม่ขึ้น Dock
-  app.dock?.setIcon(nativeImage.createFromPath(ICON))
-  const trayImg = nativeImage.createFromPath(TRAY_ICON) // mac: @2x หยิบให้เองบนจอ retina
-  tray = new Tray(IS_WIN ? trayImg.resize({ width: 16, height: 16 }) : trayImg) // Windows ถาดระบบใช้ 16px
-  if (IS_WIN) tray.on('click', openHome)
+  if (WIN) app.setAppUserModelId('com.group10sthx.waikusa') // ชื่อ/ไอคอนบน taskbar + notification
+  tray = new Tray(trayImage())
+  if (!MAC) tray.on('click', openHome) // Windows: คลิกซ้าย = เปิดหน้าหลัก (คลิกขวา = เมนู)
   updateTray()
   createWindow()
   if (!DEV_INSTANCE) createVision() // ตัวลองของไม่เปิดกล้อง ใช้ POST /wai/dev/fail แทน

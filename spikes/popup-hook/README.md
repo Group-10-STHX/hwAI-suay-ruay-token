@@ -60,17 +60,42 @@ bash spikes/popup-hook/install-shortcut.sh --uninstall  # ลบ
 กดเปิดจาก Spotlight/Launchpad → build renderer แล้วเปิดแอปจากไฟล์ (ไม่ต้องรัน vite) · เปิดซ้ำ = เด้งหน้าหลักของตัวเดิม
 log: `~/Library/Logs/wai-kusa.log` · แอปชี้มาที่ path ของ repo นี้ ถ้าย้าย repo ให้รันใหม่
 
+## Windows (ยังไม่ได้ทดสอบบนเครื่องจริง)
+ต้องมี Node.js LTS + git · ใช้ PowerShell (5.1 ที่ติดมากับ Windows หรือ pwsh 7 ก็ได้)
+
+**dev (3 terminal)** เหมือน mac
+```powershell
+npm --prefix app/renderer run dev          # 1. renderer :5173 (หรือ dev:mock)
+npm --prefix spikes/popup-hook start       # 2. daemon :7777 + popup
+powershell -ExecutionPolicy Bypass -File spikes\popup-hook\setup-sandbox.ps1   # 3. ติด hook ใน %USERPROFILE%\wai-sandbox
+```
+`setup-sandbox.ps1` ไม่เขียน JSON เอง เรียก `install()` ของ `install-hooks.mjs` (merge + backup + marker เหมือน onboarding) โดยให้ hook รันด้วย `electron.exe`
+แล้ว `cd ~\wai-sandbox; claude` ส่ง prompt → popup เด้ง
+
+**Shortcut (Start Menu)**
+```powershell
+powershell -ExecutionPolicy Bypass -File spikes\popup-hook\install-shortcut.ps1             # Start Menu
+powershell -ExecutionPolicy Bypass -File spikes\popup-hook\install-shortcut.ps1 -Desktop    # + Desktop
+powershell -ExecutionPolicy Bypass -File spikes\popup-hook\install-shortcut.ps1 -Uninstall  # ลบ
+```
+กด Win พิมพ์ "ไหว้กูซะ" → `wscript launch.vbs` (ซ่อนหน้าต่าง) → `launch.ps1` build renderer แล้วเปิด `electron.exe` พร้อม `WAI_RENDERER_URL=file:///C:/.../app/renderer/dist/`
+ไฟล์อยู่ที่ `%LOCALAPPDATA%\waikusa\` (launch.vbs, launch.ps1, **log: `wai-kusa.log`**) · ย้าย repo = รันใหม่ · ไอคอนใช้ `assets\*.ico` ถ้ามี ไม่งั้นใช้ของ electron
+
+**Codex**: เปิด `%USERPROFILE%\wai-sandbox` ใน Codex → `/hooks` กด trust เอง (ไม่ trust = hook ไม่รัน)
+
+**รู้ไว้ก่อน**
+- เขียนบน mac ยังไม่เคยรันบน Windows จริง · สคริปต์ .ps1 ต้องเป็น UTF-8 **มี BOM** (5.1 อ่านไทยเพี้ยนถ้าไม่มี) แก้ไฟล์แล้วอย่าให้ editor ลบ BOM
+- hook บน Windows ชี้ไปที่ shim `%USERPROFILE%\.waikusa\hook.cmd` (Claude Code ใช้ exec form `cmd /d /c call …`, Codex ใช้ `cmd.exe /d /c call "…" codex; exit $LASTEXITCODE`) ยังไม่ได้ลองบนเครื่องจริง
+- SmartScreen/antivirus อาจเตือน `electron.exe` หรือ `wscript` · บางองค์กรปิด Windows Script Host → shortcut เปิดไม่ขึ้น
+- execution policy: ใช้ `-ExecutionPolicy Bypass` เสมอ (launcher ก็ใส่ไว้แล้ว)
+- tray บน Windows ต้องมี `.ico` · กล้องไม่ต้องขอสิทธิ์แบบ mac แต่ Windows Privacy → Camera ต้องเปิดให้แอป desktop
+- เปิดตอนเข้าเครื่อง (onboarding) ยังชี้ไป path ของ mac
+
 ## Onboarding (เปิดแอปครั้งแรก)
 ต้อนรับ → ขอกล้อง → ☐ Claude Code ☐ Codex (+ ปุ่มเปิด Codex ให้ trust) → ☐ เปิดตอนเข้าเครื่อง → เริ่มใช้งาน
 เปิดใหม่ได้จากปุ่ม ⚙ ในหน้าหลัก · สถานะเก็บที่ `~/.waikusa/config.json` (ลบไฟล์นี้ = เห็น onboarding อีกรอบ)
-- `install-hooks.mjs`: merge ลง settings เดิม ไม่ทับ hook อื่น, backup `.wai.bak` ครั้งแรก, ถอดเฉพาะของเรา (marker `--wai-hook` ท้ายคำสั่ง · รู้จัก `WAI_HOOK=1` รุ่นเก่าด้วย), JSON เสียอยู่แล้ว = ไม่แตะ
-- hook รันด้วย `node` จาก PATH (ไม่ต้องมี env prefix ใช้ได้ทั้ง Windows/mac) · ไม่มี node → Electron + `hook-run.cjs` (spawn ตัวเองพร้อม `ELECTRON_RUN_AS_NODE=1`) · dev = `~/wai-sandbox`, แอปที่ package = global (`WAI_HOOK_SCOPE` บังคับได้)
+- `install-hooks.mjs`: merge ลง settings เดิม ไม่ทับ hook อื่น, backup `.wai.bak` ครั้งแรก, ถอดเฉพาะของเรา (หาจาก marker `WAI_HOOK=1` / path ของ shim `~/.waikusa/hook.sh|.cmd` / path ของ hook.mjs), JSON เสียอยู่แล้ว = ไม่แตะ
+- hook รันด้วย Electron (`ELECTRON_RUN_AS_NODE=1`) ไม่ต้องมี node · dev = `~/wai-sandbox`, แอปที่ package = global (`WAI_HOOK_SCOPE` บังคับได้)
 - เปิดตอนเข้าเครื่องตอน dev ชี้ไปที่ `~/Applications/ไหว้กูซะ.app` (ต้องลง shortcut ก่อน)
 
-## โหมด dev: เก็บคลิปการไหว้ (คุณภาพต่ำ แบบกล้องวงจรปิด)
-เปิดด้วย `WAI_DEV_RECORD=1` หรือใส่ `"devRecord": true` ใน `~/.waikusa/config.json` (ค่าเริ่มต้นปิด)
-- 1 คลิป = 1 การไหว้ (จากเริ่มยกมือจนผ่าน/ไม่ผ่าน + หางสั้นๆ) ขาวดำ 320×180 ~6 fps ~90 kbps มีแถบเวลา
-- เก็บใน `~/.waikusa/clips/<วันที่>/HHMMSS_<pass|fail>_L<ระดับ>_s<คะแนน>.webm` และบรรทัดใน `clips/index.jsonl`
-- ไม่ออกจากเครื่อง ไม่ส่งขึ้นเว็บ · เก็บล่าสุด 60 คลิป เกินแล้วลบเฉพาะคลิปเก่าสุดในโฟลเดอร์ `clips/` นี้เท่านั้น
-- ท่อนที่แค่กะพริบสั้นกว่า 0.3 วินาทีไม่เก็บ
-- ทดสอบตรรกะ: `node --test vision/worker/clip-plan.test.mjs`
+> ⚠️ คำสั่ง hook เปลี่ยนมาใช้ shim ที่ `~/.waikusa/` แล้ว (mac ด้วย) → ติด hook ใหม่แล้ว Codex ต้อง `/hooks` trust ใหม่อีกรอบเดียว หลังจากนั้น path คงที่ ไม่ต้อง trust ใหม่ทุกเวอร์ชัน

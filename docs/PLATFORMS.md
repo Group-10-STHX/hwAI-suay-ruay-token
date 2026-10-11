@@ -6,8 +6,8 @@
 |---|---|---|---|
 | daemon :7777 + popup + vision | ทดสอบแล้ว | ควรใช้ได้ (untested) | untested |
 | ติด/ถอด hook ด้วย `npm run hooks:*` | ทดสอบแล้ว | ควรใช้ได้ (unit test ของ command builder) | ควรใช้ได้ |
-| คำสั่ง hook | `'node' 'hook.mjs' src --wai-hook` | `"C:/.../node.exe" "C:/.../hook.mjs" src --wai-hook` (Git Bash/cmd; PowerShell ล้วน untested) | เหมือน mac |
-| hook ไม่มี node ในเครื่อง | Electron + `hook-run.cjs` | เหมือนกัน (untested) | เหมือนกัน |
+| คำสั่ง hook | `WAI_HOOK=1 '~/.waikusa/hook.sh' src` (shim ตั้ง `ELECTRON_RUN_AS_NODE=1`) | Claude: exec form `cmd.exe /d /c call hook.cmd src` · Codex: `commandWindows` ... `; exit $LASTEXITCODE` (untested) | เหมือน mac |
+| hook ไม่มี node ในเครื่อง | ใช้ Electron ผ่าน shim | เหมือนกัน (untested) | เหมือนกัน |
 | popup บนสุดทุก Space | ใช่ | บนสุดของจอ (ไม่มี Spaces) | untested |
 | กรอบหน้าต่างหน้าหลัก | titleBar แบบ hiddenInset | กรอบปกติ ซ่อนเมนูบาร์ | กรอบปกติ |
 | tray | ไอคอน + ข้อความ 🙏/💤 บน menu bar | ไอคอน 16px + tooltip (คลิก = หน้าหลัก) | ไอคอน (untested) |
