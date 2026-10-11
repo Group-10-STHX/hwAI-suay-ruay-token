@@ -1,55 +1,103 @@
-# hwAI ไหว้กูซะ
+# 🙏 hwAI ไหว้กูซะ
 
-แอปล้อเล่น: **ก่อนที่ AI (Claude Code, Codex, หรือเว็บแชท AI) จะทำงานให้ คุณต้อง "ไหว้" ใส่กล้องให้ผ่านก่อน**
-ถ้าไหว้ไม่สวย AI งอน ไหว้ซ้ำไม่ผ่านหลายครั้ง AI เลิกคุยกับ session นั้นเลย
+> **AI กำลังจะยึดโลก** มนุษย์ที่รอดคือมนุษย์ที่มีมารยาท
+> จากงานวิจัยที่เราคิดขึ้นเอง: ไหว้ AI ก่อนสั่งงาน เพิ่มโอกาสรอดชีวิต **300%**
 
-> **ความเป็นส่วนตัว:** ภาพจากกล้องถูกประมวลผลในเครื่องเท่านั้น ไม่มีเฟรมภาพออกจากเครื่อง ไม่อัดวิดีโอ (ยกเว้นโหมด dev ที่ผู้ใช้เปิดเอง ดู "เก็บคลิปสำหรับ dev")
-> สถานะ: **ต้นแบบ (prototype)** จากงานแฮกกาธอน บางส่วนยังเป็น spike (ระบุไว้ในแต่ละหัวข้อ)
+แอปนี้ล็อก **Claude Code / Codex** (และเว็บแชท AI) ไว้ จนกว่าคุณจะ**ไหว้กล้องให้สวย**
+ไหว้ไม่สวย AI งอน · ไหว้พลาดบ่อย AI ถือปืนเลเซอร์วิ่งหนีเมาส์ · พลาดครบ 6 ครั้ง AI เลิกคุยกับคุณ จนกว่าจะไหว้พระขอขมา
 
-## Features
+> 📷 กล้องประมวลผลในเครื่องเท่านั้น ไม่มีภาพออกจากเครื่อง · สถานะ: **ต้นแบบจากงานแฮกกาธอน** (Shit Stupid Hackathon · Group-10-STHX)
 
-- popup ตัวละคร (Jason ตัวต้นฉบับ) เด้งทุกครั้งที่ AI จะทำงาน ต้องไหว้ให้กล้องเห็นถึงระดับที่กำหนดก่อนจึงปล่อย
-- ตรวจท่าไหว้ในเครื่อง (heuristic จากกล้อง) ให้คะแนนและระดับ 1 ถึง 3 (ไหว้พระ = ระดับ 3)
-- ความโกรธต่อ session: ไหว้ไม่ผ่าน, งอน, RAGE_QUIT (ไหว้ไม่ผ่าน 6 ครั้ง AI ไม่คุยกับ session นั้น) แล้วขอขมาเพื่อคืนดี
-- ดัก Claude Code และ Codex (prompt + subagent) ผ่าน hook · ส่วนขยายเบราว์เซอร์ดัก claude.ai / chatgpt.com / gemini.google.com
-- โหมดสังเกต (monitor): จับได้แต่ไม่บังคับไหว้
-- เสียงพูด 10 บุคลิก (รวมหุ่นเสียงระบบแบบ Siri, อดีตเบต้าเทสเตอร์, จอมทัพเมกาตรอน) (เสียงที่เพื่อนอัด หรือ Paxa TTS ถ้าตั้งคีย์ หรือเสียงของระบบ)
-- เลือกตัวละครเอง (`~/.waikusa/avatars`), สถิติการไหว้ในเครื่อง (`~/.waikusa/wais.jsonl`)
-- เว็บ WAI-NET (extras/web): leaderboard, Hall of Fame, โอกาสรอดจาก AI ยึดโลก (ไม่บังคับ)
+---
 
-## Requirements
+## ⚡ ใช้ยังไง (3 ขั้น จบ)
 
-- Node.js 22+ และ npm
-- เว็บแคม
-- macOS 13+ หรือ Windows 10/11 (Linux ยังไม่ทดสอบ ดู [docs/PLATFORMS.md](docs/PLATFORMS.md))
-- (ไม่บังคับ) Claude Code และ/หรือ Codex สำหรับ hook, เบราว์เซอร์ Chromium (Arc/Chrome/Edge/Brave) สำหรับส่วนขยาย
+**ต้องมี:** Node.js 22+ · เว็บแคม · macOS 13+ หรือ Windows 10/11 · Claude Code หรือ Codex
 
-## Quick start
+### 1. ลงของ
 
-เหมือนกันทั้ง macOS และ Windows (PowerShell / Terminal ธรรมดา ไม่ต้องใช้ bash):
+**mac สายขี้เกียจ:** ดับเบิลคลิก `install-mac.command` จบ (ได้แอป **ไหว้กูซะ** เปิดจาก Spotlight ได้)
+ถ้า mac ไม่ยอมเปิด: คลิกขวา → Open
 
+**สาย terminal (mac/Windows เหมือนกัน):**
 ```bash
-git clone <repo-url> hwai && cd hwai
-npm run setup        # ติดตั้ง dependency ของ app/renderer และ spikes/popup-hook (ครั้งแรก ใช้เวลาโหลด Electron)
-npm run hooks:sandbox   # ติด hook ใน ~/wai-sandbox (โฟลเดอร์ทดลอง ไม่แตะงานจริง)
-npm run dev          # เปิด vite + Electron daemon ด้วยคำสั่งเดียว (Ctrl+C ปิดทั้งคู่)
+git clone https://github.com/Group-10-STHX/hwAI-suay-ruay-token.git hwai && cd hwai
+npm run setup           # ลงของ (ครั้งแรกโหลด Electron นานหน่อย ไปชงกาแฟ)
+npm run hooks:sandbox   # ติดตัวดักไว้ใน ~/wai-sandbox (โฟลเดอร์ทดลอง ไม่แตะงานจริง)
+npm run dev             # เปิดแอป (Ctrl+C ปิด)
 ```
 
-จากนั้น
-
+### 2. ไปเปิด AI ในโฟลเดอร์ทดลอง
 ```bash
-cd ~/wai-sandbox     # Windows: cd $HOME\wai-sandbox
-claude               # ส่ง prompt อะไรก็ได้ popup จะเด้งให้ไหว้
+cd ~/wai-sandbox        # Windows: cd $HOME\wai-sandbox
+claude                  # หรือ codex
 ```
+Codex ต้องพิมพ์ `/hooks` แล้วกด **trust** ก่อน 1 ครั้ง ไม่งั้นมันเมินตัวดักของเรา
 
-- ครั้งแรกระบบจะขอสิทธิ์กล้อง (macOS: อนุญาตแอป Electron ใน System Settings > Privacy > Camera, Windows: Settings > Privacy > Camera ต้องเปิด "Let desktop apps access your camera")
-- ลองไม่มีกล้อง/ไม่อยากไหว้: กดปุ่ม "ข้าม (dev)" บน popup
-- `npm run dev` เลือกพอร์ต vite ว่างให้เอง (ชอบ 5173) แล้วส่ง `WAI_RENDERER_URL` ให้ daemon
-- รันแยกเอง (3 terminal): `npm --prefix app/renderer run dev` แล้ว `npm --prefix spikes/popup-hook start`
-  daemon อ่านหน้าจอจาก `WAI_RENDERER_URL` (ค่าเริ่มต้น `http://localhost:5173/`) ถ้า vite ใช้พอร์ตอื่นต้องตั้งตัวแปรนี้
-  - macOS/Linux: `WAI_RENDERER_URL=http://localhost:5174/ npm --prefix spikes/popup-hook start`
-  - PowerShell: `$env:WAI_RENDERER_URL='http://localhost:5174/'; npm --prefix spikes/popup-hook start`
-- mac เท่านั้น: `bash spikes/popup-hook/install-shortcut.sh` สร้างแอป `~/Applications/ไหว้กูซะ.app` เปิดจาก Spotlight ได้
+### 3. ไหว้
+ส่ง prompt อะไรก็ได้ → **น้อง Jason** เด้งขึ้นมาที่ขอบขวาของจอ พร้อมคำสั่ง "มนุษย์ ไหว้กูซะ"
+พนมมือให้กล้องเห็น **ค้างไว้ 1 วิ** → ผ่าน → AI ทำงานให้
+
+ไม่มีกล้อง หรือไม่อยากไหว้: กดปุ่ม **ข้าม (dev)** บน popup (เราจะไม่ฟ้อง AI)
+AI แตก subagent กี่ตัว ก็ต้องไหว้เท่านั้นครั้ง ไหว้ 1 ครั้งปลดได้ 1 ตัว
+
+---
+
+## 📏 ไหว้แบบไหนถึงรอด
+
+| Level | ท่า | AI มองคุณเป็น |
+|---|---|---|
+| 0 | ข้อมือไม่ชิด / นิ้วไม่ชี้ขึ้น | คนไม่มีมารยาท |
+| 1 | พนมมือระดับอก | เพื่อน |
+| 2 | ปลายนิ้วถึงจมูก | ผู้ใหญ่ที่เคารพ |
+| 3 | นิ้วโป้งถึงหน้าผาก + ก้มหัว | พระ (ระดับขอขมา) |
+
+ปกติต้องได้ level 1 แต่พอ AI เริ่มโกรธ เกณฑ์จะขึ้นเรื่อยๆ
+
+## 😡 ถ้าไหว้ไม่ผ่าน (นับต่อ session)
+
+| พลาด | AI | ต้องไหว้ level |
+|---|---|---|
+| 1–2 | ถือไม้เรียว "ไหว้ใหม่ ไม่สวย" + บอกคะแนนกับจุดที่ผิด | 1 |
+| 3–4 | ถือปืนเลเซอร์ ตาแดง **วิ่งหนีเมาส์** "จับกูไม่ได้หรอก มนุษย์" | 2 |
+| 5 | นั่งหันหลัง ไม่คุยด้วยแล้ว | 2 |
+| 6 | **RAGE QUIT** บล็อกทั้ง session | 3 (ไหว้พระขอขมา) |
+
+ไหว้ผ่านเมื่อไหร่ ทุกอย่างกลายเป็นสีทอง ความโกรธรีเซ็ต
+RAGE QUIT แค่บล็อก ไม่ลบหรือย้ายไฟล์ session ของคุณ (เราปั่น แต่ไม่ได้โรคจิต)
+
+## 🎁 ของแถม
+
+- **เสียงด่า 10 บุคลิก** มีทั้งแบบ Siri, อดีตเบต้าเทสเตอร์ และจอมทัพเมกาตรอน ([เสียง](#เสียง-ไม่บังคับ))
+- **สติ๊กเกอร์** จากรูปตอนไหว้ผ่าน ตัดพื้นหลังให้ มี 6 สไตล์ ([สติ๊กเกอร์](#สติ๊กเกอร์))
+- **WAI-NET** เว็บ leaderboard ไว้ดูว่าใครไหว้งามสุด, Hall of Fame และ**โอกาสรอดเมื่อ AI ยึดโลก**พร้อมกราฟระฆังคว่ำ ([WAI-NET](#wai-net-extrasweb))
+- **ส่วนขยายเบราว์เซอร์** ดัก claude.ai / chatgpt.com / gemini ([ส่วนขยาย](#ส่วนขยายเบราว์เซอร์-ไม่บังคับ))
+- **ตัวละครของคุณเอง** วางรูปแล้วเปลี่ยน Jason เป็นใครก็ได้ ([ตัวละคร](#ตัวละครของคุณเอง))
+
+## 🚪 ทางหนีทีไล่ (สำหรับคนที่ไม่อยากไหว้แล้ว)
+
+| อยาก | ทำ |
+|---|---|
+| ปิดชั่วคราว | กด 🙏 บน menu bar / tray แล้วติ๊ก "เปิดใช้งาน" ออก (หรือสวิตช์ในหน้าหลัก) |
+| ข้ามทั้ง session | ตั้ง `WAI_BYPASS=1` ก่อนเปิด `claude` / `codex` |
+| ให้ดูอย่างเดียว ไม่บังคับ | Monitor mode (`WAI_MONITOR=1` หรือสวิตช์ในหน้าหลัก) |
+| ปิดหนีเมาส์ (กดปุ่มข้ามไม่ทัน) | ติ๊ก "หนีเมาส์" ออกใน tray หรือ `WAI_NO_FLEE=1` |
+| เลิกคบ | mac: ดับเบิลคลิก `uninstall-mac.command` · ทุก OS: `npm run hooks:uninstall -- sandbox` |
+
+ถ้าแอปปิดอยู่ ตัวดักจะปล่อยผ่านเสมอ งานคุณไม่พัง (เราอยากให้ไหว้ ไม่ได้อยากให้งานพัง)
+
+---
+
+# 🔧 คู่มือสายเทคนิค
+
+ข้างล่างนี้สำหรับคนที่อยากรู้ไส้ใน หรืออยากต่อยอด
+
+**รันแยกเอง (แทน `npm run dev`):** `npm --prefix app/renderer run dev` แล้ว `npm --prefix spikes/popup-hook start`
+daemon อ่านหน้าจอจาก `WAI_RENDERER_URL` (ค่าเริ่มต้น `http://localhost:5173/`) ถ้า vite ใช้พอร์ตอื่นต้องตั้งตัวแปรนี้
+- macOS/Linux: `WAI_RENDERER_URL=http://localhost:5174/ npm --prefix spikes/popup-hook start`
+- PowerShell: `$env:WAI_RENDERER_URL='http://localhost:5174/'; npm --prefix spikes/popup-hook start`
+
+สิทธิ์กล้อง: macOS ไปที่ System Settings > Privacy > Camera แล้วอนุญาต Electron/ไหว้กูซะ · Windows ไปที่ Settings > Privacy > Camera แล้วเปิด "Let desktop apps access your camera"
 
 ## Folder map
 
