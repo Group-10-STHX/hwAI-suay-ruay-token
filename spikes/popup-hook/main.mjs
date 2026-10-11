@@ -517,7 +517,7 @@ function fleeTick() {
 
 // ไหว้ผ่านแล้วน้องอยู่คุยต่ออีกนิด (ไม่หายทันที) · มีผลเฉพาะตอนคิวหมดและเป็นการไหว้จริง (level > 0, ไม่ใช่โหมดสังเกต)
 // ใบใหม่เข้าคิว = เลิกคุย ขึ้นการ์ดใหม่ทันที · มีเวลาจำกัด ไม่มี timer วนหลังจากนั้น
-const LINGER_MS = 5000
+const LINGER_MS = 10_000
 let lingerUntil = 0
 let lingerTimer = null
 const lingerMsLeft = () => (queue.length === 0 ? Math.max(0, lingerUntil - Date.now()) : 0)

@@ -26,7 +26,7 @@
 - Window ทั้งหมดยกเว้นหน้าหลักเป็น transparent, frameless และ alwaysOnTop
 - พื้นที่โปร่งใสต้องคลิกทะลุได้ ห้ามบังงานของผู้ใช้
   - ทำจริงที่ main: `setIgnoreMouseEvents(true, {forward:true})` · เมาส์ขึ้นบนองค์ประกอบที่มี class `interactive` (เช่นปุ่มข้าม) renderer เรียก `window.wai.setInteractive(true)` ขอรับคลิก ออกแล้วคืน · ปุ่มใหม่ในหน้านี้ต้องใส่ `interactive` ไม่งั้นกดไม่ติด
-- ไหว้ผ่านแล้วน้อง **ไม่หายทันที**: ถ้าคิวว่าง daemon ให้ `state: PASSED` + `linger_ms` (~5 วิ) · AvatarWindow พิมพ์ `LINGER_LINES` ทีละบรรทัดทีละตัวอักษร (`SpeechBubble typing`) แล้วหายเอง · ใบใหม่เข้าคิว = เลิกคุยทันที · โหมดสังเกต/level 0 ไม่คุยต่อ
+- ไหว้ผ่านแล้วน้อง **ไม่หายทันที**: ถ้าคิวว่าง daemon ให้ `state: PASSED` + `linger_ms` (~10 วิ ปรับที่ `LINGER_MS` ใน main.mjs) · AvatarWindow พิมพ์ `LINGER_LINES` ทีละบรรทัดทีละตัวอักษร (`SpeechBubble typing`) แล้วหายเอง · ใบใหม่เข้าคิว = เลิกคุยทันที · โหมดสังเกต/level 0 ไม่คุยต่อ
 - Webcam window เป็นของทีม Vision (MediaPipe รันอยู่ในนั้น) ทีมเราห้ามไปปิดหรือซ่อนมันเอง ให้ส่งคำขอผ่าน main
 
 

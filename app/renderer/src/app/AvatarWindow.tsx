@@ -105,8 +105,8 @@ function Badge({ tone, children }: { tone: 'hud' | 'blessed'; children: string }
   )
 }
 
-/** บรรทัดคุยต่อหลังไหว้ผ่าน: เปลี่ยนบรรทัดทุก ~1.6 วิ เริ่มใหม่ทุกครั้งที่เข้าช่วงคุย · ไม่คุย = undefined */
-const LINGER_LINE_MS = 1600
+/** บรรทัดคุยต่อหลังไหว้ผ่าน: เปลี่ยนบรรทัดทุก ~2.5 วิ เริ่มใหม่ทุกครั้งที่เข้าช่วงคุย · ไม่คุย = undefined */
+const LINGER_LINE_MS = 2500
 function useLingerChat(on: boolean, score: number) {
   const [i, setI] = useState(0)
   const [frozen, setFrozen] = useState(score)
