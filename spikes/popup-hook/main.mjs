@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { codexTrusted, install, installed, SANDBOX, uninstall } from './install-hooks.mjs'
 import { createSessions, planVision } from './session-state.mjs' // state machine ต่อ session (contract §4)
 import { createAvatars, handleAvatarRoute } from './avatars.mjs' // เลือก/เสิร์ฟตัวละคร (~/.waikusa/avatars)
+import { BRIBE_AMOUNT_BAHT, canBribe, checkVoucher } from './bribe.mjs' // ง้อด้วยซอง True Money (mock ล้อเล่น)
 import { createVoice, defaultPlayImpl } from './voice.mjs'
 import { createVoiceAdmin } from './voice-admin.mjs' // หลังบ้านอัดเสียง /admin/voice // เสียงพูด: เสียงที่เพื่อนอัด → Paxa TTS (แคช) → say กันยา
 import { createStickers, isStickerStyle, normalizeStickerStyle, STICKER_FILE_RE, STICKER_STYLES } from './stickers.mjs' // สติ๊กเกอร์ตอนไหว้ผ่าน (~/.waikusa/stickers)
@@ -420,6 +421,22 @@ function onVision(type, payload = {}) {
 // renderer ของ popup บอกว่าเมาส์อยู่บนปุ่มไหม (forward:true = ยังได้ mousemove ไว้ตรวจ) · รับเฉพาะจาก popup เอง
 ipcMain.on('wai:interactive', (e, on) => {
   if (win && !win.isDestroyed() && e.sender === win.webContents) win.setIgnoreMouseEvents(!on, { forward: true })
+})
+// ง้อ AI ด้วยรหัสซอง True Money 500 บาท (MOCK ล้อเล่น ไม่ตรวจจริง) · IPC จาก popup เท่านั้น ไม่เปิด HTTP กันเว็บอื่นยิงข้าม
+// รหัสไม่ถูกเก็บ ไม่ log ไม่ส่งต่อ: ใช้แค่ตัดสินว่ากรอกมาหรือยัง แล้วทิ้ง
+ipcMain.handle('wai:bribe', (e, code) => {
+  if (!win || win.isDestroyed() || e.sender !== win.webContents) return { ok: false, message: 'ไม่รับจากที่นี่' }
+  const top = queue[0]
+  if (!top || top.monitor) return { ok: false, message: 'ตอนนี้ไม่มีใครรอไหว้อยู่' }
+  const st = sessions.get(top.session_id).state
+  if (!canBribe(st)) return { ok: false, message: 'น้องยังไม่งอน ไหว้เองก็ผ่าน' }
+  const v = checkVoucher(code)
+  if (!v.ok) return v
+  sessions.reset(top.session_id)
+  console.log(`[wai] ค่าไถ่ ${BRIBE_AMOUNT_BAHT} บาท (mock) → ปลด session ${top.session_id}`)
+  for (const q of queue.filter((x) => x.session_id === top.session_id)) resolve(q.id, { passed: true, level: 0, score: 0, action: 'allow' })
+  speak('PASSED')
+  return { ok: true, message: `รับ ${BRIBE_AMOUNT_BAHT} บาทแล้ว หายงอนก็ได้` }
 })
 ipcMain.on('vision:pass', (_e, payload) => onVision('pass', payload))
 ipcMain.on('vision:fail', (_e, payload) => onVision('fail', payload))

@@ -27,6 +27,7 @@
 - Window ทั้งหมดยกเว้นหน้าหลักและหน้าต่างกล้องเป็น transparent, frameless และ alwaysOnTop
 - พื้นที่โปร่งใสต้องคลิกทะลุได้ ห้ามบังงานของผู้ใช้
   - ทำจริงที่ main: `setIgnoreMouseEvents(true, {forward:true})` · เมาส์ขึ้นบนองค์ประกอบที่มี class `interactive` (เช่นปุ่มข้าม) renderer เรียก `window.wai.setInteractive(true)` ขอรับคลิก ออกแล้วคืน · ปุ่มใหม่ในหน้านี้ต้องใส่ `interactive` ไม่งั้นกดไม่ติด
+- **ง้อด้วยเงิน (mock ล้อเล่น)**: ตอน SULKING/FORGIVE ใต้น้องมีปุ่ม "ง้อด้วยเงิน 500 บาท (True Money)" (`states/BribePanel`) กรอกรหัสซองแล้ว daemon ล้าง anger ของ session + ปล่อยคำขอ (level 0 นับเป็น bypass ไม่ให้ token/ไม่ลง wais.jsonl) · ไม่ตรวจกับ True Money จริง ไม่เก็บ/ไม่ log รหัส ผ่าน IPC `window.wai.bribe` เท่านั้น ต้องมีข้อความ "ล้อเล่น" กำกับเสมอ · ไม่โชว์ตอน ANNOYED (น้องวิ่งหนีเมาส์)
 - ไหว้ผ่านแล้วน้อง **ไม่หายทันที**: ถ้าคิวว่าง daemon ให้ `state: PASSED` + `linger_ms` (~10 วิ ปรับที่ `LINGER_MS` ใน main.mjs) · AvatarWindow พิมพ์ `LINGER_LINES` ทีละบรรทัดทีละตัวอักษร (`SpeechBubble typing`) แล้วหายเอง · ยังมีคิวต่อ = น้องรีแอค PASSED ~2.5 วิ ก่อนขึ้นการ์ดใบถัดไป · คิวว่างแล้วมีใบใหม่เข้า = เลิกคุยทันที · โหมดสังเกต/level 0 ไม่คุยต่อ
 - Webcam window เป็นของทีม Vision (MediaPipe รันอยู่ในนั้น) ทีมเราห้ามไปปิดหรือซ่อนมันเอง ให้ส่งคำขอผ่าน main
 

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { avatarUrl, MAX_VISIBLE_CARDS, REQUEST_TIMEOUT_MS, skipItem } from '../api'
+import { avatarUrl, BRIBE_AMOUNT_BAHT, MAX_VISIBLE_CARDS, REQUEST_TIMEOUT_MS, skipItem, submitBribe } from '../api'
 import { avatarMoodFor, Mascot } from '../mascot'
 import { useSfxLevel } from '../sfx/store'
 import { useScoreSound } from '../sfx/useScoreSound'
 import { CardStack, PendingCount, TimeLeft } from '../queue'
-import { Island, LINGER_LINES } from '../states'
+import { BribePanel, Island, LINGER_LINES } from '../states'
 import { providerAccent, v } from '../theme/tokens'
 import { splitQueue } from './derive'
 import { useStore } from './store'
@@ -77,6 +77,10 @@ export function AvatarWindow() {
             </>
           }
         />
+      )}
+      {/* ง้อด้วยเงิน (mock ล้อเล่น): เฉพาะตอนงอน/รอขอขมา ที่ ANNOYED น้องวิ่งหนีเมาส์ จึงไม่โชว์ */}
+      {top && !queue.monitor && (queue.state === 'SULKING' || queue.state === 'FORGIVE') && (
+        <BribePanel amount={BRIBE_AMOUNT_BAHT} onSubmit={submitBribe} />
       )}
       {top && (
         <button className="interactive mono" onClick={() => skipItem(top.id)} style={skipStyle}>
